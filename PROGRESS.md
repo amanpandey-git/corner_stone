@@ -71,3 +71,18 @@
 - No on-disk embedding cache yet: re-ingesting a changed file re-embeds all of its chunks (fine at this scale; the SHA-256 dedup avoids re-embedding unchanged files).
 ### Next atomic action
 - Step 4a: write `HNSWIndex` (faiss IndexIDMap + IndexHNSWFlat, add/search/save/load, ef = max(ef_search, k)) and `Manifest` in src/cornerstone/index/, with tests/test_index.py and tests/test_manifest.py; then `MetadataStore`, then `ingest_file()`.
+
+## [2026-10-15] - Step 4a: HNSWIndex + Manifest
+### Done
+- `HNSWIndex` in index/hnsw_index.py: faiss IndexIDMap2(IndexHNSWFlat, METRIC_INNER_PRODUCT), add_with_ids (label = chunk_id), search (ef = max(ef_search, k), k clipped to size, empty index -> empty arrays), atomic save, load(path, cfg) with manifest check, all_ids().
+- `Manifest`, `manifest_from_config`, `read/write_manifest`, `check_manifest` in index/manifest.py; manifest.json is written next to the index and checked on load (model name, revision, dimension, space, normalisation, index_version; missing or corrupt manifest also raises ModelMismatch).
+- tests/test_index.py: 14 tests (add, incremental add, save/reload identical results, mismatch x5, missing/corrupt manifest, empty index, k > n, ef < k, bad inputs).
+- 52 tests passing in total.
+### In progress / partial
+- None.
+### Not started
+- Step 4b: MetadataStore (SQLite). Step 4c: ingest_file() with hashing, dedup, replace. Steps 5-8.
+### Known issues / TODO
+- Soft-deleted vectors stay in the graph; a compaction/rebuild command is out of Stage 1 scope (stats should report the deleted count).
+### Next atomic action
+- Step 4b: implement `MetadataStore` in index/metadata_store.py per ARCHITECTURE.md 4.5/section 3 (documents, pages, chunks; find_by_hash, find_active_by_name, add_document -> chunk_ids, activate, mark_replaced, get_chunks, stats, check_sync) with tests/test_metadata_store.py.

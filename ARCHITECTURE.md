@@ -84,7 +84,7 @@ chunks(chunk_id INTEGER PK AUTOINCREMENT, doc_id INT FK, page_start INT NULL, pa
 indexes: chunks(doc_id), documents(file_name), documents(sha256)
 ```
 - `AUTOINCREMENT` guarantees a `chunk_id` is **never reused**, so a label in the index always refers to exactly one chunk, even after deletes.
-- **ID mapping**: `chunk_id` (SQLite) == label in the HNSW index (`IndexIDMap`). Search returns labels -> `SELECT ... WHERE chunk_id IN (...)`.
+- **ID mapping**: `chunk_id` (SQLite) == label in the HNSW index (`IndexIDMap2`). Search returns labels -> `SELECT ... WHERE chunk_id IN (...)`.
 - Page text is not stored in `pages` (it is in chunks); only status/reason/size, to answer "was every page indexed or flagged?".
 
 ## 4. Public contracts
@@ -139,21 +139,25 @@ class Embedder:
 ### 4.5 `index/hnsw_index.py`, `index/manifest.py`, `index/metadata_store.py`
 ```python
 class HNSWIndex:
-    def __init__(self, dim: int, M: int, ef_construction: int, ef_search: int)
-    def add(self, ids: np.ndarray, vectors: np.ndarray) -> None   # incremental, never rebuilds
-    def search(self, query: np.ndarray, k: int, ef_search: int | None = None) -> tuple[np.ndarray, np.ndarray]  # (labels, scores), -1 padded dropped
-    def save(self, path: Path) -> None
+    def __init__(self, manifest: Manifest, M: int, ef_construction: int, ef_search: int)
     @classmethod
-    def load(cls, path: Path, manifest: Manifest) -> "HNSWIndex"   # raises ModelMismatch
+    def from_config(cls, cfg: dict) -> "HNSWIndex"              # new empty index + manifest from config
+    def add(self, ids: np.ndarray, vectors: np.ndarray) -> None   # incremental, never rebuilds; ValueError on dup ids, wrong dim, non-unit or NaN vectors
+    def search(self, query: np.ndarray, k: int, ef_search: int | None = None) -> tuple[np.ndarray, np.ndarray]  # (labels, scores), -1 padded dropped
+    def save(self, path: Path) -> None                            # index (atomic replace) then manifest.json next to it
+    @classmethod
+    def load(cls, path: Path, cfg: dict) -> "HNSWIndex"          # reads manifest next to the file, check_manifest, raises ModelMismatch
+    def all_ids(self) -> np.ndarray                               # every label incl. soft-deleted, for the sync check
     def __len__(self) -> int
 ```
-- faiss `IndexIDMap(IndexHNSWFlat(dim, M, METRIC_INNER_PRODUCT))`. Inner product on unit vectors == cosine.
+- faiss `IndexIDMap2(IndexHNSWFlat(dim, M, METRIC_INNER_PRODUCT))`, vectors added with `add_with_ids` (label = chunk_id). `remove_ids` is never used (unsupported for HNSW). Inner product on unit vectors == cosine.
 - Search uses `ef = max(ef_search, k)`. `k > len(index)` -> returns `len(index)` results. Empty index -> empty arrays (no exception).
 - Deleted chunks stay in the graph; the caller (`search.py`) filters them via SQLite and over-fetches (doubling `k'` until `k` live hits or `k' >= len`).
 
 ```python
 @dataclass class Manifest: model_name, model_revision, dimension, space, normalized, created_at, index_version
-def write_manifest(path, m) / read_manifest(path) -> Manifest
+def manifest_from_config(cfg) -> Manifest; manifest_path_for(index_path) -> Path   # manifest.json beside the index
+def write_manifest(path, m) / read_manifest(path) -> Manifest   # missing/corrupt manifest raises ModelMismatch
 def check_manifest(m: Manifest, cfg: dict) -> None   # raises ModelMismatch with a clear message
 ```
 

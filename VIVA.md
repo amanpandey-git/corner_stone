@@ -29,6 +29,11 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: How do you embed 300+ pages without running out of memory?** A: Chunks are encoded in batches of 32; only the small (n x 384 float32) result matrix is kept, so memory is bounded by the batch, not the document.
 - **Q: How do you know the embeddings are sensible?** A: Tests check dimension 384, unit norm, that a deadlock question scores higher against a deadlock passage than a bread recipe, and that batched and single encoding agree.
 ## Step 4 - Index + store
+- **Q: What do M, ef_construction and ef_search control?** A: M is how many links each node keeps in the graph (more links = better recall, more memory). ef_construction is how wide the search is while building (better graph, slower build). ef_search is how many candidates are explored per query (higher = better recall, slower query); it must be at least k, so I use max(ef_search, k).
+- **Q: Why IndexIDMap2 and add_with_ids?** A: HNSW numbers vectors 0,1,2... by insertion. The wrapper lets me give each vector its chunk_id as label, so a search result is directly a SQLite primary key; no separate lookup table to keep in sync.
+- **Q: How do you delete a document if HNSW cannot remove vectors?** A: Soft delete: SQLite marks the chunks deleted and search filters them out (over-fetching so k live results remain). Labels are never reused (AUTOINCREMENT), so a stale vector can never be confused with a new chunk.
+- **Q: What does the manifest protect against?** A: Opening an index built with another model, dimension or metric. Vectors from different models live in different spaces, so results would be silently meaningless. The manifest records model name+revision, dimension, space and normalisation, and load raises ModelMismatch if any differs or the manifest is missing.
+- **Q: Why a unit-norm check in add()?** A: The index uses inner product as cosine. A non-normalised vector would silently rank by length instead of meaning, so it is rejected.
 ## Step 5 - Search + CLI
 ## Step 6 - Verification
 ## Step 7 - Demo UI
