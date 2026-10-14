@@ -82,7 +82,7 @@ $env:PYTHONPATH = "src"
 .\.venv\Scripts\python -m streamlit run app\streamlit_app.py --server.fileWatcherType none
 ```
 
-`--server.fileWatcherType none` is used because Streamlit's file watcher inspects every imported module, including torch, and can raise errors or add overhead there; the app needs no hot reload (restart it after code changes).
+`--server.fileWatcherType none` stops Streamlit's file watcher, which on Windows with Python 3.12 traced a missing `torchvision` import through `transformers` and printed a traceback although the app still ran; `torchvision` is not needed for Stage 1 and is not installed (restart the app after code changes, since hot reload is off).
 
 It uses the same `data/index/` as the CLI. Sync problems are shown on the page; interrupted ingests are only
 discarded when you click the button.
