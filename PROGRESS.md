@@ -103,3 +103,20 @@
 - Pages table stores status/reason/size only; page text lives in chunks.
 ### Next atomic action
 - Step 4c: write `IngestReport` dataclass and `ingest_file()` in pipeline.py per ARCHITECTURE.md 4.6, plus `open_stack(cfg)` helper? (decide in contract first), with tests/test_pipeline.py: ingest sample PDF, duplicate skipped, changed content replaced, bad files -> failed report, crash simulation -> pending detected.
+
+## [2026-10-15] - Step 4c: ingest_file() (Step 4 complete)
+### Done
+- `ingest_file()` and `file_sha256()` in pipeline.py: hash -> dedup -> replace -> parse -> chunk -> batched embed -> pending rows -> index add+save -> activate(replaces=). Bad files return a failed IngestReport before any row is written. Ordinary failure after add_document cleans itself up; a hard crash leaves a pending document.
+- `IngestReport` dataclass (cornerstone/__init__.py).
+- tests/test_pipeline.py: 11 tests (sample PDF, duplicate incl. renamed copy, replace, 4 bad-file kinds, missing file, crash -> pending/check_sync/discard_pending/re-ingest, ordinary failure cleanup, all-flagged document).
+- All 7 sample PDFs ingested: 422 pages, 409 text, 13 flagged, 328 chunks, 38.7 s; index 0.55 MB; sync OK; second run all skipped. Table saved to eval/results/ingest_report.md.
+- 72 tests passing in total.
+### In progress / partial
+- None.
+### Not started
+- Step 5 (search + CLI), 6, 7, 8.
+### Known issues / TODO
+- ingest_file() does not itself run check_sync; the CLI will do it on open and offer discard_pending / rebuild.
+- No real DOCX in samples/; DOCX is covered by generated files.
+### Next atomic action
+- Step 5a: contract for `search()` already in ARCHITECTURE.md 4.7; implement search.py (over-fetch + filter via store.get_chunks, EmptyQuery, k<1, snippet) with tests/test_search.py; then cli.py ingest/search/stats with `open_stack(cfg)` loading or creating the index under data/index/.

@@ -87,6 +87,25 @@ class Document:
 
 
 @dataclass
+class IngestReport:
+    """What happened to one file. status: indexed | replaced | skipped_duplicate | failed.
+
+    flagged_pages lists (page_no, "status: reason") for every page that was not indexed as text.
+    """
+
+    file_name: str
+    status: str
+    doc_id: int | None = None
+    pages_total: int = 0
+    pages_with_text: int = 0
+    pages_flagged: int = 0
+    flagged_pages: list[tuple[int | None, str]] = field(default_factory=list)
+    chunks_created: int = 0
+    seconds: float = 0.0
+    message: str = ""
+
+
+@dataclass
 class Chunk:
     """A retrievable piece of text. chunk_id is the SQLite key and the index label.
 

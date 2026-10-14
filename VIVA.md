@@ -39,6 +39,12 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: How is "replace" kept safe?** A: `activate(new, replaces=old)` retires the old version and activates the new one in the same transaction, and a unique index allows only one active document per file name, so there is never a moment with two versions or none.
 - **Q: Why AUTOINCREMENT?** A: Plain INTEGER PRIMARY KEY can reuse the id of a deleted row; AUTOINCREMENT never does, and those ids are index labels.
 
+- **Q: Walk me through what happens when I upload a file.** A: SHA-256 of the bytes; if an active document has that hash it is skipped. Otherwise parse and clean, chunk, embed in batches, write SQLite rows as pending, add vectors to the index and save it, and only then activate the rows. Same name with new content retires the old version in the same transaction as the activation.
+- **Q: Why activate only after the index file is saved?** A: Search trusts SQLite. If rows were active before the vectors were durable, a crash could leave chunks that search expects but the index cannot return.
+- **Q: What happens to a corrupt or password-protected file?** A: The parser raises a specific error before anything is written; the report says `failed` with the error name and reason, and nothing needs cleanup.
+- **Q: Why hash file bytes and not the file name?** A: A name can be reused with different content (replace) or a copy renamed with identical content (skip). Content identity is the hash.
+- **Q: Numbers?** A: 7 PDFs, 422 pages, 409 with text, 13 flagged needs_ocr, 328 chunks, 38.7 s total on a 4-core laptop.
+
 ## Step 5 - Search + CLI
 ## Step 6 - Verification
 ## Step 7 - Demo UI

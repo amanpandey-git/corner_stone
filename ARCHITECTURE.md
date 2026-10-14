@@ -66,7 +66,7 @@ All are `@dataclass` in `src/cornerstone/__init__.py`.
 
 **SearchResult**: `chunk: Chunk`, `score: float` (cosine, -1..1), `rank: int` (1-based), `snippet: str` (first `snippet_chars` of text).
 
-**IngestReport**: `file_name, status ('indexed'|'skipped_duplicate'|'replaced'|'failed'), doc_id, pages_total, pages_with_text, pages_flagged, flagged_reasons: dict[int|None, str], chunks_created, seconds, message`.
+**IngestReport**: `file_name, status ('indexed'|'skipped_duplicate'|'replaced'|'failed'), doc_id, pages_total, pages_with_text, pages_flagged, flagged_pages: list[(page_no|None, "status: reason")], chunks_created, seconds, message`.
 
 **Exceptions** (all subclass `CornerstoneError`): `UnsupportedFileType`, `EmptyFile`, `CorruptFile`, `PasswordProtected`, `ModelMismatch`, `IndexOutOfSync`, `EmptyQuery`.
 
@@ -186,9 +186,10 @@ class MetadataStore:
 ### 4.6 `pipeline.py`
 ```python
 def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, embedder: Embedder,
-                progress: Callable[[str], None] | None = None) -> IngestReport
+                index_path: Path, progress: Callable[[str], None] | None = None) -> IngestReport
 ```
-- Steps: hash -> duplicate check -> (replace) -> load_document -> chunk -> embed (batched, progress callback) -> store pending -> index.add -> save -> activate.
+- Steps: hash -> duplicate check -> (find old version) -> load_document -> chunk -> embed (batched, progress callback) -> store pending -> index.add -> index.save -> activate(replaces=old). `activate` runs only after the index file is saved, so search never sees a chunk the index cannot return.
+- Failure handling: a bad file fails **before any row is written**. An ordinary exception after `add_document` (disk full) triggers `discard_pending` and is re-raised; a hard crash leaves the document `pending` for `check_sync` to report. `ModelMismatch` is raised if embedder and index dimensions differ.
 - Same hash as an active doc -> `skipped_duplicate`, nothing written. Same file name, different hash -> new version indexed, old version `replaced` and its chunks `deleted=1`.
 - Unsupported/empty/corrupt/password-protected -> `IngestReport(status='failed', message=...)`, nothing written. Never raises for a bad *file*; does raise for bad config or `ModelMismatch`.
 - A doc where all pages are flagged is stored (with its flags) with 0 chunks and reported, not hidden.
