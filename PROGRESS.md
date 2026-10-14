@@ -44,7 +44,7 @@
 - `chunks <file>` debug command in cli.py (`PYTHONPATH=src python -m cornerstone.cli chunks <file> [--full]`).
 - Cleaner upgraded: position-independent footer removal (>=40% of pages, <=80 chars); footer-only pages with images -> needs_ocr (Page.has_image).
 - 30 tests passing (suite, ~12 s; tokenizer cached after first run).
-- Real samples: 7 PDFs -> 328 chunks; all chunks 40..275 tokens (<= hard_max 480); flagged pages: 14 (all needs_ocr/diagram slides).
+- Real samples: 7 PDFs -> 328 chunks; all chunks 40..275 tokens (<= hard_max 480); flagged pages: 13 (12 needs_ocr diagram/image slides + footer-only; 0 errors).
 ### In progress / partial
 - None.
 ### Not started
@@ -55,3 +55,19 @@
 - Chunk text keeps visual line breaks as "\n"; harmless for embedding.
 ### Next atomic action
 - Step 3: `Embedder` in embeddings.py (batching, normalisation, query prefix, cache) per ARCHITECTURE.md 4.4; download bge-small once (~130 MB); tests: dim 384, unit norm, related > unrelated.
+
+## [2026-10-15] - Step 3: Embeddings
+### Done
+- `Embedder` in embeddings.py: bge-small-en-v1.5 (pinned revision), CPU, batch 32, L2-normalised float32 output; query prefix on queries only; `EmptyQuery` on blank query, `ValueError` on blank passage; long queries truncated to `max_query_chars`; `count_tokens()`.
+- tests/test_embeddings.py: 8 tests (dim 384, unit norm, related > unrelated, prefix on queries only, batching == single, empty inputs, long query, token count).
+- Measured on this laptop: model load ~16 s, ~13 chunks/s (89 chunks of Unit 1 Part 2 in 6.9 s). All 328 sample chunks ~25 s.
+- 38 tests passing in total.
+### In progress / partial
+- None.
+### Not started
+- Steps 4-8.
+### Known issues / TODO
+- First run downloads ~130 MB to ~/.cache/huggingface (symlink warning on Windows is harmless).
+- No on-disk embedding cache yet: re-ingesting a changed file re-embeds all of its chunks (fine at this scale; the SHA-256 dedup avoids re-embedding unchanged files).
+### Next atomic action
+- Step 4a: write `HNSWIndex` (faiss IndexIDMap + IndexHNSWFlat, add/search/save/load, ef = max(ef_search, k)) and `Manifest` in src/cornerstone/index/, with tests/test_index.py and tests/test_manifest.py; then `MetadataStore`, then `ingest_file()`.

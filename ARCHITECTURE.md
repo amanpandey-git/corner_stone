@@ -134,7 +134,7 @@ class Embedder:
 ```
 - Processes in batches of `batch_size`; memory bounded. Empty list -> `(0, dim)` array.
 - `embed_query` raises `EmptyQuery` for empty/whitespace; truncates to `max_query_chars`.
-- Passage prefix is `""` for bge-small (only queries get the prefix).
+- Passage prefix is `""` for bge-small (only queries get the prefix). `embed_passages` raises `ValueError` on an empty/blank passage (an empty chunk is a bug upstream, never embedded silently). Model weights are cached by Hugging Face in `~/.cache/huggingface` and loaded once per `Embedder`.
 
 ### 4.5 `index/hnsw_index.py`, `index/manifest.py`, `index/metadata_store.py`
 ```python

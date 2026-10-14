@@ -23,6 +23,11 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: What happens to tiny fragments like a lone heading?** A: Under 40 tokens they are merged into the next chunk, otherwise they would be retrieved as meaningless hits.
 - **Q: Why count tokens with the model tokenizer, not words?** A: The limit that matters is in model tokens (WordPiece splits rare words into pieces); words under-count.
 ## Step 3 - Embeddings
+- **Q: What is the bge query prefix and why only on queries?** A: bge-small-en-v1.5 was trained with the instruction "Represent this sentence for searching relevant passages: " in front of short search queries, so a question lands close to the passages that answer it. Passages are documents, not questions, so they get no prefix. The prefix is part of the model contract, so it lives in config.yaml and is tested.
+- **Q: Why normalise vectors to unit length?** A: With unit vectors, cosine similarity equals the plain inner product, which is what the index computes fastest; it also removes length effects so only direction (meaning) matters, and scores fall in a fixed -1..1 range that can be compared across queries.
+- **Q: Why bge-small-en-v1.5 and not a bigger model?** A: 33M parameters (about 130 MB), 384 dimensions, strong English retrieval for its size, and it runs on 4 CPU cores in 8 GB RAM. Bigger models would be slower with little gain on a few hundred chunks.
+- **Q: How do you embed 300+ pages without running out of memory?** A: Chunks are encoded in batches of 32; only the small (n x 384 float32) result matrix is kept, so memory is bounded by the batch, not the document.
+- **Q: How do you know the embeddings are sensible?** A: Tests check dimension 384, unit norm, that a deadlock question scores higher against a deadlock passage than a bread recipe, and that batched and single encoding agree.
 ## Step 4 - Index + store
 ## Step 5 - Search + CLI
 ## Step 6 - Verification
