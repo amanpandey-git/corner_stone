@@ -199,16 +199,18 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
 def search(query: str, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex, embedder: Embedder,
            ef_search: int | None = None) -> list[SearchResult]
 ```
-- Empty/whitespace query -> `EmptyQuery`. Empty index -> `[]`. `k < 1` -> `ValueError`. Results sorted by score desc, deleted/replaced never returned.
+- Empty/whitespace query -> `EmptyQuery` (raised even on an empty index). Empty index -> `[]`. `k < 1` -> `ValueError`. Results sorted by score desc; deleted/replaced/pending chunks never returned.
+- Over-fetch: first asks the index for `3k` candidates, keeps those SQLite reports `active`, and doubles the fetch until `k` live hits or the whole index was examined (all hits deleted -> `[]`). `SearchResult(chunk, score, rank, snippet)`; the snippet is whitespace-collapsed text cut at `snippet_chars`.
 
 ### 4.8 `cli.py`
 ```
-python -m cornerstone.cli ingest <path|dir> [--force-model-check]
-python -m cornerstone.cli search "<query>" [-k 5]
-python -m cornerstone.cli stats
-python -m cornerstone.cli chunks <file>      # debug: print chunks of one file (Step 2)
+python -m cornerstone.cli [--config FILE] ingest <file|dir> [--yes] [-v]
+python -m cornerstone.cli [--config FILE] search "<query>" [--k 5] [--yes]
+python -m cornerstone.cli [--config FILE] stats [--yes]
+python -m cornerstone.cli chunks <file> [--full]     # debug: print chunks of one file
 ```
-Exit code 0 on success, 1 on failure; failed files are listed, never swallowed.
+Run with `PYTHONPATH=src`. Exit code 0 on success, 1 on failure; failed files are listed, never swallowed.
+- `open_stack(cfg, root, load_embedder, assume_yes)` opens or creates `<index_dir>/hnsw.faiss` + `cornerstone.sqlite`, loads the manifest (raises `ModelMismatch`), then runs `check_sync`. Problems are printed to stderr. Interrupted ingests are discarded **only** after an interactive `y` or `--yes`; non-interactive runs report and leave them. Orphan/missing vectors print how to rebuild (delete the index folder, re-ingest).
 
 ## 5. Configuration (`config.yaml`) and reasons
 

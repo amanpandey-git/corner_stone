@@ -120,3 +120,21 @@
 - No real DOCX in samples/; DOCX is covered by generated files.
 ### Next atomic action
 - Step 5a: contract for `search()` already in ARCHITECTURE.md 4.7; implement search.py (over-fetch + filter via store.get_chunks, EmptyQuery, k<1, snippet) with tests/test_search.py; then cli.py ingest/search/stats with `open_stack(cfg)` loading or creating the index under data/index/.
+
+## [2026-10-15] - Step 5: Search + CLI
+### Done
+- `search()` in search.py: query prefix, over-fetch 3k and widen, SQLite active filter, SearchResult(chunk, score, rank, snippet); EmptyQuery (also on empty index), k<1 ValueError, empty index / all-deleted -> [].
+- `SearchResult` dataclass; `open_stack()` + commands `ingest <file|dir>`, `search "<q>" --k`, `stats`, `chunks` in cli.py. Sync problems are printed; interrupted ingests are discarded only on `y` / `--yes`.
+- tests/test_search.py (6) and tests/test_cli.py (4): known questions -> expected file, replaced/deleted docs never appear, over-fetch behind deleted chunks, empty index, k too large, CLI round trip, failure exit codes, pending-ingest consent.
+- Real index built from samples/ into data/index (gitignored). 3 real searches saved to eval/results/sample_searches.md.
+- 82 tests passing in total.
+### In progress / partial
+- Awaiting user's check of the 3 searches against the slides.
+### Not started
+- Step 6 (verification), 7 (Streamlit), 8 (wrap-up).
+### Known issues / TODO
+- Repeated slide titles merge sections (page ranges up to 6 slides); some bullets become headings (NOTES.md). Not blocking.
+- `open_stack` offers a rebuild only as instructions; no rebuild command in Stage 1.
+- User must write eval/questions.jsonl (15-25 questions, expected file + page) before the Step 6 retrieval eval.
+### Next atomic action
+- Step 6a: write eval/ann_vs_bruteforce.py (HNSW vs numpy exact on the real index vectors, recall@10 at ef_search 10/50/100, latency p50/p95) and save to eval/results/. Needs vectors: reconstruct from the index (IndexIDMap2.reconstruct) or re-embed chunk texts; decide in the script header.

@@ -46,6 +46,12 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: Numbers?** A: 7 PDFs, 422 pages, 409 with text, 13 flagged needs_ocr, 328 chunks, 38.7 s total on a 4-core laptop.
 
 ## Step 5 - Search + CLI
+- **Q: How does search work end to end?** A: The query gets the bge prefix and is embedded to a unit vector; HNSW returns the nearest chunk ids by inner product; SQLite filters out anything not active and supplies file, page and section; results are ranked by score with a short snippet.
+- **Q: Why over-fetch?** A: HNSW cannot delete, so retired chunks can sit among the nearest neighbours. I ask for 3k candidates, filter, and widen until k live hits exist, so replaced documents never appear and k is still filled.
+- **Q: What does the score mean?** A: Cosine similarity between query and chunk (-1..1); 0.8+ is a strong match for bge on this data, but it is only a ranking, not a probability.
+- **Q: Why does the CLI ask before discarding interrupted ingests?** A: Deleting state automatically could hide a real fault. The tool reports the problem, then discards only on explicit consent (`y` or `--yes`).
+- **Q: Where could search be wrong?** A: Slide titles repeated across slides merge into one section (page ranges like 96-101), and some bullets are mistaken for headings; this affects citation precision, not whether the text is found.
+
 ## Step 6 - Verification
 ## Step 7 - Demo UI
 ## Step 8 - Wrap-up

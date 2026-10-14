@@ -106,6 +106,16 @@ class IngestReport:
 
 
 @dataclass
+class SearchResult:
+    """One hit. ``chunk`` carries the full metadata so Stage 2 (LLM, reranker) needs no index access."""
+
+    chunk: "Chunk"
+    score: float  # cosine similarity, -1..1
+    rank: int  # 1-based
+    snippet: str
+
+
+@dataclass
 class Chunk:
     """A retrievable piece of text. chunk_id is the SQLite key and the index label.
 
