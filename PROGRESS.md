@@ -220,3 +220,22 @@
 - Sidebar stats refresh on the next interaction after an upload.
 ### Next atomic action
 - User: run `streamlit run app\streamlit_app.py`, ingest samples/ through the UI once, and rehearse the demo; decide whether to move the tag (currently v0.1-indexing = README commit 92cba7b).
+
+## [2026-10-15 02:52] - Snapshot (pause): Stage 1 complete, demo UI committed
+### Done
+- Steps 0-8 complete and pushed: ingestion (PDF/DOCX, needs_ocr flags), cleaner, chunker, bge-small embedder, faiss HNSW + manifest, SQLite store, ingest_file with dedup/replace/crash-safe order, search, CLI (ingest/search/stats/chunks), eval (ANN recall 0.995 @ ef 50; hit@5 0.95, MRR 0.885 on 20 questions; p50/p95 35/57 ms), README with caveats and limitations, VIVA, Streamlit demo (app/streamlit_app.py).
+- Tag v0.1-indexing -> 92cba7b (README commit, before the UI). Later commits on main: 20bee32 (Streamlit UI), cf683b8 + 260ed29 (README: --server.fileWatcherType none and its reason).
+- 109 tests passing at last full run (20bee32; README-only commits since).
+### In progress / partial
+- Nothing in progress. No uncommitted code changes.
+- Demo UI has only been checked with Streamlit AppTest and a headless start (health ok, HTTP 200); not clicked through in a real browser.
+### Not started
+- Stage 2 (LLM answers with citations, reranking, BM25, OCR, near-duplicate collapsing) - out of scope for Stage 1.
+### Known issues / TODO
+- Unit 4 PDF repeats its own slides (27-51 = 2-26): duplicates not removed at ingest; one eval miss (FCFS seek time) is a ranking miss with that cause, not fixed on purpose (NOTES.md).
+- Heading heuristic promotes body lines in large-font decks; repeated slide titles merge sections.
+- DOCX verified only with generated files; no real DOCX in samples/.
+- Tag v0.1-indexing does not include the UI; user decides whether to move it.
+- Streamlit file watcher traces a missing torchvision import on Windows/Python 3.12 (harmless; run with --server.fileWatcherType none; torchvision deliberately not installed).
+### Next atomic action
+- User: run .\.venv\Scripts\python -m streamlit run app\streamlit_app.py --server.fileWatcherType none (with $env:PYTHONPATH="src"), ingest samples/ through the Upload tab, run one search, and report anything wrong; then decide whether to move tag v0.1-indexing to the latest main commit.
