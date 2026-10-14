@@ -79,7 +79,7 @@ def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_
 
 
 # ------------------------------------------------------------------ commands
-def _location(c) -> str:
+def location(c) -> str:
     if c.page_start is not None:
         return f"p.{c.page_start}" if c.page_start == c.page_end else f"pp.{c.page_start}-{c.page_end}"
     return f"paragraphs {c.para_start}-{c.para_end}"
@@ -125,7 +125,7 @@ def cmd_search(args, cfg) -> int:
         return 0
     for r in results:
         c = r.chunk
-        print(f"#{r.rank}  score {r.score:.3f}  {c.file_name}  {_location(c)}")
+        print(f"#{r.rank}  score {r.score:.3f}  {c.file_name}  {location(c)}")
         print(f"    section: {c.section_heading or '-'}")
         print(f"    {r.snippet}")
     return 0
@@ -162,7 +162,7 @@ def cmd_chunks(args, cfg) -> int:
         print(f"  flagged page {p.page_no}: {p.status} - {p.reason}")
     for c in chunks:
         body = c.text.replace("\n", " / ")
-        print(f"[{c.chunk_index:03d}] {_location(c):<10} {c.token_count:>3} tok | {c.section_heading or '-'}")
+        print(f"[{c.chunk_index:03d}] {location(c):<10} {c.token_count:>3} tok | {c.section_heading or '-'}")
         print(f"      {body if args.full else body[:160]}")
     if chunks:
         toks = [c.token_count for c in chunks]

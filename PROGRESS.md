@@ -203,3 +203,20 @@
 - See README "Known limitations".
 ### Next atomic action
 - Step 7: app/streamlit_app.py as a thin UI over open_stack/ingest_file/search; add `streamlit==1.66.0` to requirements.txt; test the logic helpers, smoke-run the page once.
+
+## [2026-10-15] - Step 7: Streamlit demo (after tag v0.1-indexing)
+### Done
+- app/streamlit_app.py: sidebar stats + flagged pages, Search tab (query, k, file/page/section/score, snippet, full chunk), Upload tab (PDF/DOCX -> ingest_file -> ingestion report + flagged pages). Sync problems shown; discard only via button. Embedder cached; store/index opened per run (thread-bound SQLite bug fixed, see NOTES.md).
+- `cli.location()` made public for reuse. streamlit==1.66.0 pinned in requirements.txt.
+- tests/test_app.py: 4 AppTest tests (render + stats, search with source, blank query, upload -> report -> duplicate). Headless server start checked (health ok, HTTP 200).
+- README updated (usage, test count). 109 tests passing.
+### In progress / partial
+- None.
+### Not started
+- Nothing planned for Stage 1.
+### Known issues / TODO
+- The tag v0.1-indexing points at the commit before the UI; the UI is a later commit on main.
+- Not tested in a real browser by the assistant (only AppTest + server health); please click through once before the demo.
+- Sidebar stats refresh on the next interaction after an upload.
+### Next atomic action
+- User: run `streamlit run app\streamlit_app.py`, ingest samples/ through the UI once, and rehearse the demo; decide whether to move the tag (currently v0.1-indexing = README commit 92cba7b).

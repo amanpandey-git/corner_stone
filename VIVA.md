@@ -67,6 +67,10 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: Is 0.95 a reliable number?** A: It is indicative, not precise: 20 questions, so one miss is 5 points. The questions are written in a natural style and share some wording with slide titles, so this is an easier test than adversarial paraphrases. It shows the pipeline retrieves the right slide, not that it would on any question.
 
 ## Step 7 - Demo UI
+- **Q: Why is there no logic in the Streamlit page?** A: The page only calls open_stack, ingest_file and search, the same functions the CLI and tests use, so what I verified is what the UI runs. It cannot disagree with the tested code.
+- **Q: What went wrong when you first built the UI?** A: SQLite connections belong to the thread that opened them and Streamlit reruns the script on different threads, so a cached store crashed with ProgrammingError. I cache only the embedding model (slow to load) and open the store per run.
+- **Q: How is the UI tested?** A: With Streamlit AppTest: page renders with stats, a search shows file/page/score, a blank query shows a message, and uploading a DOCX shows the ingestion report and then skipped_duplicate on a repeat.
+
 ## Step 8 - Wrap-up (evaluation and project-level questions)
 - **Q: What does "zero silent failures" mean and how do you show it?** A: Every page ends up indexed or flagged with a reason, and every bad file produces a failed report. For the 7 PDFs: 409 pages with text + 13 flagged needs_ocr = 422 pages; the ingestion report prints each flagged page and its reason, and `stats` lists them.
 - **Q: How did you build the evaluation set so it is not biased?** A: I wrote 20 questions from the extracted slide text, not from search results, with the answering phrase and page recorded in evidence.md. The scoring rules were fixed in the script before the first run, the three questions I had tried by hand are excluded, and I ran it once and changed nothing afterwards.

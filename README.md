@@ -19,6 +19,7 @@ It answers one question honestly: *given a student's question, does the index re
 | Store | SQLite: documents, pages, chunks; one `status` column decides what is searchable | `index/metadata_store.py` |
 | Dedup | SHA-256 of file bytes: same content skipped, same name with new content replaces the old version | `pipeline.py` |
 | Search | query -> top-k chunks with file, page/section, score, snippet | `search.py`, `cli.py` |
+| Demo UI | Streamlit page: upload, ingestion report, stats, search with sources (thin layer over the same functions; added after the `v0.1-indexing` tag) | `app/streamlit_app.py` |
 
 Not in Stage 1 (see `docs/future-scope.md`): LLM answers and citations, reranking, hybrid BM25, OCR, tables,
 equations and images, non-English documents, quizzes and other study features.
@@ -74,10 +75,20 @@ $env:PYTHONPATH = "src"
 - Index and database live in `data/index/` (git-ignored). If they disagree after a crash, the CLI says so and
   asks before discarding interrupted ingests (`--yes` to skip the question).
 
+Demo page (added after the `v0.1-indexing` tag): upload files, see the ingestion report and flagged pages, search with sources.
+
+```powershell
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python -m streamlit run app\streamlit_app.py
+```
+
+It uses the same `data/index/` as the CLI. Sync problems are shown on the page; interrupted ingests are only
+discarded when you click the button.
+
 Verification and tests:
 
 ```powershell
-.\.venv\Scripts\python -m pytest -q                                   # 105 tests, ~40 s
+.\.venv\Scripts\python -m pytest -q                                   # 109 tests, ~1 min
 .\.venv\Scripts\python eval\ann_vs_bruteforce.py                      # HNSW vs exact search
 .\.venv\Scripts\python eval\retrieval_eval.py --check                 # validate eval/questions.jsonl
 .\.venv\Scripts\python eval\retrieval_eval.py                         # hit@5, MRR, latency
@@ -170,5 +181,5 @@ study material (quizzes, flashcards, concept maps). Extension points are in `ARC
 ## Repository map
 
 `ARCHITECTURE.md` contracts and decisions | `PROGRESS.md` session log | `NOTES.md` decision and bug log |
-`VIVA.md` examiner questions | `config.yaml` all tunables | `src/cornerstone/` code | `tests/` 105 tests |
+`VIVA.md` examiner questions | `config.yaml` all tunables | `src/cornerstone/` code | `app/` Streamlit demo | `tests/` 109 tests |
 `eval/` verification scripts, questions, results | `samples/` the 7 course PDFs | `docs/` plan and future scope.

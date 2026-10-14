@@ -273,6 +273,9 @@ hnswlib was rejected: no Windows wheel for Python 3.12 and no C++ compiler (NOTE
 | model/dim mismatch | `ModelMismatch` | test_manifest |
 | empty / huge query | `EmptyQuery` / truncated to `max_query_chars` | test_search |
 
+## 8b. Demo UI (`app/streamlit_app.py`)
+Thin layer: `open_stack` (per script run), `ingest_file` for uploads saved to `paths.raw_dir`, `search` for queries; sidebar shows `MetadataStore.stats()`; sync problems are displayed and `discard_pending` is only called from a button. No retrieval or ingestion logic in the UI. Only the `Embedder` is cached (`st.cache_resource`); SQLite connections are opened and closed per script run because they are bound to one thread and Streamlit reruns on different threads. `CORNERSTONE_CONFIG` selects another config file (used by tests).
+
 ## 9. Stage 2 extension points
 - **Generation / citations**: consume `list[SearchResult]` from `search()`; each has file, page/section, text. No index change.
 - **Reranking**: wrap `search()`: fetch k=50, rerank with a cross-encoder on `chunk.text`, return top 5. Same `SearchResult` type.
