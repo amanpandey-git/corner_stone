@@ -1,0 +1,38 @@
+# All tunables live here. No magic numbers in code. Reasons: ARCHITECTURE.md section 5.
+paths:
+  raw_dir: data/raw
+  index_dir: data/index          # holds hnsw.faiss, manifest.json, cornerstone.sqlite
+
+extraction:
+  scan_min_chars: 25             # a page with fewer cleaned chars than this (and no text layer) is "needs OCR"
+  header_footer_band: 0.12       # top/bottom fraction of page height searched for repeated lines
+  header_footer_min_frac: 0.5    # line must appear on >= this fraction of pages to be removed
+  heading_size_ratio: 1.15       # span font size >= body median * ratio => heading candidate
+
+chunking:
+  target_tokens: 256
+  overlap_tokens: 48
+  min_tokens: 40                 # smaller fragments are merged into a neighbour
+  hard_max_tokens: 480           # always < model max_seq_length (512)
+
+embedding:
+  model_name: BAAI/bge-small-en-v1.5
+  model_revision: null           # pinned in ARCHITECTURE.md toolchain table; filled in Step 3
+  dimension: 384
+  max_seq_length: 512
+  batch_size: 32
+  normalize: true
+  query_prefix: "Represent this sentence for searching relevant passages: "
+  passage_prefix: ""
+
+hnsw:
+  space: cosine                  # implemented as inner product on unit vectors
+  M: 16
+  ef_construction: 200
+  ef_search: 50
+  initial_capacity: 10000        # informational for hnswlib; faiss grows automatically
+
+search:
+  default_k: 5
+  max_query_chars: 2000
+  snippet_chars: 300
