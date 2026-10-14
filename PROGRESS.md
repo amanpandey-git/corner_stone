@@ -188,3 +188,18 @@
 - 20 questions: one question = 5 points; wording is natural and shares some words with slide titles.
 ### Next atomic action
 - Step 7: minimal Streamlit page app/streamlit_app.py (upload -> ingest report, stats, search with sources) as a thin layer over open_stack/ingest_file/search; add streamlit to requirements.txt at that point (version 1.66.0 already installed).
+
+## [2026-10-15] - Step 8: Wrap-up (tag v0.1-indexing)
+### Done
+- README.md: what Stage 1 does, Mermaid architecture, Windows setup, usage, results tables (ingestion, ANN recall, retrieval) with caveats (one question = 5 points; Unit 4 duplicate miss; equivalent_pages added before the first run), known limitations (no cross-file questions, duplicates not removed at ingest, no OCR, DOCX only generated, English only, heading heuristics), Stage 2 roadmap.
+- VIVA.md: 10 evaluation / project-level questions added under Step 8.
+- Results untouched (eval/results/*). Tag v0.1-indexing created on this commit.
+- 105 tests passing.
+### In progress / partial
+- None.
+### Not started
+- Step 7 (Streamlit demo): intentionally after the tag; not part of v0.1-indexing.
+### Known issues / TODO
+- See README "Known limitations".
+### Next atomic action
+- Step 7: app/streamlit_app.py as a thin UI over open_stack/ingest_file/search; add `streamlit==1.66.0` to requirements.txt; test the logic helpers, smoke-run the page once.
