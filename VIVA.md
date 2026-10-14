@@ -17,6 +17,11 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: Why does DOCX have no page numbers?** A: Page breaks in DOCX depend on rendering (fonts, printer), so a page number would be invented. I store heading sections with paragraph ranges, which are stable.
 
 ## Step 2 - Chunking
+- **Q: Why chunk at all, and why 256 tokens with 48 overlap?** A: The embedding model reads up to 512 tokens and one vector per chunk must represent one idea; 256 is about 1-2 paragraphs, so a hit points to a precise page. Overlap (~19%) makes sure a sentence cut by a boundary is complete in at least one chunk.
+- **Q: What is structure-aware chunking?** A: I split at headings first (so a chunk never mixes two topics), and only then by token windows inside long sections. A heading line stays at the top of its chunk so the topic words are embedded with the content.
+- **Q: What if a section or sentence is longer than the model limit?** A: It is split (by sentence, then by words), never truncated; hard_max is 480 < 512. A test with a 400-word unpunctuated sentence proves nothing is lost.
+- **Q: What happens to tiny fragments like a lone heading?** A: Under 40 tokens they are merged into the next chunk, otherwise they would be retrieved as meaningless hits.
+- **Q: Why count tokens with the model tokenizer, not words?** A: The limit that matters is in model tokens (WordPiece splits rare words into pieces); words under-count.
 ## Step 3 - Embeddings
 ## Step 4 - Index + store
 ## Step 5 - Search + CLI

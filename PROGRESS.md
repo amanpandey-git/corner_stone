@@ -36,3 +36,22 @@
 - Multi-column reading order is best-effort (PyMuPDF sort=True).
 ### Next atomic action
 - Step 2: implement `chunk_pages()` in src/cornerstone/chunking.py per ARCHITECTURE.md 4.3 using a token counter; tests/test_chunking.py; `cli.py chunks <file>` debug command.
+
+## [2026-10-15] - Step 2: Structure-aware chunking
+### Done
+- `chunk_pages()` in chunking.py: sections by heading, token windows with overlap, merge of fragments < 40 tokens, never truncates.
+- `load_token_counter()` in embeddings.py (tokenizer only, bge revision pinned).
+- `chunks <file>` debug command in cli.py (`PYTHONPATH=src python -m cornerstone.cli chunks <file> [--full]`).
+- Cleaner upgraded: position-independent footer removal (>=40% of pages, <=80 chars); footer-only pages with images -> needs_ocr (Page.has_image).
+- 30 tests passing (suite, ~12 s; tokenizer cached after first run).
+- Real samples: 7 PDFs -> 328 chunks; all chunks 40..275 tokens (<= hard_max 480); flagged pages: 14 (all needs_ocr/diagram slides).
+### In progress / partial
+- None.
+### Not started
+- Steps 3-8.
+### Known issues / TODO
+- One irregularly wrapped footer variant remains in Unit 3 (logged in NOTES.md).
+- Median chunk is 50-90 tokens because slides are short; kept as one chunk per slide-section on purpose (precise page hits). Revisit only if Step 6 hit@5 is low, and say so honestly.
+- Chunk text keeps visual line breaks as "\n"; harmless for embedding.
+### Next atomic action
+- Step 3: `Embedder` in embeddings.py (batching, normalisation, query prefix, cache) per ARCHITECTURE.md 4.4; download bge-small once (~130 MB); tests: dim 384, unit norm, related > unrelated.

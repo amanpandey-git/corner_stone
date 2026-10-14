@@ -107,7 +107,7 @@ def load_document(path: Path, cfg: dict) -> list[Page]   # dispatch by extension
 def clean_pages(pages: list[Page], cfg: dict) -> list[Page]
 def normalise_text(text: str) -> str
 ```
-- Removes lines repeated (digits and punctuation ignored, so "MITS-DU" == "MITS DU") among the first/last `header_footer_lines` (3) non-blank lines of >= `header_footer_min_frac` of pages (needs >= 3 pages), and bare page numbers ("12", "Page 3 of 10") in those same edge lines. Skipped for DOCX sections (page_no None). A page left with no text becomes `empty` with a reason. Headings are re-located by text after cleaning.
+- Removes lines repeated (digits and punctuation ignored, so "MITS-DU" == "MITS DU") on >= `header_footer_min_frac` (0.4) of pages (needs >= 3 pages; only lines up to `header_footer_max_chars` = 80 chars; **anywhere** on the page, because reading order can put a footer mid-text), and bare page numbers ("12", "Page 3 of 10") in the first/last `header_footer_lines` (3) lines. Skipped for DOCX sections (page_no None). A page left with no text becomes `needs_ocr` if it has an image (`Page.has_image`), else `empty`, with a reason. Headings are re-located by text after cleaning.
 - `normalise_text`: collapse runs of spaces/tabs, join hyphenated line breaks, collapse >2 blank lines, strip zero-width chars. Uses NFC, **not** NFKC, so maths symbols are kept; ligature code points (U+FB00..FB06) are expanded to letters, never dropped. Private-use glyphs (U+E000..F8FF, Wingdings bullets) are removed; real bullets (U+2022 etc.) are kept.
 - Idempotent: `normalise_text(normalise_text(x)) == normalise_text(x)`.
 
@@ -118,11 +118,14 @@ def chunk_pages(pages: list[Page], doc_id: int, file_name: str, cfg: dict, count
 - Only `ok` pages are chunked. Sections split at headings first; a section longer than `target_tokens` is split on paragraph then sentence boundaries into windows of `target_tokens` with `overlap_tokens` overlap. Nothing is truncated; a single sentence over `hard_max_tokens` is split by words.
 - Fragments `< min_tokens` (e.g. a lone heading) are merged into the next chunk (or previous if last).
 - No headings: whole document is treated as one section; `section_heading=None`.
+- Overlap is whole trailing sentences/paragraphs up to `overlap_tokens`; if the last sentence alone exceeds the budget, its last words are repeated instead. Every window consumes at least one new atom, so the loop always terminates.
+- A section is a run of paragraphs under one heading; the heading persists across pages until the next heading. The heading line is kept as the first line of its chunk text.
 - `chunk_id` is `0` here and assigned by the store at insert time. `chunk_index` is contiguous from 0.
 - Empty input -> `[]`.
 
 ### 4.4 `embeddings.py`
 ```python
+def load_token_counter(cfg: dict) -> Callable[[str], int]   # tokenizer only (~1 MB), no model weights; used by chunking + CLI
 class Embedder:
     def __init__(self, cfg: dict) -> None                 # loads model once (CPU)
     def embed_passages(self, texts: list[str]) -> np.ndarray   # (n, dim) float32, L2-normalised

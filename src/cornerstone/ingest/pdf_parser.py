@@ -101,7 +101,7 @@ def extract_pdf(path: Path, cfg: dict) -> list[Page]:
             elif n_chars < ex["scan_min_chars"] and has_image:
                 pages.append(Page(page_no, text, "needs_ocr",
                                   f"no usable text layer ({n_chars} chars) and page has an image: needs OCR",
-                                  headings))
+                                  headings, has_image=True))
             else:
-                pages.append(Page(page_no, text, "ok", None, headings))
+                pages.append(Page(page_no, text, "ok", None, headings, has_image=has_image))
         return pages

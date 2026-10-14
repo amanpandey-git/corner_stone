@@ -62,19 +62,20 @@ def _relocate_headings(headings: list[Heading], text: str) -> list[Heading]:
 
 
 def clean_pages(pages: list[Page], cfg: dict) -> list[Page]:
-    """Return cleaned copies of pages. Never drops a page; may change status to empty."""
+    """Return cleaned copies of pages. Never drops a page; may change status to empty/needs_ocr."""
     ex = cfg["extraction"]
     n_edge = ex["header_footer_lines"]
+    max_len = ex["header_footer_max_chars"]
     paged = [p for p in pages if p.page_no is not None and p.text.strip()]
 
-    # repeated edge lines: count the pages on which each key appears in an edge position
+    # running headers/footers: short lines whose key shows up on a large share of the pages.
+    # Position is not required: PyMuPDF reading order can put a footer mid-text.
     repeated: set[str] = set()
     if len(paged) >= 3:
         counts: Counter = Counter()
         for p in paged:
-            lines = p.text.split("\n")
-            keys = {_key(lines[i]) for i in _edge_indices(lines, n_edge)}
-            counts.update(k for k in keys if k)
+            keys = {_key(ln) for ln in p.text.split("\n") if ln.strip() and len(ln) <= max_len}
+            counts.update(k for k in keys if len(k) >= 3)
         need = ex["header_footer_min_frac"] * len(paged)
         repeated = {k for k, c in counts.items() if c >= need}
 
@@ -86,13 +87,15 @@ def clean_pages(pages: list[Page], cfg: dict) -> list[Page]:
         lines = p.text.split("\n")
         drop = set()
         if p.page_no is not None:  # DOCX sections have no running headers in body text
-            for i in _edge_indices(lines, n_edge):
-                if _PAGE_NUM.match(lines[i]) or _key(lines[i]) in repeated:
-                    drop.add(i)
+            drop |= {i for i, ln in enumerate(lines) if len(ln) <= max_len and _key(ln) in repeated}
+            drop |= {i for i in _edge_indices(lines, n_edge) if _PAGE_NUM.match(lines[i])}
         text = normalise_text("\n".join(ln for i, ln in enumerate(lines) if i not in drop))
         status, reason = p.status, p.reason
         if status == "ok" and not text:
-            status, reason = "empty", "only header/footer/page-number text; nothing left after cleaning"
+            if p.has_image:
+                status, reason = "needs_ocr", "no content text besides header/footer; page has an image/diagram: needs OCR"
+            else:
+                status, reason = "empty", "only header/footer/page-number text; nothing left after cleaning"
         cleaned.append(replace(p, text=text, status=status, reason=reason,
                                headings=_relocate_headings(p.headings, text)))
     return cleaned

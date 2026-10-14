@@ -1,12 +1,13 @@
-﻿# All tunables live here. No magic numbers in code. Reasons: ARCHITECTURE.md section 5.
+# All tunables live here. No magic numbers in code. Reasons: ARCHITECTURE.md section 5.
 paths:
   raw_dir: data/raw
   index_dir: data/index          # holds hnsw.faiss, manifest.json, cornerstone.sqlite
 
 extraction:
   scan_min_chars: 25             # a page with fewer cleaned chars than this (and no text layer) is "needs OCR"
-  header_footer_lines: 3         # first/last N non-blank lines of a page are header/footer candidates
-  header_footer_min_frac: 0.5    # line must appear on >= this fraction of pages to be removed
+  header_footer_lines: 3         # page numbers are only removed from the first/last N non-blank lines
+  header_footer_min_frac: 0.4    # a short line on >= this fraction of pages is a running header/footer
+  header_footer_max_chars: 80    # only lines up to this long can be headers/footers
   heading_size_ratio: 1.15       # span font size >= body median * ratio => heading candidate
 
 chunking:

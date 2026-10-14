@@ -1,4 +1,4 @@
-﻿from cornerstone import Heading, Page
+from cornerstone import Heading, Page
 from cornerstone.ingest.cleaner import clean_pages, normalise_text
 from cornerstone.ingest.pdf_parser import extract_pdf
 
@@ -23,6 +23,18 @@ def test_footer_spelling_variants_and_top_band(cfg):
                     "unrelated content here"])
     out = clean_pages(pages, cfg)
     assert [p.text for p in out[:3]] == ["alpha beta", "gamma delta", "epsilon zeta"]
+
+
+def test_repeated_footer_in_middle_of_text_removed(cfg):
+    pages = _pages([f"Topic {w}\nfoot MITS-DU\ntail words {w}" for w in ("a", "b", "c", "d")])
+    assert all("MITS" not in p.text for p in clean_pages(pages, cfg))
+
+
+def test_footer_only_page_with_image_is_needs_ocr(cfg):
+    pages = [Page(i, f"Dr X MITS-DU\nbody about {w}") for i, w in enumerate(("a", "b", "c", "d"), 1)]
+    pages.append(Page(5, "Dr X MITS-DU", has_image=True))
+    out = clean_pages(pages, cfg)
+    assert out[-1].status == "needs_ocr" and "OCR" in out[-1].reason
 
 
 def test_non_repeating_edge_line_kept(cfg):

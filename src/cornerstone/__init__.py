@@ -67,3 +67,26 @@ class Page:
     para_end: int | None = None
     page_id: int | None = None
     doc_id: int | None = None
+    has_image: bool = False  # page contains an image/diagram (not extracted in Stage 1)
+
+
+@dataclass
+class Chunk:
+    """A retrievable piece of text. chunk_id is the SQLite key and the index label.
+
+    chunk_id is 0 until the metadata store assigns it. Location is page_start/page_end
+    for PDF, para_start/para_end for DOCX (the other pair is None).
+    """
+
+    chunk_id: int
+    doc_id: int
+    file_name: str
+    text: str
+    chunk_index: int
+    token_count: int
+    section_heading: str | None = None
+    page_start: int | None = None
+    page_end: int | None = None
+    para_start: int | None = None
+    para_end: int | None = None
+    deleted: bool = False
