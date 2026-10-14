@@ -34,6 +34,11 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: How do you delete a document if HNSW cannot remove vectors?** A: Soft delete: SQLite marks the chunks deleted and search filters them out (over-fetching so k live results remain). Labels are never reused (AUTOINCREMENT), so a stale vector can never be confused with a new chunk.
 - **Q: What does the manifest protect against?** A: Opening an index built with another model, dimension or metric. Vectors from different models live in different spaces, so results would be silently meaningless. The manifest records model name+revision, dimension, space and normalisation, and load raises ModelMismatch if any differs or the manifest is missing.
 - **Q: Why a unit-norm check in add()?** A: The index uses inner product as cosine. A non-normalised vector would silently rank by length instead of meaning, so it is rejected.
+- **Q: Why can a crash not leave a half-ingested document searchable?** A: Writes happen in one SQLite transaction and everything is first stored as `pending`; only a second transaction flips document and chunks to `active` together. Search only sees `active` chunks, so a crash leaves a pending document that `check_sync` reports and `discard_pending` cleans up.
+- **Q: Why is the deleted flag in the chunks table?** A: One column (`chunks.status`) decides whether a vector may be returned, so search, stats and the sync check cannot disagree.
+- **Q: How is "replace" kept safe?** A: `activate(new, replaces=old)` retires the old version and activates the new one in the same transaction, and a unique index allows only one active document per file name, so there is never a moment with two versions or none.
+- **Q: Why AUTOINCREMENT?** A: Plain INTEGER PRIMARY KEY can reuse the id of a deleted row; AUTOINCREMENT never does, and those ids are index labels.
+
 ## Step 5 - Search + CLI
 ## Step 6 - Verification
 ## Step 7 - Demo UI

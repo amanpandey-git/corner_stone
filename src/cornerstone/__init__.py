@@ -71,6 +71,22 @@ class Page:
 
 
 @dataclass
+class Document:
+    """One ingested file version. status: pending -> active -> replaced (or abandoned)."""
+
+    file_name: str
+    sha256: str
+    file_type: str  # "pdf" | "docx"
+    doc_id: int = 0
+    n_pages: int = 0
+    n_pages_text: int = 0
+    n_pages_flagged: int = 0
+    n_chunks: int = 0
+    status: str = "pending"
+    ingested_at: str = ""
+
+
+@dataclass
 class Chunk:
     """A retrievable piece of text. chunk_id is the SQLite key and the index label.
 

@@ -35,7 +35,7 @@ All are `@dataclass` in `src/cornerstone/__init__.py`.
 | n_pages | int | PDF pages, or number of DOCX sections |
 | n_pages_text / n_pages_flagged | int | indexed vs flagged |
 | n_chunks | int | |
-| status | str | `pending`, `active`, `replaced` |
+| status | str | `pending` (ingest in progress/interrupted), `active`, `replaced`, `abandoned` |
 | ingested_at | str | ISO-8601 UTC |
 
 **Page** (extraction unit. PDF: one physical page. DOCX: one heading-delimited section, because DOCX has no pages)
@@ -62,7 +62,7 @@ All are `@dataclass` in `src/cornerstone/__init__.py`.
 | chunk_index | int | 0-based position within the document |
 | token_count | int | embedding-model tokenizer |
 | text | str | |
-| deleted | bool | soft-delete flag |
+| deleted | bool | derived from SQLite `chunks.status == 'deleted'` (the column is the single source of truth: `pending` / `active` / `deleted`) |
 
 **SearchResult**: `chunk: Chunk`, `score: float` (cosine, -1..1), `rank: int` (1-based), `snippet: str` (first `snippet_chars` of text).
 
@@ -73,14 +73,15 @@ All are `@dataclass` in `src/cornerstone/__init__.py`.
 ## 3. SQLite (`data/index/cornerstone.sqlite`)
 
 ```
-documents(doc_id INTEGER PK AUTOINCREMENT, file_name TEXT, sha256 TEXT UNIQUE-ish, file_type TEXT,
+documents(doc_id INTEGER PK AUTOINCREMENT, file_name TEXT, sha256 TEXT (not unique: an old version can be re-uploaded), file_type TEXT,
           n_pages INT, n_pages_text INT, n_pages_flagged INT, n_chunks INT,
           status TEXT, ingested_at TEXT)
 pages(page_id INTEGER PK AUTOINCREMENT, doc_id INT FK, page_no INT NULL, para_start INT NULL, para_end INT NULL,
       status TEXT, reason TEXT NULL, n_chars INT)
 chunks(chunk_id INTEGER PK AUTOINCREMENT, doc_id INT FK, page_start INT NULL, page_end INT NULL,
        para_start INT NULL, para_end INT NULL, section_heading TEXT NULL,
-       chunk_index INT, token_count INT, text TEXT, deleted INT DEFAULT 0)
+       chunk_index INT, token_count INT, text TEXT, status TEXT DEFAULT 'pending' CHECK in (pending, active, deleted))
+unique index: documents(file_name) WHERE status = 'active'   -- at most one live version per name
 indexes: chunks(doc_id), documents(file_name), documents(sha256)
 ```
 - `AUTOINCREMENT` guarantees a `chunk_id` is **never reused**, so a label in the index always refers to exactly one chunk, even after deletes.
@@ -166,13 +167,21 @@ class MetadataStore:
     def __init__(self, db_path: Path)
     def find_by_hash(self, sha256: str) -> Document | None
     def find_active_by_name(self, file_name: str) -> Document | None
-    def add_document(self, doc: Document, pages: list[Page], chunks: list[Chunk]) -> list[int]   # returns chunk_ids
-    def activate(self, doc_id: int) -> None
-    def mark_replaced(self, doc_id: int) -> None            # sets chunks.deleted = 1
-    def get_chunks(self, chunk_ids: list[int]) -> dict[int, Chunk]   # only non-deleted
+    def get_document(self, doc_id: int) -> Document | None
+    def list_documents(self, status: str = "active") -> list[Document]
+    def add_document(self, doc: Document, pages: list[Page], chunks: list[Chunk]) -> list[int]
+        # ONE transaction: document + pages + chunks, all `pending`; returns chunk_ids in chunk order; sets doc.doc_id
+    def activate(self, doc_id: int, replaces: int | None = None) -> None
+        # ONE transaction: pending -> active (+ retire `replaces`); ValueError if not pending
+    def mark_replaced(self, doc_id: int) -> None            # active -> replaced, its chunks -> deleted
+    def discard_pending(self, doc_id: int) -> None          # interrupted ingest: pending -> abandoned, chunks -> deleted
+    def get_chunks(self, chunk_ids: list[int]) -> dict[int, Chunk]   # `active` chunks only
+    def active_chunk_ids(self) -> list[int]
     def stats(self) -> dict
     def check_sync(self, index_ids: set[int]) -> list[str]   # human-readable problems, [] if consistent
 ```
+- Every multi-row write is a single SQLite transaction (`with conn:`), so a crash leaves either nothing or a complete `pending` document, never a half-written or half-active one.
+- `check_sync` reports: pending documents (interrupted ingests), vectors with no SQLite row, active chunks with no vector. Soft-deleted chunks may remain in the index (not a problem).
 
 ### 4.6 `pipeline.py`
 ```python

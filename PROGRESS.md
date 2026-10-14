@@ -86,3 +86,20 @@
 - Soft-deleted vectors stay in the graph; a compaction/rebuild command is out of Stage 1 scope (stats should report the deleted count).
 ### Next atomic action
 - Step 4b: implement `MetadataStore` in index/metadata_store.py per ARCHITECTURE.md 4.5/section 3 (documents, pages, chunks; find_by_hash, find_active_by_name, add_document -> chunk_ids, activate, mark_replaced, get_chunks, stats, check_sync) with tests/test_metadata_store.py.
+
+## [2026-10-15] - Step 4b: MetadataStore (SQLite)
+### Done
+- `MetadataStore` in index/metadata_store.py: tables documents/pages/chunks; `chunks.status` (pending/active/deleted) is the single soft-delete source; AUTOINCREMENT ids; unique index = one active version per file name.
+- `add_document` (one transaction, returns chunk_ids), `activate(doc_id, replaces=)` (atomic swap), `mark_replaced`, `discard_pending`, `find_by_hash`, `find_active_by_name`, `get_document`, `list_documents`, `get_chunks` (active only), `active_chunk_ids`, `stats`, `check_sync`.
+- `Document` dataclass added to cornerstone/__init__.py.
+- tests/test_metadata_store.py: 9 tests (round trip, find by hash/name, replace, crash -> pending, rollback on failed write, sync mismatch both ways, stats/flagged pages, one-active-per-name).
+- 61 tests passing in total.
+### In progress / partial
+- None.
+### Not started
+- Step 4c: pipeline.ingest_file() (hash, dedup, replace, batching, progress, IngestReport). Steps 5-8.
+### Known issues / TODO
+- Chunk.deleted is derived from status; code must never set chunk status directly outside the store.
+- Pages table stores status/reason/size only; page text lives in chunks.
+### Next atomic action
+- Step 4c: write `IngestReport` dataclass and `ingest_file()` in pipeline.py per ARCHITECTURE.md 4.6, plus `open_stack(cfg)` helper? (decide in contract first), with tests/test_pipeline.py: ingest sample PDF, duplicate skipped, changed content replaced, bad files -> failed report, crash simulation -> pending detected.
