@@ -8,6 +8,8 @@ One JSON object per line, 15-25 lines, **written from the slides, before looking
 
 - `pages` is always a list: the 1-based PDF page(s) that contain the answer. Use several when the
   answer spans slides. A question is a hit@5 if any listed page is covered by a top-5 chunk.
+- Optional `"equivalent_pages": [..]`: pages holding a verbatim duplicate of the answer (`Unit 4` repeats its
+  slides 2-26 as 27-51). A result covering any of them is a hit; they are not counted as multi-page.
 - Do not reuse the three Step 5 questions (deadlock conditions / process vs thread / paging and
   external fragmentation); they are excluded from scoring if present.
 - Vary the units; include some questions whose answer is on one slide and some on two.

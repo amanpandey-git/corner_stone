@@ -171,3 +171,20 @@
 - README results table still empty; fill in from eval/results/ann_recall.md, ingest_report.md, retrieval_eval.md in Step 8.
 ### Next atomic action
 - When questions.jsonl exists: `PYTHONPATH=src python eval/retrieval_eval.py --check`, then run once, commit eval/results/retrieval_eval.md unchanged, report hit@5 / MRR / misses honestly. Meanwhile Step 7 (minimal Streamlit page) can start: it does not depend on the eval.
+
+## [2026-10-15] - Step 6b: retrieval evaluation run (Step 6 complete)
+### Done
+- eval/questions.jsonl: 20 questions written from the extracted slide text; spread 3/4/3/3/2/3/2 over the 7 files; 3 two-consecutive-page questions (Unit 1-1 p.14-15, Unit 1-2 p.75-76, Unit 2 p.11-12); no cross-file questions; Step 5 questions not reused. eval/evidence.md has the exact phrase + page for each.
+- Harness extended BEFORE the first run with optional `equivalent_pages` (Unit 4 PDF duplicates its slides 2-26 as 27-51); 19 harness tests.
+- Format check passed (20 valid, 0 excluded). Evaluation run once, nothing tuned: hit@5 = 0.950 (19/20), MRR = 0.885, multi-page 5/6 labelled pages found, end-to-end latency p50 35 ms / p95 57 ms. Saved unchanged to eval/results/retrieval_eval.md.
+- Targets from CLAUDE.md: ANN recall@10 >= 0.95 MET (0.995); hit@5 >= 0.8 MET (0.95). Zero silent failures: 409 text + 13 flagged = 422 pages.
+- 105 tests passing.
+### In progress / partial
+- None.
+### Not started
+- Step 7 (Streamlit), Step 8 (README results, final wrap-up, tag v0.1-indexing).
+### Known issues / TODO
+- 1 miss (Q14, Unit 4 FCFS seek time): ranking miss, analysed in NOTES.md; duplicate slides within a PDF halve effective top-k; mis-detected body-line headings in large-font decks.
+- 20 questions: one question = 5 points; wording is natural and shares some words with slide titles.
+### Next atomic action
+- Step 7: minimal Streamlit page app/streamlit_app.py (upload -> ingest report, stats, search with sources) as a thin layer over open_stack/ingest_file/search; add streamlit to requirements.txt at that point (version 1.66.0 already installed).

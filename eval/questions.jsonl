@@ -1,0 +1,20 @@
+{"question": "What are the two parts of an operating system and what does each one do?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [12]}
+{"question": "Which five services does an operating system provide for the convenience of its users?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [14, 15]}
+{"question": "What are the user mode and kernel mode, and what is a system call?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [43]}
+{"question": "What does the dispatcher do and which steps does it involve?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [40]}
+{"question": "How does the size of the time quantum affect context switches, response time and starvation in round robin scheduling?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [75, 76]}
+{"question": "Which system calls does a parent use to create a child process and to wait for it to finish?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [34]}
+{"question": "Which multithreading model gives every user thread its own kernel thread?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [115]}
+{"question": "What three requirements must a solution to the critical section problem satisfy?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [6]}
+{"question": "How do binary semaphores differ from counting semaphores?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [11, 12]}
+{"question": "What does a cycle in a resource allocation graph tell us when every resource has a single instance?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [44]}
+{"question": "Which of first fit, best fit and worst fit used memory most efficiently for the 212 KB, 417 KB, 112 KB and 426 KB requests?", "file": "Unit 3_Memory management.pdf", "pages": [22]}
+{"question": "What is a TLB and why is it used with page tables?", "file": "Unit 3_Memory management.pdf", "pages": [43]}
+{"question": "How many page faults does FIFO page replacement produce for the reference string with three frames?", "file": "Unit 3_Memory management.pdf", "pages": [48]}
+{"question": "What is the total seek time for FCFS disk scheduling on a 200-track disk with the head starting at 50?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [10], "equivalent_pages": [35]}
+{"question": "What are the advantages and disadvantages of the shortest seek time first disk scheduling algorithm?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [14], "equivalent_pages": [39]}
+{"question": "What are the three methods of allocating disk blocks to files?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [45]}
+{"question": "How can a dangling pointer be avoided when a file shared in an acyclic-graph directory is deleted?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [26]}
+{"question": "What do the three digits of chmod 761 mean for owner, group and public?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [38]}
+{"question": "How does a UNIX process change its protection domain with the setuid bit, su and sudo?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [7]}
+{"question": "In an access matrix, what do the rows and columns represent?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [10]}

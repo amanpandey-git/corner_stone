@@ -9,7 +9,7 @@
 ## Day 2
 - [x] Step 4 - Index + store: HNSW save/load/grow/mark_deleted, SQLite, manifest, ingest_file() with dedup, tests
 - [x] Step 5 - Search + CLI: search() -> SearchResult, CLI ingest/search/stats
-- [ ] Step 6 (6a ANN recall done; 6b retrieval eval needs questions.jsonl) - Verification: ANN vs brute-force (ef_search sweep), retrieval eval, README table
+- [x] Step 6 (ANN recall 0.995; retrieval hit@5 0.95, MRR 0.885 on 20 questions) - Verification: ANN vs brute-force (ef_search sweep), retrieval eval, README table
 - [ ] Step 7 - Demo UI: minimal Streamlit page (only after 0-6 are green)
 - [ ] Step 8 - Wrap-up: README, final PROGRESS.md, tag `v0.1-indexing`
 

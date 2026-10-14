@@ -2,7 +2,10 @@
 
 Input: eval/questions.jsonl, one JSON object per line:
     {"question": "What is ...?", "file": "Unit 3_Memory management.pdf", "pages": [23]}
-"pages" is always a list (several pages when the answer spans slides).
+"pages" is always a list (several pages when the answer spans slides). Optional
+"equivalent_pages": pages holding a verbatim duplicate of the answer slide (Unit 4 repeats its own
+slides 2-26 as 27-51); a result covering any of them counts as a hit, but they are not part of the
+multi-page statistics.
 
 Scoring (fixed before any results were seen; do not change after looking at them):
   * A result "covers" a page if it is from the labelled file and the page lies inside the chunk's
@@ -92,6 +95,7 @@ def validate_questions(path: Path, samples_dir: Path = SAMPLES) -> tuple[list[di
             errors.append(f"{where}: missing field(s) {missing}")
             continue
         q, f, pages = obj["question"], obj["file"], obj["pages"]
+        eq = obj.get("equivalent_pages", [])
         if not isinstance(q, str) or not q.strip():
             errors.append(f"{where}: 'question' must be a non-empty string")
             continue
@@ -106,7 +110,11 @@ def validate_questions(path: Path, samples_dir: Path = SAMPLES) -> tuple[list[di
         if total is None:
             errors.append(f"{where}: file '{f}' not found in samples/ (or not a PDF)")
             continue
-        bad = [p for p in pages if p < 1 or p > total]
+        if (not isinstance(eq, list) or not all(isinstance(p, int) and not isinstance(p, bool) for p in eq)
+                or set(eq) & set(pages)):
+            errors.append(f"{where}: 'equivalent_pages' must be a list of integers not already in 'pages'")
+            continue
+        bad = [p for p in list(pages) + list(eq) if p < 1 or p > total]
         if bad:
             errors.append(f"{where}: page(s) {bad} do not exist in '{f}' (it has {total} pages)")
             continue
@@ -115,7 +123,8 @@ def validate_questions(path: Path, samples_dir: Path = SAMPLES) -> tuple[list[di
             errors.append(f"{where}: duplicate question")
             continue
         seen.add(key)
-        questions.append({"question": q.strip(), "file": f, "pages": sorted(set(pages))})
+        questions.append({"question": q.strip(), "file": f, "pages": sorted(set(pages)),
+                          "equivalent_pages": sorted(set(eq))})
     if not questions and not errors:
         errors.append("no questions found")
     return questions, errors
@@ -127,10 +136,14 @@ def covers(chunk, file: str, page: int) -> bool:
             and chunk.page_start <= page <= chunk.page_end)
 
 
-def score_question(results: list, file: str, pages: list[int]) -> dict:
-    """hit@5, reciprocal rank (top 10) and pages found (top 5) for one question."""
+def score_question(results: list, file: str, pages: list[int], equivalent_pages: list[int] = ()) -> dict:
+    """hit@5, reciprocal rank (top 10) and pages found (top 5) for one question.
+
+    Rank/hit use ``pages`` plus ``equivalent_pages`` (verbatim duplicates); pages_found uses ``pages`` only.
+    """
+    accept = list(pages) + list(equivalent_pages)
     rank = next((i + 1 for i, r in enumerate(results[:MRR_K])
-                 if any(covers(r.chunk, file, p) for p in pages)), None)
+                 if any(covers(r.chunk, file, p) for p in accept)), None)
     found = [p for p in pages if any(covers(r.chunk, file, p) for r in results[:HIT_K])]
     return {"rank": rank, "hit": rank is not None and rank <= HIT_K,
             "rr": 1.0 / rank if rank else 0.0, "pages_found": found}
@@ -199,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         t = time.perf_counter()
         res = search(q["question"], MRR_K, cfg, store, index, emb)
         lat.append((time.perf_counter() - t) * 1000)
-        s = score_question(res, q["file"], q["pages"])
+        s = score_question(res, q["file"], q["pages"], q["equivalent_pages"])
         top = res[0].chunk if res else None
         rows.append({**q, **s,
                      "top": f"{top.file_name} p.{top.page_start}" + (f"-{top.page_end}" if top.page_end != top.page_start else "")
@@ -233,6 +246,8 @@ def main(argv: list[str] | None = None) -> int:
               "| # | question | expected | rank | hit@5 | top result |", "|---|---|---|---|---|---|"]
     for i, r in enumerate(rows, 1):
         exp = f"{r['file']} p.{','.join(map(str, r['pages']))}"
+        if r["equivalent_pages"]:
+            exp += f" (duplicate on p.{','.join(map(str, r['equivalent_pages']))})"
         note = " (page flagged needs_ocr: not indexable)" if r["unindexable"] else ""
         if len(r["pages"]) > 1:
             note += f" [{len(r['pages_found'])}/{len(r['pages'])} pages in top 5]"

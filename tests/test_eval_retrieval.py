@@ -70,6 +70,22 @@ def test_hit_requires_top5_but_mrr_counts_top10():
                                                                 "pages_found": []}
 
 
+def test_equivalent_pages_count_as_hit_but_not_as_pages_found():
+    res = [r("a.pdf", 40)]
+    s = ev.score_question(res, "a.pdf", [15], [40])
+    assert s["hit"] and s["rank"] == 1 and s["pages_found"] == []
+    assert not ev.score_question(res, "a.pdf", [15])["hit"]
+
+
+def test_equivalent_pages_validation(tmp_path):
+    ok = write(tmp_path, {"question": "q one?", "file": F4, "pages": [10], "equivalent_pages": [35]})
+    qs, errs = ev.validate_questions(ok, SAMPLES)
+    assert errs == [] and qs[0]["equivalent_pages"] == [35]
+    for bad in ({"equivalent_pages": [10]}, {"equivalent_pages": [99]}, {"equivalent_pages": "35"}):
+        p = write(tmp_path, {"question": "q two?", "file": F4, "pages": [10], **bad})
+        assert ev.validate_questions(p, SAMPLES)[1], bad
+
+
 def test_wrong_file_same_page_is_not_a_hit():
     assert not ev.score_question([r("b.pdf", 5)], "a.pdf", [5])["hit"]
 

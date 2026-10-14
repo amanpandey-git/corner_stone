@@ -62,5 +62,9 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: How do you avoid fooling yourself with the evaluation?** A: The scoring rules are fixed in the script before any results exist; the three questions I looked at in Step 5 are excluded; questions are validated (files and pages must exist) and written from the slides by the author; and chunking and ef_search are not changed after seeing the numbers.
 - **Q: What is the weakness of 15-25 questions?** A: Small samples: one question moves hit@5 by 4-7 points, so the figure is indicative, not precise. I report counts next to the percentage and list every miss.
 
+- **Q: What were your results?** A: On 20 questions written from the slides (3 of them spanning two consecutive pages), hit@5 = 0.95 (19/20), MRR = 0.885, and 5 of the 6 labelled pages of the multi-page questions were found in the top 5. Median end-to-end search time was 35 ms, p95 57 ms on a 4-core laptop CPU. ANN recall@10 against exact search was 0.995.
+- **Q: Which question failed and why?** A: "Total seek time for FCFS with head at 50" (Unit 4). The answering chunk exists and is not flagged, so it is a ranking miss. The top 10 were five near-identical disk-scheduling slides, each appearing twice because that PDF repeats its own slides, so the effective depth was halved. I did not change anything after seeing this; it is documented as a limitation.
+- **Q: Is 0.95 a reliable number?** A: It is indicative, not precise: 20 questions, so one miss is 5 points. The questions are written in a natural style and share some wording with slide titles, so this is an easier test than adversarial paraphrases. It shows the pipeline retrieves the right slide, not that it would on any question.
+
 ## Step 7 - Demo UI
 ## Step 8 - Wrap-up
