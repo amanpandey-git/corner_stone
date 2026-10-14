@@ -46,7 +46,7 @@ All are `@dataclass` in `src/cornerstone/__init__.py`.
 | page_no | int or None | 1-based PDF page. **None for DOCX, never invented** |
 | para_start, para_end | int or None | 0-based paragraph range (DOCX only) |
 | text | str | cleaned text |
-| headings | list[Heading] | `Heading(text, level, char_offset)` found in this page |
+| headings | list[Heading] | `Heading(text, level, line_no)`; `line_no` indexes `text.split("\n")` found in this page |
 | status | str | `ok`, `needs_ocr`, `empty`, `error` |
 | reason | str or None | required when status != `ok` |
 
@@ -96,7 +96,7 @@ def extract_docx(path: Path, cfg: dict) -> list[Page]
 def load_document(path: Path, cfg: dict) -> list[Page]   # dispatch by extension, then clean
 ```
 - Returns one Page per PDF page (including flagged ones). Never drops a page silently.
-- Text layer present but `< scan_min_chars` chars after cleaning, and page has images -> `needs_ocr`, reason "no text layer (scanned image page)". No text and no images -> `empty`.
+- Fewer than `scan_min_chars` chars and the page has an image -> `needs_ocr` (text kept, reason set). Zero text and no image -> `empty` (blank page, reason set). Short text with no image stays `ok`. Headings: lines whose font size >= body size x `heading_size_ratio` (body = size carrying most characters in the document), level = rank of size (max 3).
 - Errors: `UnsupportedFileType` (not .pdf/.docx), `EmptyFile` (0 bytes), `CorruptFile` (parser fails), `PasswordProtected` (PDF needs password). A per-page exception becomes Page(status=`error`, reason=exception text), not a crash.
 - Multi-column: PyMuPDF block order (`sort=True`) is used; reading order is best-effort, documented limitation.
 - Non-English text is **unsupported**: not detected or rejected in Stage 1, results are undefined.

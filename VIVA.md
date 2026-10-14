@@ -1,4 +1,4 @@
-# VIVA - likely examiner questions
+﻿# VIVA - likely examiner questions
 
 Each step adds 3-5 questions with short answers when it finishes.
 
@@ -9,6 +9,9 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: Why a manifest file next to the index?** A: Vectors from different models are not comparable. The manifest records model, dimension, space and normalisation, and loading refuses a mismatch instead of silently returning garbage.
 
 ## Step 1 - Extraction
+- **Q: How do you detect a scanned page?** A: Almost no extractable text (< 25 chars) while the page contains an image. It is flagged `needs_ocr` with a reason and counted; text is kept for Stage 2 OCR. A page with no text and no image is flagged `empty`.
+- **Q: How are headings found in a PDF?** A: PDFs have no heading tags, so I compare font sizes: body size is the size carrying most characters in the document; lines at >= 1.15x that are short are headings, ranked into levels by size.
+- **Q: Why PyMuPDF?** A: Fast, pure wheels on Windows, gives per-span font size and image blocks, which I need for headings and scan detection.
 ## Step 2 - Chunking
 ## Step 3 - Embeddings
 ## Step 4 - Index + store
