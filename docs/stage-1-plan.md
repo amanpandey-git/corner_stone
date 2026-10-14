@@ -1,7 +1,7 @@
-# Stage 1 plan (deadline 16 Oct 2026)
+﻿# Stage 1 plan (deadline 16 Oct 2026)
 
 ## Day 1
-- [ ] Step 0 - Setup: repo, .gitignore, folders, docs, venv, version lock, requirements.txt
+- [x] Step 0 - Setup: repo, .gitignore, folders, docs, venv, version lock, requirements.txt
 - [ ] Step 1 - Extraction: PDF + DOCX parsers, scanned-page detection, cleaner, tests on samples/
 - [ ] Step 2 - Chunking: structure-aware chunker, overlap + token limits, debug command, tests
 - [ ] Step 3 - Embeddings: batching, normalisation, prefixes, caching, tests

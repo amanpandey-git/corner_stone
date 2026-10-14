@@ -218,18 +218,18 @@ Exit code 0 on success, 1 on failure; failed files are listed, never swallowed.
 | OS | Windows 11 Home x64 (10.0.26340) |
 | CPU / RAM | Intel i5-1135G7, 4 cores; 8 GB (7.74 usable); no CUDA |
 | Python | 3.12.10 (`.venv`; system Python 3.14.0 not used) |
-| PyMuPDF | TBD |
-| python-docx | TBD |
-| sentence-transformers | TBD |
-| transformers | TBD |
-| torch (CPU) | TBD |
-| faiss-cpu | TBD |
-| numpy | TBD |
-| PyYAML | TBD |
-| streamlit | TBD |
-| pytest | TBD |
-| huggingface_hub | TBD |
-| embedding model | BAAI/bge-small-en-v1.5, revision TBD |
+| PyMuPDF | 1.28.2 |
+| python-docx | 1.2.0 |
+| sentence-transformers | 6.1.0 |
+| transformers | 5.19.0 |
+| torch (CPU) | 2.14.1+cpu |
+| faiss-cpu | 1.15.1 |
+| numpy | 2.5.4 |
+| PyYAML | 6.0.3 |
+| streamlit | 1.66.0 |
+| pytest | 9.1.1 |
+| huggingface_hub | 1.33.0 |
+| embedding model | BAAI/bge-small-en-v1.5, revision 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a |
 | git / gh | 2.53.0 / 2.102.0 |
 
 hnswlib was rejected: no Windows wheel for Python 3.12 and no C++ compiler (NOTES.md 2026-10-15).
