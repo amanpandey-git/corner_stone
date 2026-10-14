@@ -1,4 +1,4 @@
-﻿# ARCHITECTURE - Cornerstone Stage 1 (source of truth)
+# ARCHITECTURE - Cornerstone Stage 1 (source of truth)
 
 If code and this file disagree, fix this file first and log why in NOTES.md.
 
@@ -99,6 +99,7 @@ def load_document(path: Path, cfg: dict) -> list[Page]   # dispatch by extension
 - Fewer than `scan_min_chars` chars and the page has an image -> `needs_ocr` (text kept, reason set). Zero text and no image -> `empty` (blank page, reason set). Short text with no image stays `ok`. Headings: lines whose font size >= body size x `heading_size_ratio` (body = size carrying most characters in the document), level = rank of size (max 3).
 - Errors: `UnsupportedFileType` (not .pdf/.docx), `EmptyFile` (0 bytes), `CorruptFile` (parser fails), `PasswordProtected` (PDF needs password). A per-page exception becomes Page(status=`error`, reason=exception text), not a crash.
 - Multi-column: PyMuPDF block order (`sort=True`) is used; reading order is best-effort, documented limitation.
+- DOCX: each heading starts a section Page; text before the first heading is its own Page; tables are flattened to "a | b" lines (not dropped, structure not preserved); no text at all -> one `empty` Page. Encrypted DOCX (OLE container) -> `PasswordProtected`.
 - Non-English text is **unsupported**: not detected or rejected in Stage 1, results are undefined.
 
 ### 4.2 `ingest/cleaner.py`
@@ -106,8 +107,8 @@ def load_document(path: Path, cfg: dict) -> list[Page]   # dispatch by extension
 def clean_pages(pages: list[Page], cfg: dict) -> list[Page]
 def normalise_text(text: str) -> str
 ```
-- Removes lines repeated (after digit-normalisation) in the top/bottom band of >= `header_footer_min_frac` of pages (needs >= 3 pages), and bare page numbers ("12", "Page 3 of 10").
-- `normalise_text`: collapse runs of spaces/tabs, join hyphenated line breaks, collapse >2 blank lines, strip zero-width chars. Uses NFC, **not** NFKC, so maths symbols are kept; ligatures (fi, fl) are expanded to letters only if they appear as single code points (U+FB01...), never dropped.
+- Removes lines repeated (digits and punctuation ignored, so "MITS-DU" == "MITS DU") among the first/last `header_footer_lines` (3) non-blank lines of >= `header_footer_min_frac` of pages (needs >= 3 pages), and bare page numbers ("12", "Page 3 of 10") in those same edge lines. Skipped for DOCX sections (page_no None). A page left with no text becomes `empty` with a reason. Headings are re-located by text after cleaning.
+- `normalise_text`: collapse runs of spaces/tabs, join hyphenated line breaks, collapse >2 blank lines, strip zero-width chars. Uses NFC, **not** NFKC, so maths symbols are kept; ligature code points (U+FB00..FB06) are expanded to letters, never dropped. Private-use glyphs (U+E000..F8FF, Wingdings bullets) are removed; real bullets (U+2022 etc.) are kept.
 - Idempotent: `normalise_text(normalise_text(x)) == normalise_text(x)`.
 
 ### 4.3 `chunking.py`

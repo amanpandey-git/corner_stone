@@ -5,7 +5,7 @@ paths:
 
 extraction:
   scan_min_chars: 25             # a page with fewer cleaned chars than this (and no text layer) is "needs OCR"
-  header_footer_band: 0.12       # top/bottom fraction of page height searched for repeated lines
+  header_footer_lines: 3         # first/last N non-blank lines of a page are header/footer candidates
   header_footer_min_frac: 0.5    # line must appear on >= this fraction of pages to be removed
   heading_size_ratio: 1.15       # span font size >= body median * ratio => heading candidate
 

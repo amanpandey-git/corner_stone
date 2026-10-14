@@ -1,4 +1,4 @@
-﻿# VIVA - likely examiner questions
+# VIVA - likely examiner questions
 
 Each step adds 3-5 questions with short answers when it finishes.
 
@@ -12,6 +12,10 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: How do you detect a scanned page?** A: Almost no extractable text (< 25 chars) while the page contains an image. It is flagged `needs_ocr` with a reason and counted; text is kept for Stage 2 OCR. A page with no text and no image is flagged `empty`.
 - **Q: How are headings found in a PDF?** A: PDFs have no heading tags, so I compare font sizes: body size is the size carrying most characters in the document; lines at >= 1.15x that are short are headings, ranked into levels by size.
 - **Q: Why PyMuPDF?** A: Fast, pure wheels on Windows, gives per-span font size and image blocks, which I need for headings and scan detection.
+- **Q: Why remove headers/footers, and how?** A: A repeated footer ("Dr X, MITS-DU") would be embedded into every chunk and pollute similarity. I count lines (digits/punctuation ignored) at the top/bottom of each page and remove those appearing on at least half the pages.
+- **Q: Why NFC and not NFKC normalisation?** A: NFKC rewrites symbols (e.g. superscripts, some maths characters); NFC keeps them. Ligatures are expanded explicitly instead.
+- **Q: Why does DOCX have no page numbers?** A: Page breaks in DOCX depend on rendering (fonts, printer), so a page number would be invented. I store heading sections with paragraph ranges, which are stable.
+
 ## Step 2 - Chunking
 ## Step 3 - Embeddings
 ## Step 4 - Index + store

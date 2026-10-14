@@ -1,4 +1,4 @@
-﻿# PROGRESS - session log (append only)
+# PROGRESS - session log (append only)
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
@@ -17,3 +17,22 @@
 - Samples are OS course notes; user must write 15-25 labelled questions (eval/questions.jsonl) before Step 6.
 ### Next atomic action
 - Step 1: implement `extract_pdf()` in src/cornerstone/ingest/pdf_parser.py per ARCHITECTURE.md 4.1, with tests/test_pdf_parser.py on samples/. First inspect one sample PDF (text layer? headers/footers? scanned pages?) before writing code.
+
+## [2026-10-15] - Step 1: Extraction & cleaning
+### Done
+- `extract_pdf()` in ingest/pdf_parser.py: one Page per page, headings by font size, needs_ocr/empty/error flags with reasons; raises EmptyFile/CorruptFile/PasswordProtected.
+- `extract_docx()` in ingest/docx_parser.py: heading-delimited sections, paragraph ranges, page_no None, tables flattened.
+- `clean_pages()`, `normalise_text()` in ingest/cleaner.py: header/footer + page-number removal, ligatures, PUA glyph removal, heading re-location.
+- `load_document()` in ingest/loader.py: dispatch + clean.
+- 20 tests passing (whole suite) (tests/test_pdf_parser.py, test_cleaner.py, test_docx_parser.py).
+- Real samples: 7 PDFs = 422 pages, 4 pages flagged needs_ocr, 0 errors.
+### In progress / partial
+- None.
+### Not started
+- Steps 2-8.
+### Known issues / TODO
+- Slide decks with body font larger than titles (Unit 5 Part 2) get few headings detected; chunker must cope with no-heading pages.
+- needs_ocr pages with a short caption lose that caption from the index (text is kept on the Page for Stage 2).
+- Multi-column reading order is best-effort (PyMuPDF sort=True).
+### Next atomic action
+- Step 2: implement `chunk_pages()` in src/cornerstone/chunking.py per ARCHITECTURE.md 4.3 using a token counter; tests/test_chunking.py; `cli.py chunks <file>` debug command.
