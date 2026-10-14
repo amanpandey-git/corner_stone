@@ -75,6 +75,13 @@ class HNSWIndex:
         """Every label stored (including soft-deleted ones), for the SQLite sync check."""
         return faiss.vector_to_array(self._idmap.id_map).astype(np.int64)
 
+    def vectors(self) -> tuple[np.ndarray, np.ndarray]:
+        """(ids, matrix) of everything stored, in insertion order. Used by the ANN-vs-exact check."""
+        n = len(self)
+        if n == 0:
+            return np.empty(0, dtype=np.int64), np.zeros((0, self.dim), dtype=np.float32)
+        return self.all_ids(), self._hnsw.reconstruct_n(0, n)
+
     def add(self, ids: np.ndarray, vectors: np.ndarray) -> None:
         """Add vectors under the given labels. Never rebuilds; labels must be new and unique."""
         ids = np.asarray(ids, dtype=np.int64)

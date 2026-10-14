@@ -138,3 +138,20 @@
 - User must write eval/questions.jsonl (15-25 questions, expected file + page) before the Step 6 retrieval eval.
 ### Next atomic action
 - Step 6a: write eval/ann_vs_bruteforce.py (HNSW vs numpy exact on the real index vectors, recall@10 at ef_search 10/50/100, latency p50/p95) and save to eval/results/. Needs vectors: reconstruct from the index (IndexIDMap2.reconstruct) or re-embed chunk texts; decide in the script header.
+
+## [2026-10-15] - Step 6a: ANN vs brute force
+### Done
+- eval/ann_vs_bruteforce.py: exact numpy top-10 vs the saved HNSW index (HNSWIndex.search), recall@10 at ef_search 10/50/100, p50/p95 per-query latency; plus a labelled-synthetic 10,000-vector scale check. Queries = distinct section headings of indexed chunks (not the labelled questions). Nothing tuned.
+- `HNSWIndex.vectors()` added (ids + matrix in insertion order).
+- tests/test_eval_ann.py (4 tests). 86 tests passing in total.
+- Results saved to eval/results/ann_recall.md. Real index (328 vectors, 191 queries): recall@10 = 0.952 / 0.995 / 0.996 at ef 10 / 50 / 100 -> target >= 0.95 at default 50 MET. Synthetic 10k: 0.975 / 1.000 / 1.000.
+- Latency (index only, no query embedding): real p50 0.046 / 0.071 / 0.105 ms vs exact 0.026 ms; synthetic p50 0.054 / 0.113 / 0.337 ms vs exact 0.823 ms.
+### In progress / partial
+- None.
+### Not started
+- Step 6b: retrieval eval (hit@5, MRR) on eval/questions.jsonl; end-to-end search latency p50/p95 incl. query embedding; README results table. Steps 7, 8.
+### Known issues / TODO
+- HNSW is not faster than numpy at 328 vectors; stated honestly in the results file and VIVA.
+- BLOCKED on user: eval/questions.jsonl (15-25 questions, each {"question", "file", "page"} from samples/, written without looking at search output).
+### Next atomic action
+- Step 6b: write eval/retrieval_eval.py (hit@5, MRR, per-question table, p50/p95 end-to-end latency) and a format check; run once questions.jsonl exists. Do not tune chunking/ef on it.

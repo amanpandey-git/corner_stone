@@ -53,5 +53,9 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: Where could search be wrong?** A: Slide titles repeated across slides merge into one section (page ranges like 96-101), and some bullets are mistaken for headings; this affects citation precision, not whether the text is found.
 
 ## Step 6 - Verification
+- **Q: How do you know the index returns the right results?** A: I compare HNSW with an exact numpy search over the same vectors: for each query, recall@10 is the share of the true top-10 that HNSW also returned. On the real index (328 vectors, 191 queries) it is 0.995 at ef_search=50 (0.952 at 10, 0.996 at 100); on a 10,000-vector synthetic scale check it is 1.000 at 50.
+- **Q: Why is HNSW not faster than brute force in your demo?** A: With 328 vectors a single matrix product is as fast as walking a graph (0.026 ms vs 0.07 ms). The benefit appears with scale: at 10,000 vectors HNSW takes 0.11 ms against 0.82 ms exact, and the gap widens with size (exact is O(N), HNSW roughly O(log N)).
+- **Q: What does ef_search trade off?** A: Recall for speed: ef 10 -> 100 raised recall 0.952 -> 0.996 on the real index and roughly doubled to tripled latency. I did not tune it on the evaluation questions; 50 is fixed in config.yaml and the sweep just reports it.
+- **Q: What are the limits of this check?** A: It measures only whether HNSW approximates exact search; it says nothing about whether the right chunk is retrieved. That is the separate hit@5 / MRR evaluation on labelled questions. The 10,000-vector run is synthetic (perturbed real vectors) and labelled as such.
 ## Step 7 - Demo UI
 ## Step 8 - Wrap-up

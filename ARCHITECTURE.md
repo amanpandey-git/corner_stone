@@ -149,6 +149,7 @@ class HNSWIndex:
     @classmethod
     def load(cls, path: Path, cfg: dict) -> "HNSWIndex"          # reads manifest next to the file, check_manifest, raises ModelMismatch
     def all_ids(self) -> np.ndarray                               # every label incl. soft-deleted, for the sync check
+    def vectors(self) -> tuple[np.ndarray, np.ndarray]            # (ids, matrix) in insertion order, for eval
     def __len__(self) -> int
 ```
 - faiss `IndexIDMap2(IndexHNSWFlat(dim, M, METRIC_INNER_PRODUCT))`, vectors added with `add_with_ids` (label = chunk_id). `remove_ids` is never used (unsupported for HNSW). Inner product on unit vectors == cosine.
