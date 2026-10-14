@@ -155,3 +155,19 @@
 - BLOCKED on user: eval/questions.jsonl (15-25 questions, each {"question", "file", "page"} from samples/, written without looking at search output).
 ### Next atomic action
 - Step 6b: write eval/retrieval_eval.py (hit@5, MRR, per-question table, p50/p95 end-to-end latency) and a format check; run once questions.jsonl exists. Do not tune chunking/ef on it.
+
+## [2026-10-15] - Step 6b: retrieval evaluation harness (waiting for questions.jsonl)
+### Done
+- eval/retrieval_eval.py: validates eval/questions.jsonl (invalid JSON, missing fields, "pages" not a non-empty int list, files not in samples/, pages outside 1..page_count, duplicates), then scores hit@5, MRR (top-10), pages-found for multi-page questions (separately), per-question table, misses list, end-to-end p50/p95 latency (query embedding + HNSW + SQLite). Excludes the 3 Step 5 questions and says so in eval/results/retrieval_eval.md. `--check` validates only.
+- Scoring rule fixed before results: a result covers a page if file matches and the page lies in the chunk's page_start..page_end. Also flags questions whose page is needs_ocr (cannot be hit).
+- eval/QUESTIONS_FORMAT.md: how to write the questions.
+- tests/test_eval_retrieval.py (17 tests incl. every rejection case). 103 tests passing in total.
+### In progress / partial
+- The evaluation itself has NOT been run: eval/questions.jsonl does not exist yet.
+### Not started
+- Running the eval and README results table; Step 7 (Streamlit); Step 8 (wrap-up, tag v0.1-indexing).
+### Known issues / TODO
+- BLOCKED on user: eval/questions.jsonl (15-25 questions, format in eval/QUESTIONS_FORMAT.md).
+- README results table still empty; fill in from eval/results/ann_recall.md, ingest_report.md, retrieval_eval.md in Step 8.
+### Next atomic action
+- When questions.jsonl exists: `PYTHONPATH=src python eval/retrieval_eval.py --check`, then run once, commit eval/results/retrieval_eval.md unchanged, report hit@5 / MRR / misses honestly. Meanwhile Step 7 (minimal Streamlit page) can start: it does not depend on the eval.
