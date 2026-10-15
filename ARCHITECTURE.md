@@ -275,6 +275,8 @@ hnswlib was rejected: no Windows wheel for Python 3.12 and no C++ compiler (NOTE
 | empty / huge query | `EmptyQuery` / truncated to `max_query_chars` | test_search |
 
 ## 8b. Demo UI (`app/streamlit_app.py`)
+Stage 2: an **Ask** tab comes first (question, answer type, unit filter, "check citations"): the answer streams into one placeholder and is replaced by the final cleaned text; abstentions show "Not in your notes." with the reason in plain words; flags (uncited, removed invalid refs, unsupported, not checked) are shown as warnings; each cited source is an expander with the slide PNG and its text. Provider errors (no key, outage) are shown, never a crash. Logic stays in `stream_answer`.
+
 Thin layer: `open_stack` (per script run), `ingest_file` for uploads saved to `paths.raw_dir`, `search` for queries; sidebar shows `MetadataStore.stats()`; sync problems are displayed and `discard_pending` is only called from a button. No retrieval or ingestion logic in the UI. Only the `Embedder` is cached (`st.cache_resource`); SQLite connections are opened and closed per script run because they are bound to one thread and Streamlit reruns on different threads. `CORNERSTONE_CONFIG` selects another config file (used by tests).
 
 ## 9. Stage 2 extension points
@@ -511,7 +513,7 @@ def check_citations(citations: list[Citation], source_texts: dict[int, str], jud
     # 0-based indexes into citations judged unsupported; None = could not be checked
 ```
 - Grammar: a reference is `[n]` or a group `[n, m]` / `[n][m]` / `[n-m]` (range expanded) with 1 <= n. Sentence split on `. ! ?` followed by whitespace/newline, plus line breaks (bullet lines are sentences); a reference group right after the full stop belongs to the sentence before it. Headings (a line ending with `:` or starting with `#`), the line `NOT_IN_NOTES`, fragments under 4 words and gap statements ("the notes do not cover X", which prompt rule 4 asks for) are not "factual sentences". Text without any reference -> no citations, every factual sentence uncited.
-- `check_citations`: one judge call per answer (provider `answer.judge_provider`, default Gemini so the judge is a different model family from the answerer): for each citation, sentence + the cited slide texts -> JSON list of unsupported indexes. Invalid judge JSON -> retried once, then `None` (reported as "not checked", never as "supported"). Runtime switch `answer.check_citations` (default false in the UI for speed; always on in the answer evaluation).
+- `check_citations`: one judge call per answer (provider `answer.judge_provider`, default Gemini so the judge is a different model family from the answerer): for each citation, sentence + the cited slide texts -> JSON list of unsupported indexes. Invalid judge JSON -> retried once, then `None` (reported as "not checked", never as "supported"). Runtime switch `answer.check_citations` (default false in the UI for speed; always on in the answer evaluation). A judge `LLMError` (e.g. Gemini 503 overloaded) does not fail the answer: `Answer.unsupported = None`, `Answer.check_error` says why, and it counts as "not checked" (never as supported).
 - Written by the assistant at the user's request (2026-10-15 standing orders); explained line by line in VIVA.md.
 
 ### 11.4 Answer evaluation (`eval/answer_eval.py`)
@@ -522,7 +524,7 @@ def check_citations(citations: list[Citation], source_texts: dict[int, str], jud
   - **citation correct page** (retrieval-grounded, no judge) = answers citing at least one labelled page / answered answerable questions.
   - **abstention on unanswerable** = unanswerable questions answered NOT_IN_NOTES (target >= 8/10 on test); **false abstention** = answerable questions abstained (reported, should be low).
   - **time to first token** p50/p95 from `stream_answer` (uncached calls only; cached runs reported as such).
-- Pacing: calls go through the rate limiter; `--sleep` extra gap; a run stops cleanly on `LLMRateLimited` after the retry cap and writes partial results marked "partial". Cached answers are reused between runs; a test run is done once with a cold cache for the TTFT numbers.
+- Pacing: calls go through the rate limiter; `--sleep` extra gap; an answerer failure after the retry cap stops the run cleanly and writes partial results marked PARTIAL; a judge failure marks only that answer "not checked" and 3 judge failures in a row stop the run (PARTIAL). Cached answers are reused between runs; a test run is done once with a cold cache for the TTFT numbers.
 - Output: `eval/results/answer_eval_<split>.md` (summary + per question) and `eval/results/answer_spotcheck_<split>.md` (20 answers in full with their sources, for the user's manual check).
 
 ### 11.5 Config additions (`llm:` and `answer:`)

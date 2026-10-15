@@ -124,3 +124,16 @@ def test_lenticular_and_fullwidth_citations_are_understood():
                                  "Pages map to frames\uff3b1\uff3d\u30101, 2\u3011.", s)
     assert not a.abstained and [c.refs for c in a.citations] == [[1], [2], [1, 2]]
     assert "\u3010" not in a.text and a.text.startswith("Paging uses frames[1].")
+
+
+def test_judge_failure_marks_not_checked_and_keeps_the_answer(cfg, stack):
+    from cornerstone import LLMError
+
+    class DownJudge(FakeProvider):
+        def complete(self, *a, **k):
+            raise LLMError("gemini m: HTTP 503 UNAVAILABLE")
+
+    store, index, emb = stack
+    a = answer(QUESTION, "concise", cfg, store, index, emb, FakeProvider(["Minimal rights only [1]."]),
+               judge=DownJudge(["x"]), check=True)
+    assert not a.abstained and a.unsupported is None and "503" in a.check_error

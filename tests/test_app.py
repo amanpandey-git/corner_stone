@@ -11,6 +11,7 @@ from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.pipeline import ingest_file
 
 APP = str(ROOT / "app" / "streamlit_app.py")
+ASK_BUTTON, SEARCH_BUTTON = 0, 1   # form submit buttons in page order (Ask tab first)
 
 
 @pytest.fixture(scope="module")
@@ -51,7 +52,7 @@ def test_page_renders_with_stats_and_no_exception(prepared, monkeypatch):
 def test_search_shows_result_with_source(prepared, monkeypatch):
     at = run_app(prepared, monkeypatch)
     at.text_input[0].set_value("What is a TLB?")
-    at.button[0].click()          # the form's submit button
+    at.button[SEARCH_BUTTON].click()          # the search form's submit button
     at.run()
     assert not at.exception
     text = " ".join(m.value for m in at.markdown)
@@ -61,7 +62,7 @@ def test_search_shows_result_with_source(prepared, monkeypatch):
 def test_blank_query_shows_message_not_crash(prepared, monkeypatch):
     at = run_app(prepared, monkeypatch)
     at.text_input[0].set_value("   ")
-    at.button[0].click()
+    at.button[SEARCH_BUTTON].click()
     at.run()
     assert not at.exception
     assert any("type a question" in e.value for e in at.error)
@@ -102,3 +103,38 @@ def test_upload_ingest_report_and_duplicate(cfg, tmp_path, monkeypatch):
     next(b for b in at.button if b.label == "Ingest").click()
     at.run()
     assert at.dataframe[0].value.iloc[0]["status"] == "skipped_duplicate"
+
+def test_ask_shows_cited_answer_and_source(prepared, monkeypatch):
+    from cornerstone import llm
+
+    fake = llm.FakeProvider(["A TLB is a small fast cache of page table entries [1]."])
+    monkeypatch.setattr(llm, "make_provider", lambda cfg, name=None, env=None, client=None: fake)
+    at = run_app(prepared, monkeypatch)
+    at.text_area[0].set_value("What is a TLB?")
+    at.button[ASK_BUTTON].click()
+    at.run()
+    assert not at.exception
+    text = " ".join(m.value for m in at.markdown)
+    assert "small fast cache of page table entries [1]" in text
+    assert any(e.label.startswith("[1] memory") for e in at.expander)
+
+
+def test_ask_abstains_and_reports_missing_key(prepared, monkeypatch):
+    from cornerstone import LLMUnavailable, llm
+
+    monkeypatch.setattr(llm, "make_provider",
+                        lambda cfg, name=None, env=None, client=None: llm.FakeProvider(["NOT_IN_NOTES"]))
+    at = run_app(prepared, monkeypatch)
+    at.text_area[0].set_value("Who painted the Mona Lisa?")
+    at.button[ASK_BUTTON].click()
+    at.run()
+    assert not at.exception and any("Not in your notes." in i.value for i in at.info)
+
+    def no_key(cfg, name=None, env=None, client=None):
+        raise LLMUnavailable("GROQ_API_KEY is not set")
+    monkeypatch.setattr(llm, "make_provider", no_key)
+    at = run_app(prepared, monkeypatch)
+    at.text_area[0].set_value("What is a TLB?")
+    at.button[ASK_BUTTON].click()
+    at.run()
+    assert not at.exception and any("GROQ_API_KEY" in e.value for e in at.error)

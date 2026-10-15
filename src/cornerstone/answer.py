@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
-from cornerstone import EmptyQuery, SearchFilters
+from cornerstone import EmptyQuery, LLMError, SearchFilters
 from cornerstone.citations import NOT_IN_NOTES_TOKEN, Citation, check_citations, parse_citations, strip_invalid_refs
 from cornerstone.search import search
 
@@ -73,6 +73,7 @@ class Answer:
     ttft_ms: float | None = None
     total_ms: float = 0.0
     top_vector_score: float | None = None
+    check_error: str | None = None           # why the judge could not check (then unsupported is None)
 
     def cited_sources(self) -> list[Source]:
         """Sources actually cited, in order of first citation."""
@@ -170,7 +171,13 @@ def stream_answer(question: str, mode: str, cfg: dict, store, index, embedder, p
         yield ans.text                      # a reply shorter than the hold-back window
     if (a["check_citations"] if check is None else check) and not ans.abstained and judge is not None:
         texts = {s.n: s.text for s in sources}
-        ans.unsupported = check_citations(ans.citations, texts, judge, cfg)
+        try:
+            ans.unsupported = check_citations(ans.citations, texts, judge, cfg)
+            if ans.unsupported is None:
+                ans.check_error = "judge reply was not valid JSON (twice)"
+        except LLMError as e:              # the answer stands; it is reported as "not checked", never as fine
+            ans.check_error = f"{type(e).__name__}: {e}"
+
     yield ans
 
 

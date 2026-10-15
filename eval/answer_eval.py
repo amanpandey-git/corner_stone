@@ -10,7 +10,8 @@ Definitions (ARCHITECTURE.md 11.4; fixed before the first run, do not change aft
   * false abstention    = answerable questions answered "Not in your notes." / answerable questions.
   * time to first token = p50 / p95 over live (not cached) answers: question submitted -> first model text.
 The three Step 5 questions are excluded, as in retrieval_eval.py. Calls are paced by the provider's rate limiter;
-a provider failure after the retry cap stops the run and the partial results are written, marked PARTIAL.
+an answerer failure after the retry cap stops the run and the partial results are written, marked PARTIAL.
+A judge failure only marks that answer "not checked"; JUDGE_STOP failures in a row stop the run (PARTIAL).
 
     PYTHONPATH=src python eval/answer_eval.py --split dev                    # tuning split
     PYTHONPATH=src python eval/answer_eval.py --split dev --limit 5          # quick check
@@ -35,6 +36,7 @@ from retrieval_eval import QUESTIONS, STEP5_QUESTIONS, _norm, validate_questions
 
 RESULTS_DIR = ROOT / "eval" / "results"
 SPOT_N = 20
+JUDGE_STOP = 3   # consecutive judge failures that end a run (the judge provider is down)
 
 
 def cites_labelled_page(answer, targets: list[dict]) -> bool:
@@ -50,7 +52,7 @@ def score_answer(answer, question: dict) -> dict:
            "abstained": answer.abstained, "reason": answer.abstain_reason, "top_vector": answer.top_vector_score,
            "n_citations": len(answer.citations), "unsupported": None, "faithful": None, "checked": False,
            "correct_page": None, "uncited": len(answer.uncited_sentences), "invalid": len(answer.invalid_refs),
-           "ttft_ms": answer.ttft_ms, "cached": answer.cached}
+           "ttft_ms": answer.ttft_ms, "cached": answer.cached, "check_error": answer.check_error}
     if answer.abstained:
         return row
     if answer.unsupported is not None:
@@ -181,6 +183,7 @@ def main(argv: list[str] | None = None) -> int:
     judge = make_provider(cfg, cfg["answer"]["judge_provider"])
     st = open_stack(cfg, ROOT, for_search=True)
     rows, answers, partial = [], [], None
+    judge_fails = 0
     t0 = time.time()
     try:
         for i, q in enumerate(qs, 1):
@@ -193,11 +196,16 @@ def main(argv: list[str] | None = None) -> int:
                 break
             answers.append(a)
             rows.append(score_answer(a, q))
+            judge_fails = judge_fails + 1 if a.check_error and a.check_error.startswith("LLM") else 0
             r = rows[-1]
             status = f"abstained ({r['reason']})" if r["abstained"] else "answered"
             if r["unsupported"] is not None:
                 status += f", unsupported {r['unsupported']}"
             print(f"[{i}/{len(qs)}] id {q['id']}: {status}  ({time.time() - t0:.0f} s)", flush=True)
+            if judge_fails >= JUDGE_STOP:
+                partial = f"judge failed {JUDGE_STOP} times in a row ({a.check_error})"
+                print(f"stopping: {partial}", file=sys.stderr)
+                break
             if args.sleep:
                 time.sleep(args.sleep)
     finally:
