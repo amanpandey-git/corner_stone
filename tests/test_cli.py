@@ -76,3 +76,39 @@ def test_pending_ingest_is_reported_and_not_discarded_without_consent(env, capsy
     assert "discarded interrupted ingest of ghost.pdf" in io.err
     assert cli.main(base + ["stats"]) == 0
     assert "0 pending" in capsys.readouterr().out
+
+
+def _make_v01_index(index_dir):
+    import sqlite3
+    index_dir.mkdir(parents=True)
+    con = sqlite3.connect(index_dir / cli.DB_FILE)
+    con.execute("CREATE TABLE documents(doc_id INTEGER PRIMARY KEY, file_name TEXT)")
+    con.commit()
+    con.close()
+
+
+def test_v01_index_fails_loudly_and_rebuild_keeps_the_old_folder(env, capsys, monkeypatch):
+    base, f, tmp = env
+    _make_v01_index(tmp / "index")
+    assert cli.main(base + ["stats"]) == 1
+    err = capsys.readouterr().err
+    assert "IndexVersionMismatch" in err and "cli rebuild" in err
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False, raising=False)
+    assert cli.main(base + ["rebuild", str(f)]) == 1           # no --yes, not interactive: refuses
+    assert "not rebuilt" in capsys.readouterr().err and not (tmp / "index.v1.bak").exists()
+    assert cli.main(base + ["rebuild", str(f), "--yes"]) == 0
+    out = capsys.readouterr().out
+    assert "old index kept at" in out and "[indexed] scheduling.docx" in out
+    assert (tmp / "index.v1.bak" / cli.DB_FILE).is_file()     # old database moved, not deleted
+    assert cli.main(base + ["stats"]) == 0
+    assert "documents: 1 active" in capsys.readouterr().out
+    assert cli.main(base + ["rebuild", str(f), "--yes"]) == 0  # second rebuild: backup name does not clash
+    assert (tmp / "index.v2.bak").is_dir()
+
+
+def test_rebuild_with_no_files_fails(env, capsys):
+    base, _, tmp = env
+    empty = tmp / "empty"
+    empty.mkdir()
+    assert cli.main(base + ["rebuild", str(empty), "--yes"]) == 1
+    assert "no .pdf/.docx" in capsys.readouterr().err

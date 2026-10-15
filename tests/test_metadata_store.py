@@ -136,3 +136,55 @@ def test_cannot_have_two_active_versions_of_one_name(store):
     with pytest.raises(Exception):
         store.activate(b.doc_id)                              # unique index on active file_name
     assert store.get_document(b.doc_id).status == "pending"   # failed activate rolled back
+
+
+# ---- Stage 2: schema v2, version check, new columns, FTS5
+import sqlite3  # noqa: E402
+
+from cornerstone import SCHEMA_VERSION, IndexVersionMismatch, ModelMismatch  # noqa: E402
+
+
+def test_fresh_database_gets_current_schema_version(tmp_path):
+    s = MetadataStore(tmp_path / "m.sqlite")
+    assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 2
+    s.close()
+    MetadataStore(tmp_path / "m.sqlite").close()          # reopening a v2 database is fine
+
+
+def test_v01_database_fails_loudly_with_rebuild_command(tmp_path):
+    db = tmp_path / "old.sqlite"
+    con = sqlite3.connect(db)                              # what v0.1 left: tables, user_version never set
+    con.execute("CREATE TABLE documents(doc_id INTEGER PRIMARY KEY, file_name TEXT)")
+    con.commit()
+    con.close()
+    with pytest.raises(IndexVersionMismatch, match=r"schema 1 \(v0.1\).*needs schema 2.*cli rebuild"):
+        MetadataStore(db)
+    assert issubclass(IndexVersionMismatch, ModelMismatch)
+    con = sqlite3.connect(db)                              # untouched: still the old table, no new ones
+    names = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    con.close()
+    assert names == {"documents"}
+
+
+def test_v2_columns_and_fts_rows_are_written(store):
+    doc = Document(file_name="Unit 4_x.pdf", sha256="h", file_type="pdf", unit="Unit 4", source_path="C:/x.pdf")
+    pages = [Page(1, "seek time"), Page(2, "seek time", status="duplicate", reason="near-duplicate of p.1",
+                                       duplicate_of=1, image_path="7/p002.png")]
+    chunks = [Chunk(0, 0, "Unit 4_x.pdf", "Seek time is the time to move the arm.", 0, 9,
+                    section_heading="Terms", page_start=1, page_end=1, context_header="Unit 4_x > Terms")]
+    ids = store.add_document(doc, pages, chunks)
+    store.activate(doc.doc_id)
+    d = store.get_document(doc.doc_id)
+    assert (d.unit, d.source_path) == ("Unit 4", "C:/x.pdf")
+    row = store.conn.execute("SELECT duplicate_of, image_path FROM pages WHERE page_no=2").fetchone()
+    assert tuple(row) == (1, "7/p002.png")
+    assert store.get_chunks(ids)[ids[0]].context_header == "Unit 4_x > Terms"
+    hit = store.conn.execute("SELECT rowid FROM chunks_fts WHERE chunks_fts MATCH 'seeking'").fetchall()
+    assert [r[0] for r in hit] == ids                      # porter stemming: seeking ~ seek
+
+
+def test_fts_row_is_rolled_back_with_a_failed_write(store):
+    bad = [Chunk(0, 0, "a.pdf", "fine text", 0, 2), Chunk(0, 0, "a.pdf", None, 1, 2)]   # NULL text violates NOT NULL
+    with pytest.raises(sqlite3.IntegrityError):
+        store.add_document(make_doc(), make_pages(), bad)
+    assert store.conn.execute("SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts MATCH 'fine'").fetchone()[0] == 0

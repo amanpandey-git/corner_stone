@@ -301,8 +301,10 @@ flowchart LR
 
 ### 10.1 Schema version 2 and the loud failure
 - `SCHEMA_VERSION = 2`, stored in SQLite `PRAGMA user_version` and in `manifest.json` `index_version`. A v0.1 database has `user_version = 0`.
-- `MetadataStore.__init__` and `HNSWIndex.load` raise **`IndexVersionMismatch`** (new `CornerstoneError`) when the stored version != 2: "index was built with schema 1 (v0.1); this code needs schema 2. Rebuild: python -m cornerstone.cli rebuild <files or folder> --yes (the old index is kept as data/index.v1.bak)". `open_stack` prints it and exits 1; it never migrates silently.
-- New CLI: `rebuild <file|dir>... [--yes]` renames `index_dir` to `index_dir + ".v<N>.bak"` (never deletes), creates a fresh v2 index and re-ingests the given files. Without `--yes` it asks.
+- `MetadataStore.__init__` and `HNSWIndex.load` (via `check_manifest`) raise **`IndexVersionMismatch`** (subclass of `ModelMismatch`, so existing handlers still catch it) when the stored version != 2 (a v0.1 database never set `user_version`, so 0 is read as schema 1). The store closes its connection and creates nothing in the old file: "index was built with schema 1 (v0.1); this code needs schema 2. Rebuild: python -m cornerstone.cli rebuild <files or folder> --yes (the old index is kept as data/index.v1.bak)". `open_stack` prints it and exits 1; it never migrates silently.
+- New CLI: `rebuild <file|dir>... [--yes]` renames `index_dir` to `index_dir + ".v<N>.bak"` (`.bak2`, `.bak3` if taken; never deletes), creates a fresh v2 index and re-ingests the given files. Without `--yes` it asks; non-interactive without `--yes` it refuses (exit 1). The version is read with plain `sqlite3`/manifest JSON because the store refuses old files.
+- Every CLI command closes its SQLite connection (`Stack.close()`), and `open_stack` closes the store if loading the index fails (Windows cannot move a folder with an open file).
+- `documents.unit` is set at ingest by `pipeline.unit_from_name(file_name, cfg)` using `retrieval.unit_pattern`; `documents.source_path` = resolved path.
 
 SQLite v2 changes (all additive; same ID mapping chunk_id == index label):
 ```

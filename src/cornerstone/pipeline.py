@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 from pathlib import Path
 from typing import Callable
@@ -25,6 +26,12 @@ def file_sha256(path: Path) -> str:
         while block := fh.read(_READ_BLOCK):
             h.update(block)
     return h.hexdigest()
+
+
+def unit_from_name(file_name: str, cfg: dict) -> str | None:
+    """'Unit 4_Storage management.pdf' -> 'Unit 4' using retrieval.unit_pattern; None if no match."""
+    m = re.search(cfg["retrieval"]["unit_pattern"], file_name)
+    return f"Unit {int(m.group(1))}" if m else None
 
 
 def _failed(name: str, t0: float, message: str) -> IngestReport:
@@ -82,7 +89,8 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
     vectors = np.vstack(parts) if parts else np.zeros((0, embedder.dim), dtype=np.float32)
 
     # 4. store as pending -> index add + save -> activate
-    doc = Document(file_name=name, sha256=sha, file_type=path.suffix.lower().lstrip("."))
+    doc = Document(file_name=name, sha256=sha, file_type=path.suffix.lower().lstrip("."),
+                   unit=unit_from_name(name, cfg), source_path=str(path.resolve()))
     chunk_ids = store.add_document(doc, pages, chunks)
     try:
         if chunk_ids:

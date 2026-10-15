@@ -33,6 +33,9 @@ hnsw:
   ef_search: 50
   initial_capacity: 10000        # informational for hnswlib; faiss grows automatically
 
+retrieval:
+  unit_pattern: '(?i)unit\s*(\d+)'   # file name -> documents.unit for the unit filter (ARCHITECTURE 10.8)
+
 search:
   default_k: 5
   max_query_chars: 2000

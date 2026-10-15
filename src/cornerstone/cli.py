@@ -4,11 +4,14 @@
     python -m cornerstone.cli search "<query>" --k 5
     python -m cornerstone.cli stats
     python -m cornerstone.cli chunks <file> [--full]
+    python -m cornerstone.cli rebuild <file|dir>... [--yes]   # fresh index; old folder kept as *.v<N>.bak
 Run with PYTHONPATH=src from the repo root.
 """
 from __future__ import annotations
 
 import argparse
+import json
+import sqlite3
 import statistics
 import sys
 from dataclasses import dataclass
@@ -42,6 +45,10 @@ class Stack:
     index_path: Path
     embedder: Embedder | None
 
+    def close(self) -> None:
+        """Release the SQLite file (Windows cannot move a folder while a connection is open)."""
+        self.store.close()
+
 
 def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_yes: bool = False) -> Stack:
     """Open (or create) store + index under paths.index_dir and verify they agree.
@@ -53,7 +60,11 @@ def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_
     index_dir = Path(root) / cfg["paths"]["index_dir"]
     index_path = index_dir / INDEX_FILE
     store = MetadataStore(index_dir / DB_FILE)
-    index = HNSWIndex.load(index_path, cfg) if index_path.is_file() else HNSWIndex.from_config(cfg)
+    try:
+        index = HNSWIndex.load(index_path, cfg) if index_path.is_file() else HNSWIndex.from_config(cfg)
+    except Exception:
+        store.close()
+        raise
 
     problems = store.check_sync(set(index.all_ids().tolist()))
     if problems:
@@ -85,17 +96,32 @@ def location(c) -> str:
     return f"paragraphs {c.para_start}-{c.para_end}"
 
 
+def collect_files(targets: list[str]) -> list[Path]:
+    """Files named directly, plus every .pdf/.docx inside named folders (sorted, not recursive)."""
+    files: list[Path] = []
+    for t in map(Path, targets):
+        files += sorted(f for f in t.iterdir() if f.suffix.lower() in SUPPORTED) if t.is_dir() else [t]
+    return files
+
+
 def cmd_ingest(args, cfg) -> int:
-    target = Path(args.path)
-    files = sorted(f for f in target.iterdir() if f.suffix.lower() in SUPPORTED) if target.is_dir() else [target]
+    files = collect_files([args.path])
     if not files:
-        print(f"no .pdf/.docx files found in {target}", file=sys.stderr)
+        print(f"no .pdf/.docx files found in {args.path}", file=sys.stderr)
         return 1
     st = open_stack(cfg, ROOT, assume_yes=args.yes)
+    try:
+        return ingest_files(files, cfg, st, args.verbose)
+    finally:
+        st.close()
+
+
+def ingest_files(files: list[Path], cfg: dict, st: Stack, verbose: bool = False) -> int:
+    """Ingest each file and print one report line per file; exit code 1 if any failed."""
     failed = 0
     for f in files:
         r = ingest_file(f, cfg, st.store, st.index, st.embedder, st.index_path,
-                        progress=(lambda m: print("   " + m)) if args.verbose else None)
+                        progress=(lambda m: print("   " + m)) if verbose else None)
         line = f"[{r.status}] {r.file_name}"
         if r.status == "failed":
             failed += 1
@@ -113,6 +139,56 @@ def cmd_ingest(args, cfg) -> int:
     return 1 if failed else 0
 
 
+def stored_version(index_dir: Path) -> int | None:
+    """Schema version of an existing index folder (SQLite user_version, else manifest); None if empty.
+
+    Read directly, without MetadataStore, because the store refuses to open an old version.
+    """
+    db, manifest = index_dir / DB_FILE, index_dir / "manifest.json"
+    if db.is_file():
+        con = sqlite3.connect(db)
+        try:
+            return con.execute("PRAGMA user_version").fetchone()[0] or 1   # v0.1 never set it
+        finally:
+            con.close()
+    if manifest.is_file():
+        try:
+            return int(json.loads(manifest.read_text(encoding="utf-8")).get("index_version", 1))
+        except (ValueError, TypeError):
+            return 1
+    return None
+
+
+def cmd_rebuild(args, cfg) -> int:
+    """Move the current index folder aside (never delete it) and ingest the given files into a fresh one."""
+    files = collect_files(args.paths)
+    if not files:
+        print(f"no .pdf/.docx files found in {', '.join(args.paths)}", file=sys.stderr)
+        return 1
+    index_dir = Path(ROOT) / cfg["paths"]["index_dir"]
+    if index_dir.is_dir() and any(index_dir.iterdir()):
+        found = stored_version(index_dir) or 1
+        backup = index_dir.with_name(f"{index_dir.name}.v{found}.bak")
+        n = 2
+        while backup.exists():
+            backup = index_dir.with_name(f"{index_dir.name}.v{found}.bak{n}")
+            n += 1
+        ok = args.yes
+        if not ok and sys.stdin.isatty():
+            ok = input(f"Move {index_dir} (schema {found}) to {backup.name} and re-ingest {len(files)} file(s)? "
+                       "[y/N] ").strip().lower() == "y"
+        if not ok:
+            print("not rebuilt (answer y, or pass --yes)", file=sys.stderr)
+            return 1
+        index_dir.rename(backup)
+        print(f"old index kept at {backup}")
+    st = open_stack(cfg, ROOT, assume_yes=args.yes)
+    try:
+        return ingest_files(files, cfg, st, args.verbose)
+    finally:
+        st.close()
+
+
 def cmd_search(args, cfg) -> int:
     st = open_stack(cfg, ROOT, assume_yes=args.yes)
     try:
@@ -120,6 +196,8 @@ def cmd_search(args, cfg) -> int:
     except EmptyQuery as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    finally:
+        st.close()
     if not results:
         print("no results (the index is empty, or nothing indexed matches)")
         return 0
@@ -134,6 +212,7 @@ def cmd_search(args, cfg) -> int:
 def cmd_stats(args, cfg) -> int:
     st = open_stack(cfg, ROOT, load_embedder=False, assume_yes=args.yes)
     s = st.store.stats()
+    st.close()
     size = st.index_path.stat().st_size if st.index_path.is_file() else 0
     m = st.index.manifest
     print(f"documents: {s['documents']} active, {s['documents_replaced']} replaced, "
@@ -190,6 +269,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yes", action="store_true")
     p = add("stats", cmd_stats, "show index and ingestion statistics")
     p.add_argument("--yes", action="store_true")
+    p = add("rebuild", cmd_rebuild, "build a fresh index from files (old index folder kept as *.v<N>.bak)")
+    p.add_argument("paths", nargs="+")
+    p.add_argument("--yes", action="store_true", help="do not ask before moving the old index aside")
+    p.add_argument("-v", "--verbose", action="store_true")
     p = add("chunks", cmd_chunks, "print the chunks of one file (debug)")
     p.add_argument("file")
     p.add_argument("--full", action="store_true")

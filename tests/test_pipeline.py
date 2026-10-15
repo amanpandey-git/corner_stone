@@ -163,3 +163,16 @@ def test_document_with_only_flagged_pages_is_stored_not_hidden(cfg, stack, embed
     assert r.status == "indexed" and r.chunks_created == 0 and r.pages_flagged == 1
     assert "no indexable text" in r.message
     assert store.stats()["flagged_pages"][0]["status"] == "needs_ocr"
+
+
+def test_unit_from_name(cfg):
+    from cornerstone.pipeline import unit_from_name
+    assert unit_from_name("Unit 4_Storage management_ Disk Schduling.pdf", cfg) == "Unit 4"
+    assert unit_from_name("unit05 notes.docx", cfg) == "Unit 5"
+    assert unit_from_name("Operating systems.pdf", cfg) is None
+
+
+def test_ingest_records_unit_and_source_path(cfg, stack, embedder, small_pdf):
+    r = run(small_pdf, cfg, stack, embedder)
+    d = stack[0].get_document(r.doc_id)
+    assert d.unit == "Unit 5" and d.source_path == str(small_pdf.resolve())
