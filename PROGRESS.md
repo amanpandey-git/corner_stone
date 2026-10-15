@@ -475,3 +475,16 @@ Updated: 2026-10-15, Phase 1 closed; Phase 2 (answering) starting.
 - CI must cache the reranker/embedding models (reviewer note).
 ### Next atomic action
 - Phase 2 step 1: ARCHITECTURE section 11 + llm.py (Groq, Gemini, Fake; cache, limiter, capped retries) + tests/test_llm.py; pin httpx.
+## [2026-10-15] - Phase 2 step 1: LLM layer
+### Done
+- ARCHITECTURE section 11 (Phase 2 contracts: llm, answer, citations, answer evaluation, config, edge cases).
+- llm.py: GroqProvider / GeminiProvider over httpx (timeouts, retries only on 429/5xx/timeout, max 2, long retry-after fails fast), RateLimiter (rpm + tpm sliding window), AnswerCache (SQLite, data/cache), FakeProvider, make_provider, load_env/get_key. LLMError family in __init__. Config llm.*; httpx==0.28.1 pinned. tests/test_llm.py: 16 tests (mock transport, no network).
+- Live check via llm.py: Groq ok (first token 0.6 s), Gemini ok (2.5 s), cache hit on repeat.
+### In progress / partial
+- citations.py draft in scratch folder.
+### Not started
+- answer.py, citation check wiring, answer evaluation, Streamlit Ask.
+### Known issues / TODO
+- Groq output contains narrow no-break spaces (U+202F): normalise in answer.py.
+### Next atomic action
+- citations.py (parse_citations, strip_invalid_refs, check_citations) + tests/test_citations.py + VIVA line by line.

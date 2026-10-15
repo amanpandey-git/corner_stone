@@ -55,6 +55,22 @@ class EmptyQuery(CornerstoneError):
     """Query is empty or whitespace-only."""
 
 
+class LLMError(CornerstoneError):
+    """An LLM provider call failed (message has the provider, model, HTTP status and error type; never a key)."""
+
+
+class LLMUnavailable(LLMError):
+    """No API key, the key was refused, or the model does not exist."""
+
+
+class LLMRateLimited(LLMError):
+    """The provider's rate limit was hit and the retry cap (or a long retry-after) was reached."""
+
+
+class LLMTimeout(LLMError):
+    """The provider did not answer within llm.timeout_s, after the retry cap."""
+
+
 class RerankerUnavailable(CornerstoneError):
     """The cross-encoder reranker model could not be loaded (offline, not cached, bad revision)."""
 

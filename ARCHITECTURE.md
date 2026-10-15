@@ -440,3 +440,116 @@ def search(query, k, cfg, store, index, embedder, ef_search=None,
 | image render failure on one page | page indexed, image NULL, warning in report | test_pipeline |
 | compaction with nothing deleted / crash mid-compaction | no-op / `check_sync` clean after restart | test_pipeline, test_cli |
 | slide longer than slide_max_tokens | split inside the page, page exact | test_chunking |
+
+## 11. Stage 2 - Phase 2: grounded answering (contracts)
+
+Goal: an answer that uses only the student's slides, cites every claim as [n] -> file + page, says "not in your notes" when the slides do not contain the answer, and is measured (citation accuracy, faithfulness, abstention, time to first token) on dev while tuning and on test once.
+
+```mermaid
+flowchart LR
+  Q[question + mode + filters] --> S["search() top k (Phase 1 default)"]
+  S --> G{retrieval gate: top vector score >= answer.min_vector_score?}
+  G -->|no| A0["'Not in your notes.' (no LLM call)"]
+  G -->|yes| P["prompt: rules + mode + numbered sources [1]..[k]"]
+  P --> L[LLM provider: cache -> rate limiter -> HTTP with timeout + capped retries]
+  L -->|stream| T[text deltas to the UI]
+  L --> C["parse_citations: sentences + [n]"]
+  C --> V{"no valid citation, or the model said NOT_IN_NOTES"}
+  V -->|yes| A0
+  V -->|no| A[Answer: text, citations -> file + page + image, flags]
+  A --> J[optional check_citations: one judge call marks unsupported sentences]
+```
+
+### 11.1 Provider interface (`src/cornerstone/llm.py`)
+```python
+@dataclass class LLMResponse: text: str; provider: str; model: str; cached: bool; ttft_ms: float | None; total_ms: float
+class LLMProvider(Protocol):
+    name: str; model: str
+    def complete(self, system: str, user: str, max_tokens: int, temperature: float) -> LLMResponse
+    def stream(self, system: str, user: str, max_tokens: int, temperature: float) -> Iterator[str]   # text deltas
+def make_provider(cfg: dict, name: str | None = None, env: Mapping[str, str] | None = None) -> LLMProvider
+def load_env(path: Path) -> dict[str, str]          # KEY=value lines; no new dependency (python-dotenv not used)
+```
+- Adapters: `GroqProvider` (OpenAI-compatible `POST https://api.groq.com/openai/v1/chat/completions`, SSE streaming) and `GeminiProvider` (`POST .../v1beta/models/{model}:generateContent` and `:streamGenerateContent?alt=sse`), both on **httpx 0.28.1** (already installed, pinned now). No vendor SDKs: one small HTTP layer is easier to test, retry and explain than two SDKs with their own retry logic. `FakeProvider` (scripted replies, records calls) for unit tests; it never touches the network.
+- Keys: `os.environ` first, then `.env` at the repo root (`load_env`). A missing or empty key -> `LLMUnavailable("GROQ_API_KEY is not set (see .env.example)")`. Keys are only placed in HTTP headers, never in URLs, logs, cache rows or exception messages (errors carry the status code and the provider's error *type* only).
+- Timeouts: `llm.timeout_s` (connect + read; streaming read timeout per chunk). Retries: only on 429, 5xx, timeout and connection errors, at most `llm.max_retries` (2) extra attempts with exponential backoff `llm.backoff_s * 2^i` capped at `llm.max_backoff_s`; a 429 `retry-after` header is honoured if it is <= `max_backoff_s`, else `LLMRateLimited` is raised at once (no loop). 400/401/403/404 are never retried (`LLMError` / `LLMUnavailable` for 401/403).
+- Rate limiter (`RateLimiter`, one per provider per process): sliding 60 s window over requests (`rpm`) and estimated tokens (`tpm`; estimate = (len(system)+len(user))/4 + max_tokens); `acquire()` sleeps until both fit. Limits per provider in config (below), set from the providers' own headers/documentation, not guessed upward.
+- Cache (`AnswerCache`, SQLite `paths.cache_dir/llm_cache.sqlite`, gitignored under data/): key = sha256 of (provider, model, system, user, max_tokens, temperature). `complete()` returns a cached hit with `cached=True` and does not touch the limiter. `stream()` of a cached text yields it as one delta. Only successful, non-empty responses are cached. `llm.cache: false` disables it.
+- Exceptions (all `CornerstoneError`): `LLMError` (base), `LLMUnavailable` (no key, auth refused, model not found), `LLMRateLimited`, `LLMTimeout`. The UI/API shows the message; nothing is retried beyond the cap.
+
+### 11.2 Grounded answers (`src/cornerstone/answer.py`)
+```python
+MODES = ("concise", "detailed", "2-mark", "5-mark", "10-mark")
+NOT_IN_NOTES = "Not in your notes."
+@dataclass class Source: n: int; chunk_id: int; file_name: str; page_start: int | None; page_end: int | None; doc_id: int; section: str | None; text: str
+@dataclass class Answer: question: str; mode: str; text: str; abstained: bool; abstain_reason: str | None
+                         sources: list[Source]; citations: list[Citation]; uncited_sentences: list[str]; invalid_refs: list[int]
+                         unsupported: list[int] | None; provider: str; model: str; cached: bool; ttft_ms: float | None; total_ms: float
+def build_prompt(question: str, sources: list[Source], mode: str, cfg: dict) -> tuple[str, str]     # (system, user)
+def answer(question, mode, cfg, store, index, embedder, provider, filters=None, reranker=None) -> Answer
+def stream_answer(...same...) -> Iterator[str | Answer]    # text deltas, then the final Answer object last
+```
+- Retrieval: `search(question, answer.k)` with the Phase 1 default pipeline. Sources are numbered 1..k in rank order; each block in the prompt is `[n] <file stem>, p.<page(s)> - <section>\n<slide text>`.
+- **Retrieval gate (abstention 1):** if there are no results, or the best result's `scores["vector"]` < `answer.min_vector_score`, return `NOT_IN_NOTES` with `abstain_reason="retrieval"` and no LLM call. The threshold is chosen on **dev only** (answerable vs the 5 dev unanswerable questions), logged in NOTES.md with the score distribution.
+- System prompt rules (fixed text in code, tuned on dev only): answer only from the numbered sources; every sentence that states a fact ends with one or more [n]; never cite a number that is not listed; no outside knowledge, even if the sources are incomplete; if the sources do not contain the answer reply exactly `NOT_IN_NOTES`; follow the mode's shape.
+- Modes (`answer.modes.<mode>`: instruction + max_tokens): concise (2-4 sentences), detailed (structured explanation), 2-mark (definition + one key point, ~40-60 words), 5-mark (intro, 4-6 points, short conclusion, ~150-250 words), 10-mark (headings, points, example/diagram description from the slides, conclusion, ~400-600 words). Unknown mode -> `ValueError`.
+- **Model abstention (abstention 2):** reply starting with `NOT_IN_NOTES` -> `Answer(text=NOT_IN_NOTES, abstained=True, abstain_reason="model")`. **Citation abstention (3):** an answer with zero valid citations is not shown as an answer: `abstained=True, abstain_reason="no_citations"` (tie-breaker: citations over fluency).
+- After generation: `parse_citations` (11.3) fills `citations`, `uncited_sentences` (factual sentences without [n]; shown flagged in the UI) and `invalid_refs` (numbers outside 1..k; removed from the displayed text and flagged).
+- `stream_answer` streams deltas as they arrive but holds back the text until it is clear the reply does not start with `NOT_IN_NOTES` (first 12 characters); the final `Answer` is yielded last and is the source of truth (citations, flags).
+- Empty question -> `EmptyQuery`. Provider errors propagate as `LLMError` subclasses.
+
+### 11.3 Citation parser and check (`src/cornerstone/citations.py`)
+```python
+@dataclass class Citation: sentence: str; refs: list[int]       # refs in order of first appearance, de-duplicated
+def parse_citations(text: str, n_sources: int) -> tuple[list[Citation], list[str], list[int]]
+    # (sentences that carry valid refs, factual sentences with no ref, invalid ref numbers)
+def strip_invalid_refs(text: str, n_sources: int) -> str
+def check_citations(citations: list[Citation], source_texts: dict[int, str], judge: LLMProvider, cfg: dict) -> list[int] | None
+    # 0-based indexes into citations judged unsupported; None = could not be checked
+```
+- Grammar: a reference is `[n]` or a group `[n, m]` / `[n][m]` / `[n-m]` (range expanded) with 1 <= n. Sentence split on `. ! ?` followed by whitespace/newline, plus line breaks (bullet lines are sentences); a reference group right after the full stop belongs to the sentence before it. Headings (a line ending with `:` or starting with `#`) and the line `NOT_IN_NOTES` are not "factual sentences". Text without any reference -> no citations, every factual sentence uncited.
+- `check_citations`: one judge call per answer (provider `answer.judge_provider`, default Gemini so the judge is a different model family from the answerer): for each citation, sentence + the cited slide texts -> JSON list of unsupported indexes. Invalid judge JSON -> retried once, then `None` (reported as "not checked", never as "supported"). Runtime switch `answer.check_citations` (default false in the UI for speed; always on in the answer evaluation).
+- Written by the assistant at the user's request (2026-10-15 standing orders); explained line by line in VIVA.md.
+
+### 11.4 Answer evaluation (`eval/answer_eval.py`)
+- `--split dev|test`, `--limit N`, `--provider`, `--out`. Runs every answerable + unanswerable question of the split in `--mode concise` (plus a 5-mark sample) through `answer()` with `check_citations` on.
+- Metrics (definitions fixed before the first run):
+  - **citation accuracy** = supported citations / all citations (judge), over answered questions.
+  - **faithfulness** = answers whose every factual sentence is cited and supported / answered questions (judge: uncited factual sentence or any unsupported citation -> unfaithful).
+  - **citation correct page** (retrieval-grounded, no judge) = answers citing at least one labelled page / answered answerable questions.
+  - **abstention on unanswerable** = unanswerable questions answered NOT_IN_NOTES (target >= 8/10 on test); **false abstention** = answerable questions abstained (reported, should be low).
+  - **time to first token** p50/p95 from `stream_answer` (uncached calls only; cached runs reported as such).
+- Pacing: calls go through the rate limiter; `--sleep` extra gap; a run stops cleanly on `LLMRateLimited` after the retry cap and writes partial results marked "partial". Cached answers are reused between runs; a test run is done once with a cold cache for the TTFT numbers.
+- Output: `eval/results/answer_eval_<split>.md` (summary + per question) and `eval/results/answer_spotcheck_<split>.md` (20 answers in full with their sources, for the user's manual check).
+
+### 11.5 Config additions (`llm:` and `answer:`)
+| key | value | reason |
+|---|---|---|
+| llm.provider | groq | fastest first token measured (0.8 s for a 64-token reply vs 2.5 s Gemini) -> TTFT target |
+| llm.groq.model | openai/gpt-oss-120b (reasoning_effort low) | strongest instruction-follower available on Groq's free tier (2026-10-15 model list) |
+| llm.groq.rpm / tpm | 30 / 8000 | Groq response headers: 8000 tokens/min, 1000 requests/day; 30 rpm documented |
+| llm.gemini.model | gemini-3.5-flash | answers; `gemini-2.5-flash` returned 404 on this key (2026-10-15) |
+| llm.gemini.rpm / tpm | 10 / 250000 | conservative free-tier values (no headers returned); a 429 is handled anyway |
+| llm.timeout_s / max_retries / backoff_s / max_backoff_s | 30 / 2 / 2 / 20 | a failing provider costs at most ~3 attempts and ~1.5 min, never a loop |
+| llm.temperature | 0.0 | reproducible answers, cacheable |
+| llm.cache | true | free-tier budget; evaluation reruns cost nothing |
+| paths.cache_dir | data/cache | gitignored |
+| answer.k | 5 | sources in the prompt; matches hit@5 |
+| answer.min_vector_score | chosen on dev | retrieval gate (11.2) |
+| answer.judge_provider | gemini | judge differs from answerer |
+| answer.check_citations | false | runtime switch; on in evaluation |
+| answer.modes.* | instruction + max_tokens per mode | 11.2 |
+
+### 11.6 Phase 2 edge cases
+| case | behaviour | test |
+|---|---|---|
+| key missing / empty | `LLMUnavailable` naming the variable, nothing sent | test_llm |
+| 429 with long retry-after / repeated 5xx | `LLMRateLimited` / `LLMError` after <= max_retries | test_llm (mock transport) |
+| timeout | `LLMTimeout` after the cap | test_llm |
+| same prompt twice | second is a cache hit, no HTTP call | test_llm |
+| nothing retrieved / weak retrieval | NOT_IN_NOTES, no LLM call | test_answer |
+| model says NOT_IN_NOTES / gives no citation | abstained answer | test_answer |
+| model cites [7] with 5 sources | ref removed from text, listed in invalid_refs | test_citations |
+| ranges and groups [1-3], [2, 4], [1][2] | expanded, de-duplicated | test_citations |
+| unknown mode / empty question | ValueError / EmptyQuery | test_answer |
+| judge returns bad JSON | retried once, then "not checked" | test_citations |
