@@ -12,3 +12,7 @@ pytest==9.1.1
 huggingface_hub==1.33.0
 streamlit==1.66.0
 httpx==0.28.1
+fastapi==0.143.2
+pydantic==2.14.1
+python-multipart==0.0.32
+uvicorn==0.54.0

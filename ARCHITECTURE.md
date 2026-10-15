@@ -251,6 +251,8 @@ Run with `PYTHONPATH=src`. Exit code 0 on success, 1 on failure; failed files ar
 | pytest | 9.1.1 |
 | huggingface_hub | 1.33.0 |
 | embedding model | BAAI/bge-small-en-v1.5, revision 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a |
+| httpx | 0.28.1 (LLM HTTP calls) |
+| fastapi / pydantic / uvicorn / python-multipart | 0.143.2 / 2.14.1 / 0.54.0 / 0.0.32 (API, quiz validation) |
 | reranker model (Stage 2, switch off) | cross-encoder/ms-marco-MiniLM-L-6-v2, revision 233902d25c440f23af6f7d6e94d2946bac0bee0a |
 | git / gh | 2.53.0 / 2.102.0 |
 
@@ -558,3 +560,92 @@ def check_citations(citations: list[Citation], source_texts: dict[int, str], jud
 | ranges and groups [1-3], [2, 4], [1][2] | expanded, de-duplicated | test_citations |
 | unknown mode / empty question | ValueError / EmptyQuery | test_answer |
 | judge returns bad JSON | retried once, then "not checked" | test_citations |
+
+## 12. Stage 2 - Phase 5: quiz and flashcards (contracts; built before the API because the API serves them)
+
+Study state (flashcards, review history) is the student's work, not part of the index, so it lives in its own database `paths.study_db` (`data/study.sqlite`): rebuilding or compacting the index never touches it. Cards keep `file_name` + `page` (and `chunk_id`, which may go stale after a rebuild) so a card's source slide can always be shown.
+
+### 12.1 Quiz (`src/cornerstone/quiz.py`)
+```python
+class MCQ(BaseModel):            # pydantic v2; one model-written question
+    question: str                # non-empty
+    options: list[str]           # exactly 4, distinct (case/space-insensitive), non-empty
+    answer: int                  # index 0..3 of the correct option
+    explanation: str             # one or two sentences, from the slide
+    source: int                  # [n] of the slide that states the answer
+@dataclass class QuizQuestion: mcq: MCQ; source: Source        # source resolved to file + page + text
+@dataclass class Quiz: questions: list[QuizQuestion]; requested: int; generated: int; rejected: list[str]; attempts: int
+def pick_slides(store, filters: SearchFilters, n: int, cfg, seed: int = 0) -> list[Source]
+def generate_quiz(cfg, store, provider, filters: SearchFilters, n: int = 5, seed: int = 0) -> Quiz
+```
+- `pick_slides`: active chunks of the filtered documents with `token_count >= quiz.min_tokens` (40; title-only slides make poor questions), spread evenly through the documents (every k-th slide from a seeded offset), at most `quiz.max_sources` (12). A filter matching nothing -> `ValueError("no slides match ...")`.
+- Prompt: the numbered slides + "write exactly N multiple-choice questions as JSON {"questions": [...]}; each question tests one fact stated on one slide; `source` is that slide's number; 4 options, one correct, the three wrong options plausible but wrong according to the slide; no 'all of the above'". The provider is asked for JSON output (`json_mode=True`).
+- Validation: each item is parsed with pydantic; an item that fails (wrong option count, duplicate options, answer out of range, source not listed, empty text) is rejected with its reason and the rest are kept. If fewer than N are valid, one more call asks for the missing number (`quiz.max_attempts` = 2 calls in total); never a loop. Unparseable JSON on the last attempt -> the valid questions so far (possibly none) and the reasons; the caller decides.
+- Metric "quiz questions valid" = valid / generated (items the model returned), over dev units; target >= 95%.
+- `n` must be 1..`quiz.max_questions` (10) else `ValueError`.
+
+### 12.2 Flashcards (`flashcards.py`, `srs.py`, `study_store.py` in `src/cornerstone/`)
+```python
+class CardDraft(BaseModel): front: str; back: str; source: int          # pydantic; model output
+def generate_flashcards(cfg, store, provider, filters, n: int = 10, seed: int = 0) -> tuple[list[Card], list[str]]
+def card_from_question(q: QuizQuestion, today: date) -> Card    # a wrongly answered MCQ becomes a card
+@dataclass class Card: card_id: int; front: str; back: str; file_name: str; page: int | None; doc_id: int;
+                       chunk_id: int | None; unit: str | None; due: date; ef: float = 2.5; interval: int = 0;
+                       reps: int = 0; lapses: int = 0; origin: str = "generated"     # generated | quiz
+class StudyStore:                                    # SQLite at paths.study_db
+    def add_cards(self, cards: list[Card]) -> list[int]          # duplicates (same front + file + page) skipped
+    def due(self, today: date, limit: int = 20, units: list[str] | None = None) -> list[Card]   # due <= today, oldest due first
+    def review(self, card_id: int, grade: int, today: date) -> Card   # applies sm2, logs the review; unknown id -> KeyError
+    def list_cards(self, units=None) -> list[Card]; def delete_card(self, card_id) -> None; def stats(self, today) -> dict
+def sm2(ef: float, interval: int, reps: int, grade: int) -> tuple[float, int, int]   # srs.py (assistant writes; VIVA line by line)
+```
+- SM-2 (Wozniak 1990): grade 0-5. grade < 3 -> reps = 0, interval = 1 (relearn tomorrow), lapses += 1 (counted by the store). Else reps += 1; interval = 1 (reps 1), 6 (reps 2), round(interval * ef) after. Always: ef += 0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02), floored at 1.3. `due = today + interval`. Grade outside 0..5 -> `ValueError`. The UI offers Again (1), Hard (3), Good (4), Easy (5).
+- Cut rule (CLAUDE.md): if behind, SM-2 is dropped first and cards are plain (due always today); the schema keeps the columns.
+
+### 12.3 Provider addition
+- `complete(..., json_mode: bool = False)` on every provider: Groq `response_format: {"type": "json_object"}`, Gemini `generationConfig.responseMimeType: "application/json"`; the cache key includes it. FakeProvider ignores it.
+
+### 12.4 Config
+| key | value | reason |
+|---|---|---|
+| paths.study_db | data/study.sqlite | study state separate from the index |
+| quiz.min_tokens / max_sources / max_questions / max_attempts / max_tokens | 40 / 12 / 10 / 2 / 3000 | enough text per slide; prompt stays under Groq's 8000 tokens/min; one retry only |
+| flashcards.max_cards / max_tokens | 20 / 2500 | one call per deck |
+
+### 12.5 Edge cases
+| case | behaviour | test |
+|---|---|---|
+| unit/document with no usable slides | `ValueError` naming the filter | test_quiz |
+| model returns 3 options / duplicate options / answer 4 / source 9 | item rejected with reason, others kept | test_quiz |
+| invalid JSON twice | partial quiz + reasons, no exception, max 2 calls | test_quiz |
+| fewer valid than asked | one top-up call only | test_quiz |
+| grade 0/2 (fail), 3, 5; ef floor 1.3 | SM-2 table | test_srs |
+| same card added twice | skipped | test_study_store |
+| review unknown card / grade 7 | KeyError / ValueError | test_study_store |
+
+## 13. Stage 2 - Phase 3: HTTP API (`src/cornerstone/api.py`, FastAPI 0.143.2, pydantic 2.14.1)
+
+`create_app(cfg: dict | None = None, provider_factory=make_provider) -> FastAPI`; module-level `app = create_app()` is created lazily for uvicorn. Run: `PYTHONPATH=src uvicorn cornerstone.api:app --port 8000`; OpenAPI docs at `/docs`. The app keeps the embedder, the reranker (if on) and the faiss index in `app.state` (loaded once); SQLite connections are opened per request (thread-bound). One `threading.Lock` serialises index writes (ingest, delete) with searches that touch the faiss object.
+
+| method + path | body / query | response | errors |
+|---|---|---|---|
+| GET /health | - | `{status, documents, chunks, schema_version, llm_provider, llm_key_present, rerank, hybrid}` (keys never returned) | - |
+| GET /documents | - | list of `{doc_id, file_name, unit, pages_total, pages_flagged, pages_duplicate, chunks, status}` | - |
+| POST /documents | multipart `files` (.pdf/.docx) | 202 `{jobs: [{job_id, file_name}]}`; ingestion runs in the background, one file at a time | 415 unsupported type, 413 over `api.max_upload_mb` |
+| GET /documents/jobs/{job_id} | - | `{job_id, file_name, state: queued/running/done/failed, report}` | 404 |
+| DELETE /documents/{doc_id} | - | 204; `documents.status='deleted'`, chunks soft-deleted (never returned again; compaction purges) | 404 |
+| GET /search | `q, k, unit*, doc_id*` | list of `{rank, score, scores, file_name, doc_id, page_start, page_end, section, snippet, image_url, also_on}` | 422 empty q / k < 1 |
+| POST /ask | `{question, mode, units?, doc_ids?, check?}` | Answer JSON: text, abstained, reason, citations, sources (n, file, pages, section, image_url), flags, provider, model, ttft_ms | 422 empty / unknown mode; 503 LLM unavailable / limited (message, never a key) |
+| POST /ask/stream | same | `text/event-stream`: `event: delta` (text) ... then `event: final` (Answer JSON); failures as `event: error` | as /ask |
+| GET /pages/{doc_id}/{page_no}/image | - | `image/png` | 404 |
+| POST /quiz | `{units?, doc_ids?, n, seed?}` | Quiz JSON (questions with options, answer index, explanation, source) | 422 no slides; 503 LLM |
+| POST /flashcards/generate | `{units?, doc_ids?, n}` | created cards | 422, 503 |
+| POST /flashcards/from-quiz | a quiz question JSON (as returned by /quiz) | created card | 422 |
+| GET /flashcards/due | `limit, unit*` | due cards | - |
+| POST /flashcards/{card_id}/review | `{grade: 0..5}` | updated card (next due date) | 404, 422 |
+
+- `image_url` = `/pages/{doc_id}/{page}/image` when the page has an image, else null.
+- Errors are JSON `{"detail": "..."}` built from `CornerstoneError` messages (which never contain keys).
+- `MetadataStore.delete_document(doc_id)` (new; status 'deleted', chunks 'deleted', one transaction; `purge_deleted` treats 'deleted' like 'replaced'). Unknown or not active -> `KeyError` -> 404.
+- Tests: `tests/test_api.py` with `fastapi.testclient.TestClient` on a temp index and `FakeProvider` (no network): every route, SSE event order, upload -> job done -> searchable, delete -> gone, 404/415/422/503.
+- CI (`.github/workflows/tests.yml`): ubuntu-latest, Python 3.12, CPU torch from the PyTorch CPU index, `pip install -r requirements.txt`, Hugging Face cache restored with `actions/cache` (key = model revisions), `pytest -q`. No secrets needed (FakeProvider); live-provider checks are not part of CI.
