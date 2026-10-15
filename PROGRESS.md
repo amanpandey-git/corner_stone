@@ -1,18 +1,18 @@
 # PROGRESS - session log (append only below the Morning report)
 
 ## Morning report (kept current; overwritten each update - the log below stays append-only)
-Updated: 2026-10-15 evening. Branch stage-2, 269 tests passing locally and in GitHub Actions.
-- **Done:** Phase 1 closed (test run once). Phase 2: LLM layer (Groq + Gemini, cache, limiter, capped retries), grounded answers with [n] citations + 3-way abstention + 5 modes, citation parser + judge, answer evaluation harness, CLI `ask`, Streamlit Ask. Phase 5: quiz + flashcards + SM-2 + study store, Streamlit Quiz + Flashcards tabs. Phase 3: FastAPI (all endpoints, SSE streaming), CI. Schema v3 (delete).
+Updated: 2026-10-16, before the test-split answer evaluation. Branch stage-2, 272 tests passing (local + GitHub Actions).
+- **Done:** Phase 1 closed. Phase 2 built (LLM layer, grounded answers, citations, judge, evaluation); prompt v3 chosen on dev. Phase 3 API + CI. Phase 5 quiz, flashcards, SM-2 + Streamlit tabs. Demo script.
 - **Retrieval (test, run once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met.
-- **Answers (dev v1, prompt v1):** citation accuracy 95.3%, faithfulness 75.0% (target 90%), abstention 5/5, false abstention 1/33, first token p50 0.83 s. Prompt v2 (cite every sentence) being measured on dev.
-- **Decisions you may want to check (NOTES.md):** judge = Qwen on Groq because Gemini's free tier is 20 requests/day; retrieval gate off (scores overlap); hybrid + reranker off (dev ablation); schema v3 rebuild of data/index.
-- **Blocked:** Next.js web app - Node is v25.9.0, Node 24 LTS needed (gate 2).
+- **Answers (dev v3, prompt v3):** citation accuracy **100%** (71/71), faithfulness **87.5%** (28/32; target 90%, all misses are uncited sentences), abstention 5/5, false abstention 1/33, first token p50 0.93 s.
+- **Quiz:** 25/25 valid (target >= 95%); 24/25 answers supported by their slide (judge).
+- **Reviews before the test answer run:** reviewer 0 blockers (3 PROGRESS should-fixes, fixed); eval-auditor 0 blockers (2 wording fixes, done).
+- **Blocked:** Next.js web app - Node v25.9.0 installed, Node 24 LTS needed.
 
 ### What I need to do
-1. Install Node 24 LTS (then tell me; the web app is the only thing waiting on it).
-2. Spot-check the 20 answers in eval/results/answer_runs/answer_spotcheck_dev_*.md (latest version) and note disagreements with the judge in NOTES.md.
+1. Install Node 24 LTS (the web app is the only thing waiting on it).
+2. Spot-check the 20 answers in eval/results/answer_runs/answer_spotcheck_dev_v3.md (and the test one when it exists); note disagreements with the judge in NOTES.md.
 3. Optional: old index backups in data/ (index.v1.bak, index.v2.bak .. bak4, ~4 MB) can be deleted by you; I do not delete data.
-4. Before the test answer evaluation I will run the reviewer and eval-auditor; nothing needed from you unless a target must change.
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
@@ -547,3 +547,18 @@ Updated: 2026-10-15 evening. Branch stage-2, 269 tests passing locally and in Gi
 - Starlette TestClient deprecation warning (httpx); harmless.
 ### Next atomic action
 - Inspect uncited sentences in dev v1 answers, adjust the prompt (dev only), run dev v2.
+## [2026-10-16] - Phase 2 prompt work, CI, Streamlit learning tabs, quiz evaluation, pre-test reviews
+### Done
+- Prompt v2 (cite every sentence; d7c5a9a) and v3 (one fact per sentence, say only what a slide states, format example; 9fcd5d8), each measured on dev: faithfulness 75.0% -> 81.2% -> 87.5%, citation accuracy 95.3% -> 91.8% -> 100%. v3 chosen for test (NOTES).
+- .github/workflows/tests.yml: pytest on every push, HF model cache; first runs green (269 then 272 tests).
+- Streamlit Quiz + Flashcards tabs (0e2bc02); API edge-case tests (413, from-quiz 422, SSE error event); API locks each faiss read instead of whole requests (LockedIndex).
+- eval/quiz_eval.py + result: 25/25 valid, 24/25 supported. docs/demo-script.md.
+- Reviewer (9b9da41..e600306) and eval-auditor before the test answer run: 0 blockers each; findings fixed (ARCHITECTURE 11.4 wording, 5-mark sample defined; this PROGRESS entry + morning report). Neither agent changed a file.
+### In progress / partial
+- None.
+### Not started
+- Test-split answer evaluation (next, once); Next.js web app (Node 24 needed); README + evaluation report (Phase 6).
+### Known issues / TODO
+- Dev faithfulness 87.5% < 90% target (uncited sentences); reported as is.
+### Next atomic action
+- Run the test-split answer evaluation once: concise (all 43) + 5-mark sample (--limit 10); log in NOTES.md.
