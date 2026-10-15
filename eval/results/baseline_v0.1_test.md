@@ -1,4 +1,4 @@
-# Retrieval evaluation - split `test` - v0.1 baseline (Stage 1 code, unchanged)
+# Retrieval evaluation - split `test` - v0.1 baseline v2 (33 test questions incl. 8 paraphrased)
 
 Generated 2026-10-15 by `eval/retrieval_eval.py --split test`. Index: 7 documents, 328 vectors, model `BAAI/bge-small-en-v1.5`, ef_search=50. Nothing was tuned on the test split.
 
@@ -6,12 +6,12 @@ Generated 2026-10-15 by `eval/retrieval_eval.py --split test`. Index: 7 document
 
 | metric | value |
 |---|---|
-| scored questions | 25 |
-| **hit@5** | **0.960** (24/25) |
-| **MRR** (top-10) | **0.912** |
-| multi-page questions | 8: 15/17 labelled pages found in top 5 |
-| cross-file questions | 4: 2 with every file in top 5 |
-| end-to-end search latency p50 / p95 | 43 ms / 110 ms (query embedding + HNSW + SQLite, k=10) |
+| scored questions | 33 |
+| **hit@5** | **0.879** (29/33) |
+| **MRR** (top-10) | **0.848** |
+| multi-page questions | 9: 15/21 labelled pages found in top 5 |
+| cross-file questions | 5: 2 with every file in top 5 |
+| end-to-end search latency p50 / p95 | 34 ms / 41 ms (query embedding + HNSW + SQLite, k=10) |
 | unanswerable questions in split | 10 (not scored here; Phase 2 abstention) |
 
 Definitions: a result covers a labelled page if it is from that target's file and the page lies inside the chunk's page range. hit@5 = any labelled page covered in the top 5. MRR = mean of 1/rank of the first covering result (top 10, else 0).
@@ -53,7 +53,18 @@ The three questions asked by hand in Step 5 (their results were shown to the aut
 | 47 | What is a semaphore and how is it used for synchronization between processes? | Unit 1_Part 2_ Process management.pdf p.15 + Unit 2_Process Synchronization_Deadlock.pdf p.10 [2/2 pages in top 5] [2/2 files in top 5] | 1 | yes | Unit 1_Part 2_ Process management.pdf p.15 |
 | 49 | What is protection in an operating system and how does an access matrix represent it? | Unit 1_Part 1_Introduction & OS Structure.pdf p.24 + Unit 5_Part 2_System Protection.pdf p.10 [2/2 pages in top 5] [2/2 files in top 5] | 1 | yes | Unit 1_Part 1_Introduction & OS Structure.pdf p.24 |
 | 50 | What memory-management activities is the OS responsible for, and how does paging turn a logical address into a physical address? | Unit 1_Part 1_Introduction & OS Structure.pdf p.19 + Unit 3_Memory management.pdf p.27 [1/2 pages in top 5] [1/2 files in top 5] | 3 | yes | Unit 3_Memory management.pdf p.24-25 |
+| 67 | Roughly what share of desktop machines worldwide run the Mac's software, and why is it smaller than its main competitor's? | Unit 1_Part 1_Introduction & OS Structure.pdf p.8 | 1 | yes | Unit 1_Part 1_Introduction & OS Structure.pdf p.8 |
+| 69 | Which component temporarily moves a job out of RAM to reduce how many jobs compete for the processor, and afterwards brings it back? | Unit 1_Part 2_ Process management.pdf p.23 | 1 | yes | Unit 1_Part 2_ Process management.pdf p.23 |
+| 71 | What are the two ways to kill a lightweight unit of execution before it completes its work? | Unit 1_Part 2_ Process management.pdf p.119 | >10 | no | Unit 2_Process Synchronization_Deadlock.pdf p.58 |
+| 73 | Can a single job ever end up stuck waiting on itself, and can two threads inside one job block each other this way? | Unit 2_Process Synchronization_Deadlock.pdf p.28 | 6 | no | Unit 2_Process Synchronization_Deadlock.pdf p.10 |
+| 75 | Why does shuffling all the free holes into one place make the machine slow? | Unit 3_Memory management.pdf p.18 | 1 | yes | Unit 3_Memory management.pdf p.17-18 |
+| 77 | If an address has 22 bits and every location holds 2 bytes, how big is the memory? | Unit 3_Memory management.pdf p.39 | 1 | yes | Unit 3_Memory management.pdf p.39 |
+| 79 | Why does hashing names speed up lookups in a folder, and what problem does it introduce? | Unit 5_Part 1_File-system-interface.pdf p.58 | 1 | yes | Unit 5_Part 1_File-system-interface.pdf p.58 |
+| 81 | Which policies, both for the processor and for the hard-drive arm, handle jobs strictly in the order they show up, and what is their weakness? | Unit 1_Part 2_ Process management.pdf p.45,48 + Unit 4_Storage management_ Disk Schduling.pdf p.9,11 (duplicate on p.34,36) [0/4 pages in top 5] [0/2 files in top 5] | >10 | no | Unit 4_Storage management_ Disk Schduling.pdf p.27 |
 
-## Misses (1)
+## Misses (4)
 
 - What are the advantages and drawbacks of contiguous allocation of disk blocks? (expected Unit 5_Part 1_File-system-interface.pdf p.46, got Unit 3_Memory management.pdf p.8-9)
+- What are the two ways to kill a lightweight unit of execution before it completes its work? (expected Unit 1_Part 2_ Process management.pdf p.119, got Unit 2_Process Synchronization_Deadlock.pdf p.58)
+- Can a single job ever end up stuck waiting on itself, and can two threads inside one job block each other this way? (expected Unit 2_Process Synchronization_Deadlock.pdf p.28, got Unit 2_Process Synchronization_Deadlock.pdf p.10)
+- Which policies, both for the processor and for the hard-drive arm, handle jobs strictly in the order they show up, and what is their weakness? (expected Unit 1_Part 2_ Process management.pdf p.45, Unit 1_Part 2_ Process management.pdf p.48, Unit 4_Storage management_ Disk Schduling.pdf p.9, Unit 4_Storage management_ Disk Schduling.pdf p.11, got Unit 4_Storage management_ Disk Schduling.pdf p.27)

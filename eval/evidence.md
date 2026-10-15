@@ -108,3 +108,28 @@ deliberately close to covered topics (hard negatives); 60 and 65 are off-topic c
 - dev 30: 25 answerable (4 multi-page, 1 cross-file), 5 unanswerable. test 35: 25 answerable (8 multi-page, 4 cross-file), 10 unanswerable.
 - New questions per file (21-45): Unit 1-1: 3, Unit 1-2: 5, Unit 2: 5, Unit 3: 4, Unit 4: 2, Unit 5-1: 3, Unit 5-2: 3; cross-file 46-50.
 - No labelled page is flagged `needs_ocr`.
+
+## Harder paraphrased questions (2026-10-15): ids 66-81
+
+Written to avoid the words of the labelled slide's title/headings (checked by script: content words longer than
+3 letters vs the page's detected headings and first line; the last column lists any overlap that remained).
+Phrases script-verified on their pages as above. Split: even id -> dev, odd id -> test (8 each).
+
+| id | split | question | file > page: exact answering phrase | title-word overlap |
+|---|---|---|---|---|
+| 66 | dev | What are the always-running background helpers that start at boot, such as print servers, usually called? | Unit 1_Part 1_Introduction & OS Structure > **p.48**: "Constantly running system-program processes are known as services, subsystems, or daemons" | none |
+| 67 | test | Roughly what share of desktop machines worldwide run the Mac's software, and why is it smaller than its main competitor's? | Unit 1_Part 1_Introduction & OS Structure > **p.8**: "One reason for this is that Apple computers tend to be more expensive" | none |
+| 68 | dev | Why is saving one task's registers and loading another's considered wasted time, and how long does it typically take? | Unit 1_Part 2_ Process management > **p.30**: "Typical speeds range from 1 to 1000 microseconds" | none |
+| 69 | test | Which component temporarily moves a job out of RAM to reduce how many jobs compete for the processor, and afterwards brings it back? | Unit 1_Part 2_ Process management > **p.23**: "This scheme is called swapping" | none |
+| 70 | dev | What happens to a time-slice based policy when the slice is made extremely large? | Unit 1_Part 2_ Process management > **p.77**: "When time quantum tends to infinity, Round Robin Scheduling becomes FCFS" | none |
+| 71 | test | What are the two ways to kill a lightweight unit of execution before it completes its work? | Unit 1_Part 2_ Process management > **p.119**: "Deferred cancellation allows the target thread to periodically check if it should be cancelled" | none |
+| 72 | dev | How can five diners who share utensils be seated and ordered so that nobody waits forever? | Unit 2_Process Synchronization_Deadlock > **p.15**: "The maximum number of philosophers on the table should not exceed four" | none |
+| 73 | test | Can a single job ever end up stuck waiting on itself, and can two threads inside one job block each other this way? | Unit 2_Process Synchronization_Deadlock > **p.28**: "It is not possible to have a deadlock involving only one single process"<br>Unit 2_Process Synchronization_Deadlock > **p.28**: "deadlock is not possible between two threads in a process" | none |
+| 74 | dev | Once a circular hold among jobs has been detected, how can it be broken by killing jobs or taking things away from them? | Unit 2_Process Synchronization_Deadlock > **p.57**: "There are two options for breaking a deadlock"<br>Unit 2_Process Synchronization_Deadlock > **p.58**: "Abort all deadlocked processes"<br>Unit 2_Process Synchronization_Deadlock > **p.59**: "Selecting a victim" | none |
+| 75 | test | Why does shuffling all the free holes into one place make the machine slow? | Unit 3_Memory management > **p.18**: "the CPU will remain idle for all this time" | none |
+| 76 | dev | Which flag in a translation-table row says whether the requested block is resident in main memory, and what is it called when it is not? | Unit 3_Memory management > **p.32**: "In case it is not present, that is called Page Fault" | none |
+| 77 | test | If an address has 22 bits and every location holds 2 bytes, how big is the memory? | Unit 3_Memory management > **p.39**: "= 8 MB" | none |
+| 78 | dev | What determines how much data a traditional hard drive can store? | Unit 4_Storage management_ Disk Schduling > **p.6**: "The storage capacity of a traditional disk drive is equal to the number of heads"<br>Unit 4_Storage management_ Disk Schduling > **p.31**: "The storage capacity of a traditional disk drive is equal to the number of heads" | none |
+| 79 | test | Why does hashing names speed up lookups in a folder, and what problem does it introduce? | Unit 5_Part 1_File-system-interface > **p.58**: "collisions – situations where two file names hash to the same location" | none |
+| 80 | dev | In what ways can a permission that was granted earlier be taken back, and how do keys make this possible? | Unit 5_Part 2_System Protection > **p.24**: "Revocation – create new master key" | none |
+| 81 | test | Which policies, both for the processor and for the hard-drive arm, handle jobs strictly in the order they show up, and what is their weakness? | Unit 1_Part 2_ Process management > **p.45**: "It schedules according to the arrival time of the process"<br>Unit 1_Part 2_ Process management > **p.48**: "Throughput is not efficient"<br>Unit 4_Storage management_ Disk Schduling > **p.9**: "The requests coming to the disk are arranged in a proper sequence as they arrive"<br>Unit 4_Storage management_ Disk Schduling > **p.11**: "Not so efficient"<br>Unit 4_Storage management_ Disk Schduling > **p.34**: "arranged in a proper sequence as they arrive"<br>Unit 4_Storage management_ Disk Schduling > **p.36**: "Not so efficient" | none |

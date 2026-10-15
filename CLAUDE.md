@@ -25,7 +25,7 @@ Product (decided): an exam-prep assistant for a student studying their own cours
 Tie-breaker: when a decision is unclear, choose whatever makes citations, abstention and measured quality stronger.
 
 In scope for Stage 2, built in this order (contracts in ARCHITECTURE.md before each phase's code):
-1. Retrieval quality: near-duplicate page removal at ingest (record which page each skipped slide duplicates) + collapse of near-identical results at query time; slide-aware chunking (one slide per chunk where it fits, exact page numbers, a "file > section" context header prepended before embedding); page images (PyMuPDF PNG under data/); hybrid search (SQLite FTS5 + vector, merged with Reciprocal Rank Fusion; rank_bm25 only if FTS5 is missing); cross-encoder reranker on the top 30; filter by document and by unit; index compaction command; schema + index version bump (an old index fails loudly and offers a rebuild). After each change: an ablation row on the dev split (change, hit@5, MRR, p95 latency). Test split reported once, at the end of the phase.
+1. Retrieval quality: near-duplicate page removal at ingest (record which page each skipped slide duplicates) + collapse of near-identical results at query time; slide-aware chunking (one slide per chunk where it fits, exact page numbers, a "file > section" context header prepended before embedding); page images (PyMuPDF PNG under data/); hybrid search (SQLite FTS5 + vector, merged with Reciprocal Rank Fusion; rank_bm25 only if FTS5 is missing); cross-encoder reranker on the top 30 (adopted only if the dev ablation shows a gain and p95 stays < 1 s; always switchable in config); filter by document and by unit; index compaction command; schema + index version bump (an old index fails loudly and offers a rebuild). After each change: an ablation row on the dev split (change, hit@5, MRR, p95 latency). Test split reported once, at the end of the phase.
 2. Answering: provider-agnostic LLM interface with Groq and Gemini adapters chosen in config.yaml (timeouts, retries, rate-limit handling, answer cache); grounded prompt (answer only from retrieved chunks, numbered [n] citations mapped to file + page, "not in your notes" when evidence is insufficient); modes concise / detailed / 2-mark / 5-mark / 10-mark; follow-up rewriting from the last few turns; streaming; citation check (each cited chunk supports its sentence, unsupported claims flagged); answer evaluation on the test split (citation accuracy, faithfulness, abstention rate, time to first token) with an LLM judge + 20 answers listed for the user's manual spot check; runs paced for free-tier limits.
 3. API: FastAPI endpoints for documents (upload with background ingestion + status, list, delete), search, ask (streaming), page image, quiz, flashcards, health. OpenAPI docs, TestClient tests, GitHub Actions running pytest on every push.
 4. Frontend: Next.js + TypeScript in web/, Tailwind CSS only: upload + list with ingestion status, chat with streamed answers, clickable citations showing the slide image, answer-mode selector. Simple components; all logic stays in the API. The Streamlit page keeps working as a fallback.
@@ -35,7 +35,7 @@ Only if everything else is green: weak-topic tracking.
 
 NOT building in Stage 2: OCR, PPTX/URL ingestion, table and diagram extraction, notebooks, accounts or multi-user, an external vector database, deployment, knowledge graph, audio, past-paper analysis. Still out: non-English documents. If reaching for any of these: stop, that is scope creep.
 
-Targets (on the test split; report the real number either way): hit@5 >= 0.90 and not below the v0.1 test baseline (0.960, eval/results/baseline_v0.1_test.md); reranked search p95 < 1 s on this laptop; citation accuracy >= 90%; faithfulness >= 90%; >= 8 of the 10 test out-of-scope questions answered "not in your notes"; time to first token p50 < 3 s; >= 95% of quiz questions valid.
+Targets (on the test split; report the real number either way): hit@5 >= 0.90 and no more than one test question worse than v0.1 (a v0.1 hit@5 that becomes a miss; v0.1 baseline 0.879 = 29/33, eval/results/baseline_v0.1_test.md); reranked search p95 < 1 s on this laptop; citation accuracy >= 90%; faithfulness >= 90%; >= 8 of the 10 test out-of-scope questions answered "not in your notes"; time to first token p50 < 3 s; >= 95% of quiz questions valid.
 
 Evaluation rules: eval/questions.jsonl has a dev and a test split (rule in eval/QUESTIONS_FORMAT.md). Tune only on dev. The test split is run only at: the baseline (done), the end of Phase 1, the Phase 2 answer evaluation, and the final report; every test run is logged in NOTES.md, and nothing is changed because of a test result without saying so next to the number.
 
@@ -179,7 +179,11 @@ Not about shipping features fast. It is evidence: a correct, verified indexing p
 ## Standing decisions made after v1.0
 - 2026-10-15: user said proceed to the next step without waiting for "go" unless blocked.
 - 2026-10-15: faiss-cpu IndexHNSWFlat replaces hnswlib (no wheel, no C++ compiler). See NOTES.md.
-- 2026-10-15: Stage 2 started on branch stage-2 (Section II rewritten). Final evaluation date: NOT YET GIVEN (asked).
+- 2026-10-15: Stage 2 started on branch stage-2 (Section II rewritten).
+- 2026-10-15: Final (Stage 2) evaluation: 25 October 2026; freeze on 24 October for report + rehearsal. Stage 1 evaluation: 16 October 2026 (uses ../corner_stone_stable).
+- 2026-10-15: Node stays v25.9.0; user installs Node 24 LTS before Phase 4. Install nothing.
+- 2026-10-15: 15 unanswerable questions kept (10 test, 5 dev). 16 harder paraphrased questions added (ids 66-81). Retrieval target changed (Section II).
+- 2026-10-15: Streamlit page is the guaranteed demo UI; Next.js only if the plan leaves room.
 
 ## ARCHIVED - Stage 1 Section II (v1.0, superseded 2026-10-15)
 In scope for Stage 1:
