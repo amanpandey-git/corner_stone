@@ -1,13 +1,18 @@
 # PROGRESS - session log (append only below the Morning report)
 
 ## Morning report (kept current; overwritten each update - the log below stays append-only)
-Updated: 2026-10-15, Phase 1 closed; Phase 2 (answering) starting.
-- **Done:** Phase 1 complete. Reranker measured and not adopted. Reviewer + eval-auditor run (0 blockers; fixes in 948a7c7). Phase 1 test run done once.
-- **Phase 1 test (run #3, once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met (>= 0.90, 0 questions worse than v0.1). Misses: 71, 81.
-- **Dev default pipeline:** hit@5 0.939, MRR 0.835. Hybrid (0.848) and rerank (0.939 / MRR 0.817, p95 2.9 s) both off.
-- **LLM keys:** Groq ok, Gemini ok (gemini-3.5-flash; 2.5-flash returns 404).
-- **Blocked:** Next.js web app needs Node 24 LTS (Node v25.9.0 installed).
-- **What I need to do:** install Node 24 LTS before the web app (Phase 4); spot-check 20 answers once the answer evaluation is written (file will be eval/results/answer_spotcheck_dev.md).
+Updated: 2026-10-15 evening. Branch stage-2, 269 tests passing locally and in GitHub Actions.
+- **Done:** Phase 1 closed (test run once). Phase 2: LLM layer (Groq + Gemini, cache, limiter, capped retries), grounded answers with [n] citations + 3-way abstention + 5 modes, citation parser + judge, answer evaluation harness, CLI `ask`, Streamlit Ask. Phase 5: quiz + flashcards + SM-2 + study store, Streamlit Quiz + Flashcards tabs. Phase 3: FastAPI (all endpoints, SSE streaming), CI. Schema v3 (delete).
+- **Retrieval (test, run once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met.
+- **Answers (dev v1, prompt v1):** citation accuracy 95.3%, faithfulness 75.0% (target 90%), abstention 5/5, false abstention 1/33, first token p50 0.83 s. Prompt v2 (cite every sentence) being measured on dev.
+- **Decisions you may want to check (NOTES.md):** judge = Qwen on Groq because Gemini's free tier is 20 requests/day; retrieval gate off (scores overlap); hybrid + reranker off (dev ablation); schema v3 rebuild of data/index.
+- **Blocked:** Next.js web app - Node is v25.9.0, Node 24 LTS needed (gate 2).
+
+### What I need to do
+1. Install Node 24 LTS (then tell me; the web app is the only thing waiting on it).
+2. Spot-check the 20 answers in eval/results/answer_runs/answer_spotcheck_dev_*.md (latest version) and note disagreements with the judge in NOTES.md.
+3. Optional: old index backups in data/ (index.v1.bak, index.v2.bak .. bak4, ~4 MB) can be deleted by you; I do not delete data.
+4. Before the test answer evaluation I will run the reviewer and eval-auditor; nothing needed from you unless a target must change.
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
