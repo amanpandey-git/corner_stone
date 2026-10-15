@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from cornerstone import SearchResult
+from cornerstone import SearchFilters, SearchResult
 from cornerstone.dedup import collapse_results
 from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
@@ -23,11 +23,12 @@ def _snippet(text: str, limit: int) -> str:
 
 
 def search(query: str, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex, embedder: Embedder,
-           ef_search: int | None = None) -> list[SearchResult]:
+           ef_search: int | None = None, filters: SearchFilters | None = None) -> list[SearchResult]:
     """Return up to k results, best first. Deleted/replaced/pending chunks never appear.
 
     Raises EmptyQuery for a blank query (checked even when the index is empty) and ValueError
-    for k < 1. An empty index, or one whose hits are all deleted, returns [].
+    for k < 1. An empty index, or one whose hits are all deleted, returns []. ``filters`` restricts
+    results to some documents and/or units; a filter that matches no active document returns [].
     """
     if k < 1:
         raise ValueError("k must be >= 1")
@@ -35,18 +36,21 @@ def search(query: str, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex
     n = len(index)
     if n == 0:
         return []
+    allowed = store.allowed_doc_ids(filters)
+    if allowed is not None and not allowed:
+        return []
     r = cfg["retrieval"]
     staged = r["collapse"]
     want = max(k, r["candidates"]) if staged else k   # later stages need more than k candidates
-    results = _vector_candidates(q, want, cfg, store, index, ef_search)
+    results = _vector_candidates(q, want, cfg, store, index, ef_search, allowed)
     if r["collapse"]:
         results = collapse_results(results, cfg)
     return [replace(x, rank=i + 1) for i, x in enumerate(results[:k])]
 
 
 def _vector_candidates(q, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex,
-                       ef_search: int | None) -> list[SearchResult]:
-    """Up to k live (active) chunks nearest to the query vector, best first."""
+                       ef_search: int | None, allowed: set[int] | None = None) -> list[SearchResult]:
+    """Up to k live (active) chunks nearest to the query vector, best first, from allowed docs only."""
     n = len(index)
 
     # HNSW cannot delete, so some of the nearest vectors may belong to retired chunks.
@@ -56,7 +60,8 @@ def _vector_candidates(q, k: int, cfg: dict, store: MetadataStore, index: HNSWIn
     while True:
         labels, scores = index.search(q, fetch, ef_search)
         live = store.get_chunks(labels.tolist())
-        hits = [(int(lab), float(s)) for lab, s in zip(labels, scores) if int(lab) in live]
+        hits = [(int(lab), float(s)) for lab, s in zip(labels, scores)
+                if int(lab) in live and (allowed is None or live[int(lab)].doc_id in allowed)]
         if len(hits) >= k or fetch >= n:
             break
         fetch = min(fetch * 2, n)

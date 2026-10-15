@@ -380,3 +380,14 @@
 - None new.
 ### Next atomic action
 - Filters (ARCHITECTURE 10.8): search(..., filters=SearchFilters) applied on the vector side (over-fetch) + CLI --unit/--doc options + tests.
+## [2026-10-15] - Phase 1 step 7: filters
+### Done
+- MetadataStore.allowed_doc_ids; search(..., filters) on the vector side; CLI search --unit/--file. 2 new tests; 173 passed, 5 skipped (rrf). Dev row 7 unchanged (regression check).
+### In progress / partial
+- rrf_merge: waiting for the author.
+### Not started
+- compaction; hybrid wiring (after rrf_merge); reranker.
+### Known issues / TODO
+- None new.
+### Next atomic action
+- Compaction (ARCHITECTURE 10.9): compact() + `cli compact [--yes]` + tests (nothing to compact; replaced doc removed; crash after swap).

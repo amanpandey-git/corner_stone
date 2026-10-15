@@ -391,6 +391,7 @@ def search(query, k, cfg, store, index, embedder, ef_search=None,
 ```
 - Stages follow config flags: vector top `retrieval.candidates` (30) -> if `retrieval.hybrid`: keyword top 30 + `rrf_merge` -> if `retrieval.collapse`: `collapse_results` -> if `retrieval.rerank`: `reranker.rerank` (`ValueError` if the flag is on and no reranker is passed) -> first k. All flags off == Stage 1 behaviour (the ablation baseline).
 - `SearchResult` gains `scores: dict[str, float]` (keys among `vector`, `bm25`, `rrf`, `rerank`) and `also_on` (10.3), both with defaults, so Stage 1 callers keep working.
+- `MetadataStore.allowed_doc_ids(filters) -> set[int] | None` (None = no filter) is resolved once per query; the vector over-fetch loop keeps only hits from allowed documents. CLI: `search ... --unit "Unit 4" --file <name>` (both repeatable; an unknown file name is warned about and contributes nothing).
 - Filters apply inside both retrievers (FTS via a join on documents; vector via the existing over-fetch loop). A filter matching nothing -> `[]`; an unknown unit -> `[]`, not an error. `units` compare with `documents.unit`.
 - Errors unchanged: `EmptyQuery`; `ValueError` for k < 1.
 

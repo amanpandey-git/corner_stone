@@ -19,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from cornerstone import CornerstoneError, EmptyQuery
+from cornerstone import CornerstoneError, EmptyQuery, SearchFilters
 from cornerstone.chunking import chunk_pages
 from cornerstone.dedup import mark_duplicates
 from cornerstone.embeddings import Embedder, load_token_counter
@@ -200,8 +200,18 @@ def cmd_rebuild(args, cfg) -> int:
 
 def cmd_search(args, cfg) -> int:
     st = open_stack(cfg, ROOT, assume_yes=args.yes)
+    filters = None
+    if args.unit or args.file:
+        doc_ids = None
+        if args.file:
+            docs = [st.store.find_active_by_name(f) for f in args.file]
+            missing = [f for f, d in zip(args.file, docs) if d is None]
+            if missing:
+                print(f"warning: not indexed: {', '.join(missing)}", file=sys.stderr)
+            doc_ids = [d.doc_id for d in docs if d is not None]
+        filters = SearchFilters(doc_ids=doc_ids, units=args.unit)
     try:
-        results = search(args.query, args.k, cfg, st.store, st.index, st.embedder)
+        results = search(args.query, args.k, cfg, st.store, st.index, st.embedder, filters=filters)
     except EmptyQuery as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
@@ -278,6 +288,8 @@ def main(argv: list[str] | None = None) -> int:
     p = add("search", cmd_search, "search the index")
     p.add_argument("query")
     p.add_argument("--k", type=int, default=None, help="number of results (default from config)")
+    p.add_argument("--unit", action="append", help='only this unit, e.g. --unit "Unit 4" (repeatable)')
+    p.add_argument("--file", action="append", help="only this indexed file name (repeatable)")
     p.add_argument("--yes", action="store_true")
     p = add("stats", cmd_stats, "show index and ingestion statistics")
     p.add_argument("--yes", action="store_true")

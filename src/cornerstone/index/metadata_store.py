@@ -17,7 +17,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from cornerstone import SCHEMA_VERSION, Chunk, Document, IndexVersionMismatch, Page, rebuild_hint
+from cornerstone import SCHEMA_VERSION, Chunk, Document, IndexVersionMismatch, Page, SearchFilters, rebuild_hint
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents(
@@ -224,6 +224,19 @@ class MetadataStore:
                     para_start=r["para_start"], para_end=r["para_end"], deleted=False,
                     context_header=r["context_header"])
         return out
+
+    def allowed_doc_ids(self, filters: SearchFilters | None) -> set[int] | None:
+        """Active doc_ids matching the filters; None means "no restriction" (no filter given)."""
+        if filters is None or (filters.doc_ids is None and filters.units is None):
+            return None
+        sql, args = "SELECT doc_id FROM documents WHERE status='active'", []
+        if filters.doc_ids is not None:
+            sql += f" AND doc_id IN ({','.join('?' * len(filters.doc_ids))})"
+            args += list(filters.doc_ids)
+        if filters.units is not None:
+            sql += f" AND unit IN ({','.join('?' * len(filters.units))})"
+            args += list(filters.units)
+        return {r[0] for r in self.conn.execute(sql, args)}
 
     def active_chunk_ids(self) -> list[int]:
         return [r[0] for r in self.conn.execute("SELECT chunk_id FROM chunks WHERE status='active' ORDER BY chunk_id")]

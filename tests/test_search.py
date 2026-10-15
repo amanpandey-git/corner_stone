@@ -137,3 +137,18 @@ def test_collapse_switch_hides_near_copies_across_files(cfg, embedder, tmp_path)
     assert len(off) == 2 and len(on) == 1
     assert on[0].also_on and on[0].also_on[0][0] in {"notes_a.docx", "notes_b.docx"}
     assert on[0].rank == 1 and on[0].scores["vector"] == pytest.approx(on[0].score)
+
+
+def test_filters_by_unit_and_document(cfg, embedder, samples_stack):
+    from cornerstone import SearchFilters
+    store, index = samples_stack                     # Unit 5 Part 2 + Unit 4 are indexed
+    q = "what is the seek time of a disk"
+    only5 = search(q, 5, cfg, store, index, embedder, filters=SearchFilters(units=["Unit 5"]))
+    assert only5 and all(r.chunk.file_name.startswith("Unit 5") for r in only5)
+    d4 = store.find_active_by_name("Unit 4_Storage management_ Disk Schduling.pdf").doc_id
+    only4 = search(q, 5, cfg, store, index, embedder, filters=SearchFilters(doc_ids=[d4]))
+    assert only4 and all(r.chunk.doc_id == d4 for r in only4)
+    both = SearchFilters(doc_ids=[d4], units=["Unit 5"])           # contradictory -> nothing
+    assert search(q, 5, cfg, store, index, embedder, filters=both) == []
+    assert search(q, 5, cfg, store, index, embedder, filters=SearchFilters(units=["Unit 9"])) == []
+    assert search(q, 5, cfg, store, index, embedder, filters=SearchFilters()) == search(q, 5, cfg, store, index, embedder)

@@ -113,3 +113,16 @@ def test_rebuild_with_no_files_fails(env, capsys):
     empty.mkdir()
     assert cli.main(base + ["rebuild", str(empty), "--yes"]) == 1
     assert "no .pdf/.docx" in capsys.readouterr().err
+
+
+def test_search_unit_and_file_filters(env, capsys):
+    base, f, tmp = env
+    assert cli.main(base + ["ingest", str(f)]) == 0               # scheduling.docx has no unit
+    capsys.readouterr()
+    assert cli.main(base + ["search", "round robin", "--unit", "Unit 4"]) == 0
+    assert "no results" in capsys.readouterr().out
+    assert cli.main(base + ["search", "round robin", "--file", "scheduling.docx"]) == 0
+    assert "scheduling.docx" in capsys.readouterr().out
+    assert cli.main(base + ["search", "round robin", "--file", "ghost.pdf"]) == 0
+    io = capsys.readouterr()
+    assert "not indexed: ghost.pdf" in io.err and "no results" in io.out
