@@ -512,3 +512,18 @@ Updated: 2026-10-15, Phase 1 closed; Phase 2 (answering) starting.
 - Comparison questions often retrieve one side only (retrieval limit, k=5).
 ### Next atomic action
 - eval/answer_eval.py (metrics per ARCHITECTURE 11.4, pacing, partial results) + tests; then the dev run.
+## [2026-10-15] - Phase 2 harness + Streamlit Ask; Phase 5 step 1: SM-2 + study store
+### Done
+- eval/answer_eval.py (+ tests/test_eval_answer.py, 5 tests); judge outages mark answers "not checked" (Answer.check_error), 3 in a row stop the run.
+- Streamlit Ask tab (stream, modes, unit filter, flags, slide images); test_app +2.
+- Fixes logged in NOTES: lenticular citation brackets from gpt-oss; Gemini 503 stopping a run.
+- Contracts for quiz/flashcards (ARCHITECTURE 12) and the API (13); fastapi 0.143.2, pydantic 2.14.1 installed + pinned.
+- srs.sm2 (assistant-written, VIVA line by line), study_store.StudyStore + Card (data/study.sqlite). tests: test_srs 5, test_study_store 5.
+### In progress / partial
+- Dev answer evaluation v1 running in the background (eval/results/answer_runs/answer_eval_dev_v1.md).
+### Not started
+- quiz.py, flashcards.py, json_mode; API; CI.
+### Known issues / TODO
+- Gate threshold and prompt tuning wait for the dev v1 numbers.
+### Next atomic action
+- json_mode in llm.py + quiz.py (pick_slides, generate_quiz, pydantic validation, one top-up) + tests/test_quiz.py.

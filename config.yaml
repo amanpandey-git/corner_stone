@@ -4,6 +4,7 @@ paths:
   index_dir: data/index          # holds hnsw.faiss, manifest.json, cornerstone.sqlite
   image_dir: data/images         # one PNG per PDF page, for citation previews (gitignored)
   cache_dir: data/cache          # LLM answer cache (gitignored)
+  study_db: data/study.sqlite    # flashcards + reviews; separate from the index (ARCHITECTURE 12)
 
 extraction:
   scan_min_chars: 25             # a page with fewer cleaned chars than this (and no text layer) is "needs OCR"

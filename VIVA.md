@@ -179,3 +179,20 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: Why hold back the first 12 characters while streaming?** A: If the model is going to abstain, its reply starts with NOT_IN_NOTES. Holding back the first 12 characters (the token's length) means the student never sees a half-printed "NOT_IN_N..." flash on screen; as soon as the text cannot be the token anymore, it streams normally.
 - **Q: What does "first token" time measure?** A: From the moment the question is submitted (including the embedding and search) to the first piece of model text, measured only on live (not cached) calls. Groq's gpt-oss-120b gave about 0.6-0.8 s in my checks.
 - **Q: Why temperature 0?** A: The same question over the same slides should give the same answer, which makes answers reproducible, cacheable and fair to evaluate.
+## Stage 2 Phase 5 step 1 - spaced repetition (srs.py, study_store.py)
+
+`sm2(ef, interval, reps, grade)` in `src/cornerstone/srs.py`, line by line:
+- `if not 0 <= grade <= 5: raise ValueError(...)`: SM-2 grades recall from 0 (complete blackout) to 5 (perfect, instant). Anything else is a bug in the caller, so it fails loudly before anything is saved.
+- `if grade < PASS_GRADE:` (3): grades 0-2 mean the student did not recall the answer.
+- `reps = 0; interval = FIRST_INTERVAL`: a failure resets the streak of correct reviews and brings the card back tomorrow, so it is relearned from the start.
+- `else: reps += 1`: one more correct review in a row.
+- `if reps == 1: interval = 1` and `elif reps == 2: interval = 6`: the first two gaps are fixed, 1 day then 6 days, as in the original algorithm; there is no history yet to scale from.
+- `else: interval = round(interval * ef)`: from the third correct review on, the gap is multiplied by the easiness factor, so with ef 2.5 the gaps go 1, 6, 15, 38 days: an easy card is seen rarely.
+- `ef = ef + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02))`: the easiness update from Wozniak's paper. Grade 5 adds 0.1, grade 4 adds 0, grade 3 subtracts 0.14, and a failure (grade 0) subtracts 0.8. It is applied after failures too, so a card you keep failing becomes "hard" and grows slowly later.
+- `ef = max(MIN_EF, ef)`: the floor of 1.3 stops a hard card's intervals from barely growing, which would show it almost every day forever.
+- `return ef, interval, reps`: the store adds `due = today + interval`, counts lapses (failures) and logs every review.
+
+- **Q: Why spaced repetition for exam prep?** A: Memory fades along a forgetting curve, and reviewing just before you would forget strengthens it most. SM-2 schedules each card individually: what you know comes back rarely, what you fail comes back tomorrow, so study time goes to weak cards.
+- **Q: Why are flashcards in a separate database from the index?** A: The index can be rebuilt or compacted at any time (new chunking, a schema change). The student's review history must survive that, so it lives in data/study.sqlite. Each card stores the file name and page, so its source slide can still be shown after a rebuild.
+- **Q: What does the UI's Again / Hard / Good / Easy map to?** A: Grades 1, 3, 4 and 5. Again is a failure (back tomorrow); Hard passes but lowers the easiness; Good keeps it; Easy raises it.
+- **Q: What happens if the same flashcard is generated twice?** A: The table has a UNIQUE constraint on (front, file, page), and inserts use INSERT OR IGNORE, so the duplicate is skipped and its review history is kept.
