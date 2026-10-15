@@ -488,3 +488,14 @@ Updated: 2026-10-15, Phase 1 closed; Phase 2 (answering) starting.
 - Groq output contains narrow no-break spaces (U+202F): normalise in answer.py.
 ### Next atomic action
 - citations.py (parse_citations, strip_invalid_refs, check_citations) + tests/test_citations.py + VIVA line by line.
+## [2026-10-15] - Phase 2 step 2: citation parser
+### Done
+- citations.py: parse_citations, split_sentences, strip_invalid_refs, check_citations (judge, one retry, None = unchecked), parse_judge_reply. tests/test_citations.py: 11 tests. VIVA: line by line.
+### In progress / partial
+- None.
+### Not started
+- answer.py, answer evaluation, Streamlit Ask.
+### Known issues / TODO
+- Rule-based sentence splitting ("e.g." splits); errs on the strict side.
+### Next atomic action
+- answer.py: build_prompt, answer(), stream_answer() with retrieval gate + modes + abstention, tests with FakeProvider.
