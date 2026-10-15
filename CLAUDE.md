@@ -170,6 +170,13 @@ If the same test fails three times despite patches, or the same function keeps b
 - Download the embedding model once and cache it; test on the smallest samples.
 - If a step grows big, snapshot first, then split it.
 
+## XIIIb. SUB-AGENTS (read-only; added 2026-10-15)
+Defined in `.claude/agents/`. Both only read and report; they never edit files, change git state or run evaluations.
+- `reviewer`: checks a commit range against ARCHITECTURE.md contracts, the tests and every CLAUDE.md rule (protected items, no tuning on test, no secrets, atomic commits). Call it ONCE at the end of each phase and before every test-set run. NOT after every commit (usage limits).
+- `eval-auditor`: re-checks numbers in eval/results/ and NOTES.md, confirms every test-set run is logged, flags signs of tuning on test. Call it before every test-set run (baseline done; end of Phase 1; Phase 2 answer evaluation; final report).
+- Their findings are fixed by the main session (self-repair loop, Section XI) and the report is summarised in PROGRESS.md. Blockers are fixed before the test-set run.
+- No other agents until the user says so (a web-building agent in a separate git worktree is planned for 22 Oct).
+
 ## XIV. AFTER EVERY ATOMIC STEP
 Report in chat, briefly: Completed (files/functions, tests passing); Why (design reasoning in plain words for the viva); Risks / known gaps; Next atomic action.
 Then write the same to PROGRESS.md, add 3-5 likely examiner questions with short answers to VIVA.md, commit and push.

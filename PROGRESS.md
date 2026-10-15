@@ -417,3 +417,15 @@
 - User: spot-checks after 16 Oct; .env keys by 18 Oct; Node 24 LTS by end of 21 Oct.
 ### Next atomic action
 - 17 Oct: pin the reranker model revision (cross-encoder/ms-marco-MiniLM-L-6-v2) in config + ARCHITECTURE section 7, implement rerank.py (10.7), then dev rows: vector+rerank and hybrid+rerank.
+
+## [2026-10-15] - Read-only sub-agents
+### Done
+- .claude/agents/reviewer.md and .claude/agents/eval-auditor.md (read-only; Read/Grep/Glob/Bash for read-only commands; model sonnet). CLAUDE.md Section XIIIb: reviewer once per phase end and before every test-set run; eval-auditor before every test-set run; not after every commit.
+### In progress / partial
+- None.
+### Not started
+- Unchanged (reranker 17 Oct).
+### Known issues / TODO
+- First real use: before the Phase 1 test run (18 Oct).
+### Next atomic action
+- 17 Oct: pin the reranker revision, implement rerank.py, dev rows vector+rerank and hybrid+rerank.
