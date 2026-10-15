@@ -104,8 +104,9 @@ class RateLimiter:
 
 
 def estimate_tokens(system: str, user: str, max_tokens: int) -> int:
-    """~4 characters per token for English, plus the reply budget."""
-    return (len(system) + len(user)) // 4 + max_tokens
+    """Prompt tokens (counted as 3 characters per token: slides full of symbols and bullets tokenise worse than
+    the usual 4 for prose, and an underestimate made Groq return 429) plus the reply budget."""
+    return (len(system) + len(user)) // 3 + max_tokens
 
 
 # ------------------------------------------------------------------ cache
