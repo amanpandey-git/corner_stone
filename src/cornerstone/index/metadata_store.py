@@ -174,6 +174,18 @@ class MetadataStore:
                 raise ValueError(f"document {doc_id} is not pending; cannot activate")
             self.conn.execute("UPDATE chunks SET status='active' WHERE doc_id=? AND status='pending'", (doc_id,))
 
+    def set_page_images(self, doc_id: int, images: dict[int, str]) -> None:
+        """Record rendered page images ({page_no: path relative to paths.image_dir}) in one transaction."""
+        with self.conn:
+            self.conn.executemany("UPDATE pages SET image_path=? WHERE doc_id=? AND page_no=?",
+                                  [(path, doc_id, no) for no, path in images.items()])
+
+    def get_page_image(self, doc_id: int, page_no: int) -> str | None:
+        """Relative image path of one page, or None (no image, DOCX, unknown page)."""
+        row = self.conn.execute("SELECT image_path FROM pages WHERE doc_id=? AND page_no=?",
+                                (doc_id, page_no)).fetchone()
+        return row[0] if row else None
+
     def mark_replaced(self, doc_id: int) -> None:
         """Retire a document: status 'replaced', all its chunks soft-deleted."""
         with self.conn:

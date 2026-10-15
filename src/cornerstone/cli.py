@@ -36,7 +36,10 @@ SUPPORTED = {".pdf", ".docx"}
 
 
 def load_config(path: Path | None = None) -> dict:
-    return yaml.safe_load((Path(path) if path else ROOT / "config.yaml").read_text(encoding="utf-8"))
+    """Read config.yaml; relative entries under `paths` are resolved against the repo root."""
+    cfg = yaml.safe_load((Path(path) if path else ROOT / "config.yaml").read_text(encoding="utf-8"))
+    cfg["paths"] = {k: str(ROOT / v) for k, v in cfg["paths"].items()}   # ROOT / absolute == absolute
+    return cfg
 
 
 @dataclass
@@ -137,6 +140,8 @@ def ingest_files(files: list[Path], cfg: dict, st: Stack, verbose: bool = False)
         print(line)
         for page_no, why in r.flagged_pages:
             print(f"      flagged page {page_no}: {why}")
+        for w in r.warnings:
+            print(f"      warning: {w}")
         if r.duplicate_pages:
             print("      duplicate pages (not indexed): "
                   + ", ".join(f"p.{p}=p.{orig}" for p, orig in r.duplicate_pages))

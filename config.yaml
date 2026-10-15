@@ -2,6 +2,7 @@
 paths:
   raw_dir: data/raw
   index_dir: data/index          # holds hnsw.faiss, manifest.json, cornerstone.sqlite
+  image_dir: data/images         # one PNG per PDF page, for citation previews (gitignored)
 
 extraction:
   scan_min_chars: 25             # a page with fewer cleaned chars than this (and no text layer) is "needs OCR"
@@ -32,6 +33,10 @@ hnsw:
   ef_construction: 200
   ef_search: 50
   initial_capacity: 10000        # informational for hnswlib; faiss grows automatically
+
+images:
+  enabled: true
+  dpi: 110                       # a 13.33x7.5 in slide -> ~1470x825 px, readable, ~150-300 KB
 
 dedup:
   min_chars: 80                  # shorter pages (title/picture slides) are never treated as duplicates

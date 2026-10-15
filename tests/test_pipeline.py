@@ -191,3 +191,47 @@ def test_duplicate_pages_are_recorded_not_indexed(cfg, stack, embedder):
     s = store.stats()
     assert s["pages_duplicate"] == 23 and s["pages_flagged"] == 0
     assert {"file_name": r.file_name, "page_no": 51, "duplicate_of": 26} in s["duplicate_pages"]
+
+
+def test_page_images_rendered_and_recorded(cfg, stack, embedder, small_pdf):
+    from pathlib import Path
+    store = stack[0]
+    r = run(small_pdf, cfg, stack, embedder)
+    assert r.warnings == []
+    rel = store.get_page_image(r.doc_id, 1)
+    assert rel == f"{r.doc_id}/p001.png"
+    png = Path(cfg["paths"]["image_dir"]) / rel
+    assert png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n" and png.stat().st_size < 1_000_000
+    n = store.conn.execute("SELECT COUNT(*) FROM pages WHERE doc_id=? AND image_path IS NOT NULL",
+                           (r.doc_id,)).fetchone()[0]
+    assert n == r.pages_total == 28                      # flagged pages get images too
+    assert store.get_page_image(r.doc_id, 999) is None
+
+
+def test_page_image_failure_is_a_warning_not_a_crash(cfg, stack, embedder, small_pdf, monkeypatch):
+    import pymupdf
+    orig = pymupdf.Page.get_pixmap
+
+    def flaky(self, *a, **kw):
+        if self.number == 2:
+            raise RuntimeError("render failed")
+        return orig(self, *a, **kw)
+    monkeypatch.setattr(pymupdf.Page, "get_pixmap", flaky)
+    r = run(small_pdf, cfg, stack, embedder)
+    assert r.status == "indexed" and any("page 3" in w for w in r.warnings)
+    assert stack[0].get_page_image(r.doc_id, 3) is None and stack[0].get_page_image(r.doc_id, 4)
+
+
+def test_failed_ingest_removes_its_images(cfg, stack, embedder, small_pdf, monkeypatch):
+    from pathlib import Path
+    from cornerstone.index.metadata_store import MetadataStore
+    monkeypatch.setattr(MetadataStore, "activate", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError):
+        run(small_pdf, cfg, stack, embedder)
+    doc_id = stack[0].list_documents("abandoned")[0].doc_id
+    assert not (Path(cfg["paths"]["image_dir"]) / str(doc_id)).exists()
+
+
+def test_images_disabled_renders_nothing(cfg, small_pdf):
+    from cornerstone.ingest.page_images import render_page_images
+    assert render_page_images(small_pdf, 1, {**cfg, "images": {"enabled": False, "dpi": 110}}) == ({}, [])

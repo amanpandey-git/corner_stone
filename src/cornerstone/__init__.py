@@ -124,6 +124,7 @@ class IngestReport:
     chunks_created: int = 0
     pages_duplicate: int = 0
     duplicate_pages: list[tuple[int, int]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)  # e.g. a page image that could not be rendered
     seconds: float = 0.0
     message: str = ""
 

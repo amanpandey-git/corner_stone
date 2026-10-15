@@ -11,8 +11,11 @@ SAMPLES = ROOT / "samples"
 
 
 @pytest.fixture(scope="session")
-def cfg() -> dict:
-    return yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+def cfg(tmp_path_factory) -> dict:
+    """Repo config, with page images written to a temp folder (never into data/)."""
+    c = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    c["paths"]["image_dir"] = str(tmp_path_factory.mktemp("images"))
+    return c
 
 
 @pytest.fixture(scope="session")

@@ -14,7 +14,8 @@ def shared_embedder(cfg):
 
 @pytest.fixture
 def env(cfg, shared_embedder, tmp_path, monkeypatch):
-    c = {**cfg, "paths": {"raw_dir": str(tmp_path / "raw"), "index_dir": str(tmp_path / "index")}}
+    c = {**cfg, "paths": {"raw_dir": str(tmp_path / "raw"), "index_dir": str(tmp_path / "index"),
+                         "image_dir": str(tmp_path / "images")}}
     cfg_file = tmp_path / "config.yaml"
     cfg_file.write_text(yaml.safe_dump(c), encoding="utf-8")
     monkeypatch.setattr(cli, "Embedder", lambda _cfg: shared_embedder)   # model loads once per test run

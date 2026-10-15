@@ -17,7 +17,8 @@ APP = str(ROOT / "app" / "streamlit_app.py")
 def prepared(cfg, tmp_path_factory):
     """A tiny real index in a temp folder + a config file pointing at it."""
     tmp = tmp_path_factory.mktemp("app")
-    c = {**cfg, "paths": {"raw_dir": str(tmp / "raw"), "index_dir": str(tmp / "index")}}
+    c = {**cfg, "paths": {"raw_dir": str(tmp / "raw"), "index_dir": str(tmp / "index"),
+                         "image_dir": str(tmp / "images")}}
     cfg_file = tmp / "config.yaml"
     cfg_file.write_text(yaml.safe_dump(c), encoding="utf-8")
     d = docx.Document()
@@ -69,7 +70,8 @@ def test_blank_query_shows_message_not_crash(prepared, monkeypatch):
 def test_upload_ingest_report_and_duplicate(cfg, tmp_path, monkeypatch):
     """Upload a generated DOCX through the page, check the report, then upload it again."""
     import io
-    c = {**cfg, "paths": {"raw_dir": str(tmp_path / "raw"), "index_dir": str(tmp_path / "index")}}
+    c = {**cfg, "paths": {"raw_dir": str(tmp_path / "raw"), "index_dir": str(tmp_path / "index"),
+                         "image_dir": str(tmp_path / "images")}}
     cfg_file = tmp_path / "config.yaml"
     cfg_file.write_text(yaml.safe_dump(c), encoding="utf-8")
     d = docx.Document()

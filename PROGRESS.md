@@ -332,3 +332,15 @@
 - User: Node 24 LTS by end of 21 Oct; .env keys by 18 Oct; spot-checks after 16 Oct.
 ### Next atomic action
 - Phase 1 step 3: page images (ARCHITECTURE 10.5).
+## [2026-10-15] - Phase 1 step 3: page images
+### Done
+- ingest/page_images.py (render_page_images, delete_page_images); store.set_page_images/get_page_image; pipeline renders after index save, before activate; failure handler deletes images; IngestReport.warnings; config paths.image_dir + images.*; load_config resolves relative paths. 4 new tests; 144 passing.
+- Local index rebuilt (data/images: 422 PNGs, 49 MB). Dev row 3: 0.879 / 0.818 (no ranking change).
+### In progress / partial
+- None.
+### Not started
+- Step 4 slide chunking + context header; step 5 FTS5 keyword search; rrf_merge (user); collapse; filters; compaction.
+### Known issues / TODO
+- Images of documents discarded via the CLI prompt or replaced stay until compaction (by design, 10.9).
+### Next atomic action
+- Phase 1 step 4: slide-aware chunking + "file > section" context header (ARCHITECTURE 10.4).

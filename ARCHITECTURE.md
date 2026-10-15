@@ -356,7 +356,8 @@ def render_page_images(pdf_path: Path, doc_id: int, cfg: dict) -> tuple[dict[int
 ```
 - Every page (including flagged and duplicate ones) -> `<paths.image_dir>/<doc_id>/p<NNN>.png` at `images.dpi` (110: a 13.33 x 7.5 in slide becomes ~1470 x 825 px, readable, ~150-300 KB).
 - A page that fails to render -> `pages.image_path` NULL + warning in the ingest report; ingest continues. DOCX: no images.
-- Rendered after the index is saved and before `activate`; on `discard_pending` or compaction of a document its image folder is deleted. `images.enabled: false` skips rendering (tests).
+- Rendered after the index is saved and before `activate`, then stored with `MetadataStore.set_page_images(doc_id, {page_no: rel})`; read back with `get_page_image(doc_id, page_no) -> str | None`. When the pipeline's own failure handler discards the ingest it also deletes the image folder (`delete_page_images`); folders of documents discarded from the CLI prompt, replaced or abandoned are removed by compaction (10.9). `images.enabled: false` skips rendering. Render warnings go to `IngestReport.warnings` and are printed by the CLI.
+- `cli.load_config` resolves relative `paths.*` against the repo root (the pipeline uses `paths.image_dir` as given); tests put images in a temp folder via the `cfg` fixture.
 
 ### 10.6 Hybrid search (`src/cornerstone/hybrid.py`)
 ```python

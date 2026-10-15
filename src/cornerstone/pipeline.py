@@ -17,6 +17,7 @@ from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.ingest.loader import load_document
+from cornerstone.ingest.page_images import delete_page_images, render_page_images
 
 _READ_BLOCK = 1 << 20
 
@@ -95,15 +96,21 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
     doc = Document(file_name=name, sha256=sha, file_type=path.suffix.lower().lstrip("."),
                    unit=unit_from_name(name, cfg), source_path=str(path.resolve()))
     chunk_ids = store.add_document(doc, pages, chunks)
+    warnings: list[str] = []
     try:
         if chunk_ids:
             index.add(np.asarray(chunk_ids, dtype=np.int64), vectors)
             index.save(index_path)
+        if doc.file_type == "pdf":
+            say(f"{name}: rendering page images")
+            images, warnings = render_page_images(path, doc.doc_id, cfg)
+            store.set_page_images(doc.doc_id, images)
         store.activate(doc.doc_id, replaces=old.doc_id if old else None)
     except Exception:
         # ordinary failure (disk full, bad vectors): clean up and surface it.
         # A hard crash (process killed) skips this and leaves the document pending on purpose.
         store.discard_pending(doc.doc_id)
+        delete_page_images(doc.doc_id, cfg)
         raise
 
     flagged = [(p.page_no, f"{p.status}: {p.reason}") for p in pages if p.status not in ("ok", "duplicate")]
@@ -115,4 +122,4 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
         file_name=name, status="replaced" if old else "indexed", doc_id=doc.doc_id,
         pages_total=doc.n_pages, pages_with_text=doc.n_pages_text, pages_flagged=doc.n_pages_flagged,
         flagged_pages=flagged, chunks_created=len(chunk_ids), pages_duplicate=len(duplicates),
-        duplicate_pages=duplicates, seconds=time.perf_counter() - t0, message=msg)
+        duplicate_pages=duplicates, warnings=warnings, seconds=time.perf_counter() - t0, message=msg)

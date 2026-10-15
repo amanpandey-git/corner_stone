@@ -100,3 +100,7 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: How did you choose 0.95?** A: It was fixed in the contract before measuring, then checked: true copies score about 1.0, the most similar different slides (SJF preemptive vs non-preemptive) score 0.92. There is a clear gap, and a test pins those numbers.
 - **Q: Why keep digits and skip short slides?** A: Worked examples (FCFS vs SSTF seek time) share their wording and differ only in numbers. Short title or picture slides ("Practice Problem") share their few words but have different images, so they are never treated as duplicates.
 - **Q: Did deduplication improve retrieval?** A: Only slightly on dev (MRR 0.816 -> 0.818; hit@5 unchanged). It frees result slots, but the remaining Unit 4 miss is caused by chunking across slides, which the next change addresses. I report that instead of claiming a fix.
+## Stage 2 Phase 1 step 3 - page images
+- **Q: Why render page images at ingest instead of when a citation is clicked?** A: Rendering once keeps the click instant and the UI simple (it just serves a file). The cost is disk space (49 MB for 422 slides) and about 40% more ingest time, measured.
+- **Q: What happens if one page cannot be rendered?** A: That page gets no image and the report lists a warning; the text is still indexed. A test forces a render failure on one page to check this.
+- **Q: Why store a relative path in SQLite?** A: So the data folder can be moved or rebuilt without rewriting every row; the image root comes from config.
