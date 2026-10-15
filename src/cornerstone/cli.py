@@ -232,18 +232,23 @@ def cmd_compact(args, cfg) -> int:
     return 0
 
 
+def _filters(st: Stack, args) -> SearchFilters | None:
+    """--unit / --file options -> SearchFilters (unknown file names are warned about and match nothing)."""
+    if not (args.unit or args.file):
+        return None
+    doc_ids = None
+    if args.file:
+        docs = [st.store.find_active_by_name(f) for f in args.file]
+        missing = [f for f, d in zip(args.file, docs) if d is None]
+        if missing:
+            print(f"warning: not indexed: {', '.join(missing)}", file=sys.stderr)
+        doc_ids = [d.doc_id for d in docs if d is not None]
+    return SearchFilters(doc_ids=doc_ids, units=args.unit)
+
+
 def cmd_search(args, cfg) -> int:
     st = open_stack(cfg, ROOT, assume_yes=args.yes, for_search=True)
-    filters = None
-    if args.unit or args.file:
-        doc_ids = None
-        if args.file:
-            docs = [st.store.find_active_by_name(f) for f in args.file]
-            missing = [f for f, d in zip(args.file, docs) if d is None]
-            if missing:
-                print(f"warning: not indexed: {', '.join(missing)}", file=sys.stderr)
-            doc_ids = [d.doc_id for d in docs if d is not None]
-        filters = SearchFilters(doc_ids=doc_ids, units=args.unit)
+    filters = _filters(st, args)
     try:
         results = search(args.query, args.k, cfg, st.store, st.index, st.embedder, filters=filters,
                          reranker=st.reranker)
@@ -260,6 +265,51 @@ def cmd_search(args, cfg) -> int:
         print(f"#{r.rank}  score {r.score:.3f}  {c.file_name}  {location(c)}")
         print(f"    section: {c.section_heading or '-'}")
         print(f"    {r.snippet}")
+    return 0
+
+
+def cmd_ask(args, cfg) -> int:
+    """Grounded answer with [n] citations, streamed to the terminal (ARCHITECTURE 11.2)."""
+    from cornerstone.answer import Answer, stream_answer
+    from cornerstone.llm import make_provider
+
+    provider = make_provider(cfg, args.provider)       # LLMUnavailable before any model is loaded
+    judge = make_provider(cfg, cfg["answer"]["judge_provider"]) if args.check else None
+    st = open_stack(cfg, ROOT, assume_yes=args.yes, for_search=True)
+    final = None
+    try:
+        for item in stream_answer(args.question, args.mode, cfg, st.store, st.index, st.embedder, provider,
+                                  filters=_filters(st, args), reranker=st.reranker, judge=judge,
+                                  check=args.check):
+            if isinstance(item, Answer):
+                final = item
+            else:
+                print(item, end="", flush=True)
+        images = {x.n: st.store.get_page_image(x.doc_id, x.page_start) for x in final.cited_sources()
+                  if x.page_start is not None}
+    except EmptyQuery as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        st.close()
+    print()
+    if final.abstained:
+        print(f"{final.text}  (reason: {final.abstain_reason})")
+        return 0
+    print("\nSources:")
+    for s in final.cited_sources():
+        img = f"  image: {Path(cfg['paths']['image_dir']) / images[s.n]}" if images.get(s.n) else ""
+        print(f"  [{s.n}] {s.label()}" + (f" - {s.section}" if s.section else "") + img)
+    for label, items in (("uncited sentences", final.uncited_sentences), ("invalid references removed", final.invalid_refs)):
+        if items:
+            print(f"warning: {len(items)} {label}: {items}")
+    if final.unsupported:
+        print(f"warning: judge marked {len(final.unsupported)} citation(s) unsupported: "
+              f"{[final.citations[i].sentence for i in final.unsupported]}")
+    elif args.check and final.unsupported is None:
+        print("warning: citations could not be checked (judge reply invalid)")
+    print(f"({final.provider} {final.model}; first token {final.ttft_ms or 0:.0f} ms; "
+          f"{'cached' if final.cached else 'live'})")
     return 0
 
 
@@ -325,6 +375,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--k", type=int, default=None, help="number of results (default from config)")
     p.add_argument("--unit", action="append", help='only this unit, e.g. --unit "Unit 4" (repeatable)')
     p.add_argument("--file", action="append", help="only this indexed file name (repeatable)")
+    p.add_argument("--yes", action="store_true")
+    p = add("ask", cmd_ask, "answer a question from your notes, with [n] citations")
+    p.add_argument("question")
+    p.add_argument("--mode", default="concise", choices=("concise", "detailed", "2-mark", "5-mark", "10-mark"))
+    p.add_argument("--provider", choices=("groq", "gemini"), default=None, help="default: llm.provider")
+    p.add_argument("--check", action="store_true", help="ask the judge model to verify each citation")
+    p.add_argument("--unit", action="append")
+    p.add_argument("--file", action="append")
     p.add_argument("--yes", action="store_true")
     p = add("stats", cmd_stats, "show index and ingestion statistics")
     p.add_argument("--yes", action="store_true")

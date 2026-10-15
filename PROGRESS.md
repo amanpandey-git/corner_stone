@@ -499,3 +499,16 @@ Updated: 2026-10-15, Phase 1 closed; Phase 2 (answering) starting.
 - Rule-based sentence splitting ("e.g." splits); errs on the strict side.
 ### Next atomic action
 - answer.py: build_prompt, answer(), stream_answer() with retrieval gate + modes + abstention, tests with FakeProvider.
+## [2026-10-15] - Phase 2 step 3: grounded answers
+### Done
+- answer.py: Source/Answer, build_prompt (rules + mode + numbered sources), stream_answer (retrieval gate, hold-back of NOT_IN_NOTES, TTFT, final Answer last), answer(), finalise (model / no-citation abstention, invalid refs stripped, NFKC), optional judge check. Config answer.* (k 5, gate 0.0 = off until calibrated on dev, judge gemini, 5 modes). provider.last_cached. citations: gap sentences need no citation.
+- cli ask (stream, sources + image paths, flags). Tests: test_answer.py 10, test_cli ask 1, test_citations +1.
+- Live: least-privilege 2-mark -> cited [1] p.5, judge ok, first token 0.72 s. Observed (not tuned): a SSTF-vs-SCAN question abstained because the top 5 had no SSTF slide; prompt rule 4 (partial answers) to be tuned on dev with the answer evaluation.
+### In progress / partial
+- None.
+### Not started
+- eval/answer_eval.py, gate calibration, prompt work on dev, Streamlit Ask.
+### Known issues / TODO
+- Comparison questions often retrieve one side only (retrieval limit, k=5).
+### Next atomic action
+- eval/answer_eval.py (metrics per ARCHITECTURE 11.4, pacing, partial results) + tests; then the dev run.

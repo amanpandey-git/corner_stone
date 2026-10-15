@@ -78,3 +78,9 @@ def test_check_citations_retries_once_then_reports_unchecked(jcfg):
     assert len(judge.calls) == 2 and "Cited slides" in judge.calls[0][1] and "frames" in judge.calls[0][1]
     assert check_citations(cits, src, FakeProvider(["nope"]), jcfg) is None
     assert check_citations([], src, FakeProvider(["x"]), jcfg) == []
+
+
+def test_gap_sentence_needs_no_citation():
+    _, uncited, _ = parse_citations("Paging uses frames [1]. The notes do not cover inverted page tables.\n"
+                                    "Segment sizes are not covered in your notes.", 2)
+    assert uncited == []

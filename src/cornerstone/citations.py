@@ -20,6 +20,10 @@ REF = re.compile(r"\[\s*\d+(?:\s*[,\-–]\s*\d+)*\s*\]")
 # groups written right after the full stop ("... frames. [1]") still belong to that sentence
 END = re.compile(r"[.!?](?:\s*" + REF.pattern + r")*(?=\s|$)")
 BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
+# "The notes do not cover X." reports a gap; it is not a claim about the subject, so it needs no citation
+GAP = re.compile(r"\b(?:notes|sources|slides)\s+(?:do not|don't|does not|doesn't)\b"
+                 r"|\bnot\s+(?:covered|mentioned|given|explained|described)\s+in\s+(?:the|your)\s+(?:notes|sources|slides)",
+                 re.I)
 
 
 @dataclass
@@ -58,7 +62,7 @@ def _is_factual(sentence: str) -> bool:
     s = BULLET.sub("", sentence).strip().strip("*_").strip()
     if not s or s == NOT_IN_NOTES_TOKEN or sentence.lstrip().startswith("#"):
         return False
-    if s.endswith(":"):
+    if s.endswith(":") or GAP.search(s):
         return False
     return len(s.split()) >= 4   # "Conclusion", "Key points" are labels, not claims
 

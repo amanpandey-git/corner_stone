@@ -135,3 +135,21 @@ def test_compact_command(env, capsys, monkeypatch):
     assert cli.main(base + ["compact"]) == 1 and "not compacted" in capsys.readouterr().err
     assert cli.main(base + ["compact", "--yes"]) == 0
     assert "0 deleted chunk rows" in capsys.readouterr().out
+
+
+def test_ask_streams_answer_with_sources_and_abstains(env, capsys, monkeypatch):
+    from cornerstone import llm
+
+    base, f, tmp = env
+    assert cli.main(base + ["ingest", str(f)]) == 0
+    capsys.readouterr()
+    fake = llm.FakeProvider(["Round robin gives each process a fixed time quantum [1]. It never starves anyone [9].",
+                             "NOT_IN_NOTES"])            # reply i for call i
+    monkeypatch.setattr(llm, "make_provider", lambda cfg, name=None, env=None, client=None: fake)
+    assert cli.main(base + ["ask", "What is round robin scheduling?", "--mode", "2-mark"]) == 0
+    out = capsys.readouterr().out
+    assert "fixed time quantum [1]" in out and "[1] scheduling - CPU scheduling" in out
+    assert "invalid references removed: [9]" in out
+    assert cli.main(base + ["ask", "Who wrote Hamlet?"]) == 0
+    assert "Not in your notes." in capsys.readouterr().out
+    assert cli.main(base + ["ask", "   "]) == 1

@@ -41,6 +41,8 @@ class LLMProvider(Protocol):
 
     def complete(self, system: str, user: str, max_tokens: int, temperature: float) -> LLMResponse: ...
     def stream(self, system: str, user: str, max_tokens: int, temperature: float) -> Iterator[str]: ...
+    # after stream() finishes, last_cached tells whether the text came from the cache (for honest TTFT numbers)
+    last_cached: bool
 
 
 # ------------------------------------------------------------------ keys
@@ -157,6 +159,7 @@ class _HTTPProvider:
     cache: AnswerCache | None = None
     client: httpx.Client | None = None
     sleep: Callable[[float], None] = time.sleep
+    last_cached: bool = False
 
     def __post_init__(self) -> None:
         c = self.cfg["llm"]
@@ -256,7 +259,9 @@ class _HTTPProvider:
     def stream(self, system: str, user: str, max_tokens: int, temperature: float = 0.0) -> Iterator[str]:
         """Yield text deltas. A cached reply is yielded whole. Only complete replies are cached."""
         key = self._cache_key(system, user, max_tokens, temperature)
+        self.last_cached = False
         if self.cache is not None and (hit := self.cache.get(key)) is not None:
+            self.last_cached = True
             yield hit
             return
         self.limiter.acquire(estimate_tokens(system, user, max_tokens))
@@ -336,6 +341,7 @@ class FakeProvider:
         self.name, self.model = name, model
         self.replies, self.chunk = replies, chunk
         self.calls: list[tuple[str, str]] = []
+        self.last_cached = False
 
     def _next(self, system: str, user: str) -> str:
         self.calls.append((system, user))

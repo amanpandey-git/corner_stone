@@ -84,6 +84,29 @@ llm:                             # ARCHITECTURE 11.1 / 11.5
       thinkingConfig:
         thinkingBudget: 0        # no hidden reasoning tokens: faster first token, cheaper
 
+answer:                          # ARCHITECTURE 11.2 / 11.5
+  k: 5                           # sources in the prompt (hit@5 is the retrieval metric)
+  min_vector_score: 0.0          # retrieval gate; 0.0 = off until calibrated on dev (NOTES.md)
+  judge_provider: gemini         # a different model family from the answerer
+  judge_max_tokens: 300
+  check_citations: false         # runtime judge call per answer; always on in eval/answer_eval.py
+  modes:                         # max_tokens include gpt-oss reasoning tokens (reasoning_effort low)
+    concise:
+      max_tokens: 700
+      instruction: "A direct answer in 2-4 sentences."
+    detailed:
+      max_tokens: 1400
+      instruction: "A clear explanation in short paragraphs or bullet points that covers every relevant point in the sources."
+    2-mark:
+      max_tokens: 600
+      instruction: "A university 2-mark answer of about 40-60 words: a precise definition or direct answer plus one key point."
+    5-mark:
+      max_tokens: 1400
+      instruction: "A university 5-mark answer of about 150-250 words: a one-sentence introduction, 4-6 key points as bullets, and a one-sentence conclusion."
+    10-mark:
+      max_tokens: 2400
+      instruction: "A university 10-mark answer of about 400-600 words: an introduction, the main points as bullets under short headings, an example or the working of the method if the sources give one, advantages and disadvantages if the sources give them, and a conclusion."
+
 search:
   default_k: 5
   max_query_chars: 2000
