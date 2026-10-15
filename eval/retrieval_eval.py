@@ -313,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def retrieve(q: str) -> list:
         if args.retriever == "search":
-            return search(q, MRR_K, cfg, store, index, emb)
+            return search(q, MRR_K, cfg, store, index, emb, reranker=reranker)
         hits = keyword_search(q, MRR_K, store)
         chunks = store.get_chunks([c for c, _ in hits])
         return [SearchResult(chunks[c], s, i + 1, "") for i, (c, s) in enumerate(hits)]
@@ -321,6 +321,8 @@ def main(argv: list[str] | None = None) -> int:
     index = HNSWIndex.load(index_dir / "hnsw.faiss", cfg)
     store = MetadataStore(index_dir / "cornerstone.sqlite")
     emb = Embedder(cfg)
+    from cornerstone.rerank import load_reranker
+    reranker = load_reranker(cfg)
     indexed = {d.file_name for d in store.list_documents("active")}
     not_indexed = sorted({t["file"] for q in scored for t in q["targets"]} - indexed)
     if not_indexed:

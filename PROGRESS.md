@@ -1,4 +1,12 @@
-# PROGRESS - session log (append only)
+# PROGRESS - session log (append only below the Morning report)
+
+## Morning report (kept current; overwritten each update - the log below stays append-only)
+Updated: 2026-10-15, step 10 (reranker).
+- **Done this session:** reranker built and measured (rows 10-11), not adopted.
+- **Latest dev ablation (default pipeline: vector top 30 -> collapse -> k):** hit@5 0.939 (31/33), MRR 0.835, p95 ~50-80 ms. Hybrid RRF (row 9) 0.848; rerank (rows 10-11) 0.939 / 0.817 at p95 2.9 s: both off.
+- **Latest test numbers:** only the v0.1 baseline (0.879 hit@5, 29/33). Phase 1 test run not done yet.
+- **Blocked:** real LLM providers (no `.env` file exists: need GROQ_API_KEY and GEMINI_API_KEY). Next.js (needs Node 24 LTS).
+- **You need to do:** create `.env` from `.env.example` with both keys; install Node 24 LTS by 21 Oct.
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
@@ -441,3 +449,15 @@
 - Review notes for later: ARCHITECTURE 10 diagram shows hybrid/rerank as unconditional; add test_rerank and pin the reranker revision with rerank.py.
 ### Next atomic action
 - 17 Oct: pin reranker revision, implement rerank.py (10.7) with test_rerank, dev rows vector+rerank and hybrid+rerank.
+## [2026-10-15] - Phase 1 step 10: cross-encoder reranker (measured, not adopted)
+### Done
+- rerank.py: Reranker (CrossEncoder ms-marco-MiniLM-L-6-v2 @ 233902d2, CPU, max_length 512), load_reranker; RerankerUnavailable; search(..., reranker=) as the last stage behind retrieval.rerank (ValueError if on without a reranker); CLI search / Streamlit / retrieval_eval pass it. tests/test_rerank.py: 7 tests.
+- Dev rows 10 (rerank) and 11 (hybrid + rerank): 0.939 / 0.817, p95 2858 / 6297 ms -> not adopted, retrieval.rerank: false.
+### In progress / partial
+- None.
+### Not started
+- Phase 1 close: reviewer + eval-auditor, then the Phase 1 test run (once); Phases 2-6.
+### Known issues / TODO
+- Dev misses (default): 14 (rank 8), 70 (>10).
+### Next atomic action
+- Reviewer over 5c80d2b..HEAD and eval-auditor, then the Phase 1 test-split run with the default config.

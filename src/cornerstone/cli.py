@@ -15,6 +15,7 @@ import sqlite3
 import statistics
 import sys
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from pathlib import Path
 
 import yaml
@@ -28,6 +29,9 @@ from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.ingest.loader import load_document
 from cornerstone.pipeline import compact, ingest_file
 from cornerstone.search import search
+
+if TYPE_CHECKING:
+    from cornerstone.rerank import Reranker
 
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_FILE = "hnsw.faiss"
@@ -48,18 +52,21 @@ class Stack:
     index: HNSWIndex
     index_path: Path
     embedder: Embedder | None
+    reranker: "Reranker | None" = None   # loaded with the embedder when retrieval.rerank is on
 
     def close(self) -> None:
         """Release the SQLite file (Windows cannot move a folder while a connection is open)."""
         self.store.close()
 
 
-def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_yes: bool = False) -> Stack:
+def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_yes: bool = False,
+               for_search: bool = False) -> Stack:
     """Open (or create) store + index under paths.index_dir and verify they agree.
 
     Raises ModelMismatch if the index was built with other settings. Interrupted ingests found
     by check_sync are shown and discarded only after the user confirms (or --yes); anything
     else out of sync is reported with the way to rebuild. Nothing is repaired silently.
+    ``for_search`` also loads the reranker when retrieval.rerank is on (ingest never needs it).
     """
     index_dir = Path(root) / cfg["paths"]["index_dir"]
     index_path = index_dir / INDEX_FILE
@@ -90,7 +97,15 @@ def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_
                 print("  not discarded (answer y, or pass --yes, to clean up)", file=sys.stderr)
         if any("no row in SQLite" in p or "no vector in the index" in p for p in problems):
             print(f"  to rebuild: delete {index_dir} and ingest your files again", file=sys.stderr)
-    return Stack(store, index, index_path, Embedder(cfg) if load_embedder else None)
+    if not load_embedder:
+        return Stack(store, index, index_path, None)
+    from cornerstone.rerank import load_reranker   # CrossEncoder import only when searching
+
+    try:
+        return Stack(store, index, index_path, Embedder(cfg), load_reranker(cfg) if for_search else None)
+    except Exception:
+        store.close()
+        raise
 
 
 # ------------------------------------------------------------------ commands
@@ -218,7 +233,7 @@ def cmd_compact(args, cfg) -> int:
 
 
 def cmd_search(args, cfg) -> int:
-    st = open_stack(cfg, ROOT, assume_yes=args.yes)
+    st = open_stack(cfg, ROOT, assume_yes=args.yes, for_search=True)
     filters = None
     if args.unit or args.file:
         doc_ids = None
@@ -230,7 +245,8 @@ def cmd_search(args, cfg) -> int:
             doc_ids = [d.doc_id for d in docs if d is not None]
         filters = SearchFilters(doc_ids=doc_ids, units=args.unit)
     try:
-        results = search(args.query, args.k, cfg, st.store, st.index, st.embedder, filters=filters)
+        results = search(args.query, args.k, cfg, st.store, st.index, st.embedder, filters=filters,
+                         reranker=st.reranker)
     except EmptyQuery as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

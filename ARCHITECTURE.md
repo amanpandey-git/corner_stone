@@ -251,6 +251,7 @@ Run with `PYTHONPATH=src`. Exit code 0 on success, 1 on failure; failed files ar
 | pytest | 9.1.1 |
 | huggingface_hub | 1.33.0 |
 | embedding model | BAAI/bge-small-en-v1.5, revision 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a |
+| reranker model (Stage 2, switch off) | cross-encoder/ms-marco-MiniLM-L-6-v2, revision 233902d25c440f23af6f7d6e94d2946bac0bee0a |
 | git / gh | 2.53.0 / 2.102.0 |
 
 hnswlib was rejected: no Windows wheel for Python 3.12 and no C++ compiler (NOTES.md 2026-10-15).
@@ -298,6 +299,7 @@ flowchart LR
   Q --> KQ[FTS5 bm25 top 30] --> RRF
   RRF --> C[collapse near-identical] --> RR[cross-encoder rerank] --> R[top k SearchResult]
 ```
+Dashed in practice: `retrieval.hybrid` (RRF) and `retrieval.rerank` are switches and both are **off** by default after the dev ablation (rows 9-11); the default path is vector top 30 -> collapse -> top k.
 
 ### 10.1 Schema version 2 and the loud failure
 - `SCHEMA_VERSION = 2`, stored in SQLite `PRAGMA user_version` and in `manifest.json` `index_version`. A v0.1 database has `user_version = 0`.
@@ -383,6 +385,8 @@ class Reranker:
 - Proposed model: **`cross-encoder/ms-marco-MiniLM-L-6-v2`**: 22.7M parameters (~90 MB), 6 layers, English, trained for passage ranking on MS MARCO, loaded with sentence-transformers `CrossEncoder` (already installed: no new dependency). 30 pairs of ~300 tokens should fit well under 1 s on the i5-1135G7; measured in the ablation table. Rejected: `BAAI/bge-reranker-base` (278M, ~10x slower, would break p95 < 1 s), `ms-marco-MiniLM-L-12-v2` (2x slower for a small gain), `ms-marco-TinyBERT-L-2-v2` (faster but clearly weaker). Revision hash pinned in config and section 7 at download.
 - Pairs: (raw query **without** the bge prefix, `context_header + "\n" + text`), max 512 tokens. `SearchResult.score` becomes the reranker score; earlier scores stay in `SearchResult.scores`.
 - Model cannot be loaded (offline, no cache) -> `RerankerUnavailable` (new `CornerstoneError`) naming the model; never a silent fallback.
+- `load_reranker(cfg) -> Reranker | None`: a Reranker when `retrieval.rerank` is on, else None. CLI `search` (`open_stack(..., for_search=True)`), Streamlit (cached like the embedder) and `eval/retrieval_eval.py` use it; ingest never loads it. `rerank(top_k < 1)` -> `ValueError`; empty input -> `[]`; ties keep the earlier order; input objects are not mutated. Config: `rerank.model_name`, `rerank.model_revision`, `rerank.max_length` (512).
+- **Decision (dev rows 10-11): not adopted.** hit@5 unchanged (0.939), MRR 0.835 -> 0.817, p95 2.9 s (vector) / 6.3 s (hybrid) against the 1 s budget. `retrieval.rerank: false`; the code, tests and switch stay.
 
 ### 10.8 `search()` stays the single entry point (`search.py`)
 ```python
@@ -419,9 +423,9 @@ def search(query, k, cfg, store, index, embedder, ef_search=None,
 | retrieval.rrf_k | 60 | standard RRF constant |
 | retrieval.hybrid | false | FTS5 + RRF switch; off because dev ablation row 9 lowered hit@5 0.939 -> 0.848 (re-tested with the reranker) |
 | retrieval.collapse | true | query-time collapse switch; no dev change (row 6), kept as a safety net |
-| retrieval.rerank | (not yet in config) | added with rerank.py; adopted only if dev improves and p95 < 1 s |
+| retrieval.rerank | false | cross-encoder switch; off because dev rows 10-11 showed no hit@5 gain, lower MRR and p95 2.9 s > 1 s |
 | retrieval.unit_pattern | `(?i)unit\s*(\d+)` | sample file names start with "Unit N" |
-| rerank.model_name / model_revision | cross-encoder/ms-marco-MiniLM-L-6-v2 / pinned at download | 10.7 |
+| rerank.model_name / model_revision / max_length | cross-encoder/ms-marco-MiniLM-L-6-v2 / 233902d25c440f23af6f7d6e94d2946bac0bee0a / 512 | 10.7; 512 = MiniLM position limit |
 | images.enabled / images.dpi / paths.image_dir | true / 110 / data/images | 10.5; data/ is gitignored |
 
 ### 10.12 Phase 1 edge cases

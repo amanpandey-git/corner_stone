@@ -33,6 +33,14 @@ def get_embedder(config_path: str | None) -> Embedder:
     return Embedder(load_config(Path(config_path) if config_path else None))
 
 
+@st.cache_resource(show_spinner="Loading the reranker...")
+def get_reranker(config_path: str | None):
+    """Cross-encoder, cached like the embedder; None when retrieval.rerank is off."""
+    from cornerstone.rerank import load_reranker
+
+    return load_reranker(load_config(Path(config_path) if config_path else None))
+
+
 def main() -> None:
     st.title("Cornerstone")
     st.caption("Stage 1: extraction and indexing. Upload notes, then search them. No LLM answers yet.")
@@ -44,6 +52,7 @@ def main() -> None:
         st.error(f"Cannot open the index: {type(e).__name__}: {e}")
         st.stop()
     stack.embedder = get_embedder(config_path)
+    stack.reranker = get_reranker(config_path)
     try:
         render(cfg, stack)
     finally:
@@ -90,7 +99,7 @@ def render(cfg: dict, stack) -> None:
             go = st.form_submit_button("Search")
         if go:
             try:
-                results = search(query, k, cfg, store, index, stack.embedder)
+                results = search(query, k, cfg, store, index, stack.embedder, reranker=stack.reranker)
             except EmptyQuery:
                 st.error("Please type a question.")
                 results = None

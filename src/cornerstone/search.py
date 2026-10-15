@@ -2,12 +2,13 @@
 
 Stages (ARCHITECTURE.md 10.8), each switched in config `retrieval.*`:
   vector candidates -> [hybrid: + keyword candidates, fused with RRF] -> [collapse near-identical results]
-  -> first k.
+  -> [rerank with a cross-encoder] -> first k.
 With every switch off this is exactly the Stage 1 search (the ablation baseline).
 """
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from cornerstone import SearchFilters, SearchResult
 from cornerstone.dedup import collapse_results
@@ -15,6 +16,9 @@ from cornerstone.hybrid import keyword_search, rrf_merge
 from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
+
+if TYPE_CHECKING:  # importing rerank pulls in CrossEncoder; only needed for the type hint
+    from cornerstone.rerank import Reranker
 
 _OVERFETCH = 3  # first look at 3k candidates, doubling while soft-deleted ones crowd out live ones
 
@@ -25,15 +29,20 @@ def _snippet(text: str, limit: int) -> str:
 
 
 def search(query: str, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex, embedder: Embedder,
-           ef_search: int | None = None, filters: SearchFilters | None = None) -> list[SearchResult]:
+           ef_search: int | None = None, filters: SearchFilters | None = None,
+           reranker: "Reranker | None" = None) -> list[SearchResult]:
     """Return up to k results, best first. Deleted/replaced/pending chunks never appear.
 
     Raises EmptyQuery for a blank query (checked even when the index is empty) and ValueError
     for k < 1. An empty index, or one whose hits are all deleted, returns []. ``filters`` restricts
     results to some documents and/or units; a filter that matches no active document returns [].
+    With retrieval.rerank on, ``reranker`` is required (ValueError otherwise).
     """
     if k < 1:
         raise ValueError("k must be >= 1")
+    r = cfg["retrieval"]
+    if r.get("rerank") and reranker is None:
+        raise ValueError("retrieval.rerank is on but no reranker was passed to search()")
     q = embedder.embed_query(query)            # raises EmptyQuery
     n = len(index)
     if n == 0:
@@ -41,14 +50,15 @@ def search(query: str, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex
     allowed = store.allowed_doc_ids(filters)
     if allowed is not None and not allowed:
         return []
-    r = cfg["retrieval"]
-    staged = r["collapse"] or r["hybrid"]
+    staged = r["collapse"] or r["hybrid"] or r.get("rerank")
     want = max(k, r["candidates"]) if staged else k   # later stages need more than k candidates
     results = _vector_candidates(q, want, cfg, store, index, ef_search, allowed)
     if r["hybrid"]:
         results = _fuse(results, keyword_search(query, want, store, filters), cfg, store)
     if r["collapse"]:
         results = collapse_results(results, cfg)
+    if r.get("rerank"):
+        results = reranker.rerank(query, results, k)
     return [replace(x, rank=i + 1) for i, x in enumerate(results[:k])]
 
 

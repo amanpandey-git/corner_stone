@@ -53,7 +53,13 @@ retrieval:
   hybrid: false                  # stage switches (ablation): FTS5 + RRF. OFF: dev row 9 lowered hit@5 0.939 -> 0.848
   rrf_k: 60                      # RRF constant from the original paper (Cormack et al. 2009)
   collapse: true                 # collapse near-identical results
+  rerank: false                  # cross-encoder over the candidates (ARCHITECTURE 10.7); decided by the dev ablation
   unit_pattern: '(?i)unit\s*(\d+)'   # file name -> documents.unit for the unit filter (ARCHITECTURE 10.8)
+
+rerank:
+  model_name: cross-encoder/ms-marco-MiniLM-L-6-v2
+  model_revision: 233902d25c440f23af6f7d6e94d2946bac0bee0a
+  max_length: 512                # MiniLM's position limit; context header + slide fits (slide_max_tokens 448)
 
 search:
   default_k: 5

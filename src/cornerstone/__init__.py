@@ -55,6 +55,10 @@ class EmptyQuery(CornerstoneError):
     """Query is empty or whitespace-only."""
 
 
+class RerankerUnavailable(CornerstoneError):
+    """The cross-encoder reranker model could not be loaded (offline, not cached, bad revision)."""
+
+
 # ---------------------------------------------------------------- data
 @dataclass
 class Heading:
