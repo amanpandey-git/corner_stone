@@ -12,7 +12,7 @@ Updated: 2026-10-16. Branch stage-2, 273 tests (local + GitHub Actions green). E
 ### What I need to do
 1. Install Node 24 LTS (the web app is the only thing waiting on it). If it is not demoable by the morning of 24 Oct, the demo runs on Streamlit (all tabs work).
 2. Spot-check eval/results/answer_spotcheck_test.md (20 test answers in full) and note any disagreement with the judge in NOTES.md.
-3. Review the draft pull request stage-2 -> main (I prepare it; you merge and tag v0.2 - I will not).
+3. Review the draft pull request https://github.com/amanpandey-git/corner_stone/pull/1 (stage-2 -> main). You merge and tag v0.2; I will not.
 4. Optional: delete old index backups in data/ (index.v1.bak, index.v2.bak..bak4, ~4 MB); I do not delete data.
 5. Demo day: warm the cache early; run no evaluations that day (Groq daily cap).
 
