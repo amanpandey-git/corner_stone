@@ -10,9 +10,9 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from cornerstone import ModelMismatch
+from cornerstone import SCHEMA_VERSION, IndexVersionMismatch, ModelMismatch, rebuild_hint
 
-INDEX_VERSION = 1
+INDEX_VERSION = SCHEMA_VERSION
 MANIFEST_NAME = "manifest.json"
 
 
@@ -58,7 +58,13 @@ def read_manifest(path: Path) -> Manifest:
 
 
 def check_manifest(m: Manifest, cfg: dict) -> None:
-    """Raise ModelMismatch listing every difference between the index and the config."""
+    """Raise ModelMismatch listing every difference between the index and the config.
+
+    A different index_version is checked first and raises IndexVersionMismatch (a ModelMismatch)
+    with the rebuild command, because no config change can fix it.
+    """
+    if m.index_version != INDEX_VERSION:
+        raise IndexVersionMismatch(rebuild_hint(m.index_version))
     want = manifest_from_config(cfg)
     problems = []
     for field in ("model_name", "model_revision", "dimension", "space", "normalized", "index_version"):

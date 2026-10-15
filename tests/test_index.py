@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pytest
 
-from cornerstone import ModelMismatch
+from cornerstone import SCHEMA_VERSION, ModelMismatch
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.manifest import manifest_path_for
 
@@ -134,3 +134,17 @@ def test_bad_inputs_rejected(cfg, filled):
         idx.search(np.ones(10, dtype=np.float32), 3)
     with pytest.raises(ValueError, match="k must"):
         idx.search(vecs[0], 0)
+
+
+def test_old_index_version_raises_index_version_mismatch(cfg, filled, tmp_path):
+    from cornerstone import IndexVersionMismatch
+    idx, _, _ = filled
+    f = tmp_path / "hnsw.faiss"
+    idx.save(f)
+    m = manifest_path_for(f)
+    data = json.loads(m.read_text(encoding="utf-8"))
+    assert data["index_version"] == SCHEMA_VERSION
+    data["index_version"] = 1
+    m.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(IndexVersionMismatch, match="schema 1.*cli rebuild"):
+        HNSWIndex.load(f, cfg)

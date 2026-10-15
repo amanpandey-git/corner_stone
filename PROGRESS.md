@@ -1,4 +1,22 @@
-# PROGRESS - session log (append only)
+# PROGRESS - session log (append only below the Morning report)
+
+## Morning report (kept current; overwritten each update - the log below stays append-only)
+Updated: 2026-10-16. Branch stage-2, 274 tests; GitHub Actions green (pytest + new web lint/build job). Everything in scope is built, including the Next.js web app.
+- **Retrieval (test, once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met.
+- **Answers (test, once, concise, 43 questions):** citation accuracy **100%** (75/75), faithfulness **96.9%** (31/32), "Not in your notes." **10/10**, first token p50 **0.88 s**. All four answer targets met (LLM-judged).
+- **5-mark test sample:** faithfulness **12.5% (1/8), target not met** (uncited intro/conclusion). Fixed after the test, declared in NOTES + report; dev 5-mark sample 12.5% -> 50% -> 100% (last run partial, 6/8).
+- **Quiz:** 25/25 valid; 24/25 answers supported by their slide.
+- **Web app (new, `web/`):** Next.js 16.4.1 + TypeScript + Tailwind 4, Node 24.20.0. Documents (upload, live ingestion status, list, delete), Ask (streamed answer, 5 modes, unit filter, clickable [n] -> slide image), Quiz (cited source, wrong answer -> flashcard), Flashcards (due cards, Again/Hard/Good/Easy via SM-2 in the API, generate). API has CORS for localhost:3000. Run: README "Web app (two terminals)". Streamlit still starts (fallback).
+- **Checked live:** API health + CORS header, /ask/stream through the real API (1 Groq call, 2-mark "What is a TLB?", cited Unit 3 p.43, image served), all 5 pages return 200, lint + production build clean. **Not checked in a browser by me** (no browser tool connected): clicking through the pages is item 1 below. Quiz/flashcard generation not called live (Groq quota; API routes covered by tests).
+- **Docs:** README (Stage 2 + web app run commands), docs/evaluation-report.md, docs/demo-script.md, VIVA.md (incl. web app questions).
+
+### What I need to do
+1. Browser click-through (5 min): run the two terminals from the README, open http://localhost:3000. Documents shows 7 decks; Ask "What is a TLB?" mode 2-mark (cached now, no quota), click the blue 1 -> Unit 3 p.43 slide opens; Quiz Unit 4, answer one wrong, "Make flashcard"; Flashcards -> grade it. Tell me anything that looks wrong.
+2. Decide the demo UI: web app if item 1 works (go/no-go on the morning of 24 Oct per CLAUDE.md), else Streamlit. Update docs/demo-script.md tab names if you go with the web app (I left it on Streamlit wording).
+3. Spot-check eval/results/answer_spotcheck_test.md (20 test answers in full) and note any disagreement with the judge in NOTES.md.
+4. Review the draft pull request https://github.com/amanpandey-git/corner_stone/pull/1 (stage-2 -> main). You merge and tag v0.2; I will not.
+5. Optional: delete old index backups in data/ (index.v1.bak, index.v2.bak..bak4, ~4 MB); I do not delete data.
+6. Demo day: warm the cache early (ask the demo questions once); run no evaluations that day (Groq daily cap).
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
@@ -252,3 +270,330 @@
 - Unchanged from the previous snapshot. Demo UI still not clicked through in a real browser.
 ### Next atomic action
 - User: rehearse the demo in a real browser (streamlit run app\streamlit_app.py --server.fileWatcherType none, PYTHONPATH=src) and report anything wrong.
+## [2026-10-15] - Stage 2 Phase 0: setup (steps 5-7)
+### Done
+- Verified (git): tag v0.1-demo -> 6c267a7 on origin; branch stage-1-stable -> 6c267a7 in worktree ../corner_stone_stable; stage-2 = main = 5c80d2b, on origin. 109 tests passed at session start.
+- Step 5: CLAUDE.md Section II rewritten for Stage 2 (scope = Phases 1-6, not-building list, targets, eval rules, cut list, learning rule, protected items, overrides of V/XV/X); Stage 1 Section II archived at the end; Section III lists the Stage 2 top-level additions.
+- Step 6: eval/questions.jsonl now 65 lines: 20 Stage 1 + 30 new answerable (4 multi-page, 5 cross-file) + 15 unanswerable; dev 25+5, test 25+10 (rule in eval/QUESTIONS_FORMAT.md). Harness extended (id/split/targets/answerable, --split/--label/--out), 13 new tests. Evidence for every new label in eval/evidence.md, script-verified; 10 marked for the user's spot check.
+- Baseline (v0.1 code, test split, run once): hit@5 0.960 (24/25), MRR 0.912, p50/p95 43/110 ms -> eval/results/baseline_v0.1_test.md.
+- Step 7: node v25.9.0 found (not LTS). .env.example has GROQ_API_KEY and GEMINI_API_KEY; .env is gitignored (verified with git check-ignore).
+- ARCHITECTURE.md section 10: Phase 1 contracts (schema v2 + IndexVersionMismatch + rebuild, dedup at ingest, query-time collapse, slide chunking + context header, page images, FTS5 + RRF, reranker, filters, compaction, ablation protocol, config, edge cases).
+- 122 tests passing.
+### In progress / partial
+- None. Waiting for the user's "go" for Phase 1.
+### Not started
+- Phases 1-6.
+### Known issues / TODO
+- Final evaluation date not given (placeholder in the brief).
+- Node LTS decision (keep v25 or install Node 24 LTS) is the user's.
+- User to spot-check 10 questions (evidence.md) and approve 15 vs 10 unanswerable and the reranker choice.
+### Next atomic action
+- Phase 1 step 1: schema v2 + IndexVersionMismatch + `cli rebuild` (ARCHITECTURE 10.1), with tests; then the dev ablation baseline row.
+
+## [2026-10-15] - Stage 2 Phase 1 steps 1-2 (snapshot, stop)
+### Done
+- Eval: +16 paraphrased questions (ids 66-81, 8 dev / 8 test), no slide-title words (script-checked), phrases verified. Test baseline re-run once: v0.1 hit@5 0.879 (29/33), MRR 0.848 (5f470b8). Target now "hit@5 >= 0.90 and at most one test question worse than v0.1" (CLAUDE.md II).
+- CLAUDE.md standing decisions: final evaluation 25 Oct, freeze 24 Oct; Node stays v25; 15 unanswerable kept; reranker conditional; Streamlit = guaranteed demo UI.
+- Step 1 (ba788d4): schema v2 (SQLite user_version + manifest index_version), IndexVersionMismatch with the rebuild command, `cli rebuild` (old folder kept as *.v<N>.bak), new columns + FTS5 table in the same transaction, unit/source_path at ingest; fix: CLI closes SQLite connections.
+- Step 2 (942b8ec): dedup.py (3-shingle Jaccard >= 0.95, digits kept, < 80 chars never), duplicates stored with duplicate_of, counted separately in report/stats/CLI/Streamlit. Unit 4: 23 duplicates; Unit 1-2: p.67 = p.66.
+- Ablation (dev, eval/results/ablation_dev.md): row 0 v0.1 0.879 / 0.816; row 1 schema 0.879 / 0.816; row 2 dedup 0.879 / 0.818.
+- Local data/index rebuilt (v2 + dedup, 308 chunks); older indexes kept at data/index.v1.bak and data/index.v2.bak (gitignored).
+- 140 tests passing.
+### In progress / partial
+- None.
+### Not started
+- Phase 1 steps 3+ (page images, slide chunking + context header, FTS5 + RRF, collapse, filters, reranker, compaction, test run); Phases 2-6.
+### Known issues / TODO
+- Q14 (FCFS seek, dev) still a miss: chunk spans p.9-11 under a mis-detected heading -> slide chunking.
+- p.67 of Unit 1-2 marked duplicate of p.66 (identical text; its image may differ).
+- User: 10 spot-checks (evidence.md) after the 16 Oct evaluation; wrong labels reported before Phase 1 ends.
+- User: create .env with GROQ_API_KEY / GEMINI_API_KEY before Phase 2 (planned 19 Oct).
+- 10-day plan below is PROPOSED, awaiting approval.
+### Proposed plan (awaiting approval)
+- 16 Oct (Stage 1 evaluation day, light): page images; slide-aware chunking + context header (ablation rows).
+- 17 Oct: FTS5 keyword search + RRF (user writes rrf_merge from given structure + tests), query-time collapse, filters (rows).
+- 18 Oct: reranker (adopt only if dev gain and p95 < 1 s), compaction; test split once; close Phase 1.
+- 19 Oct: LLM interface (Groq + Gemini, timeouts, retries, rate limits, cache), grounded [n] prompt + "not in your notes", answer modes, streaming in Streamlit.
+- 20 Oct: citation parser (user writes) + citation check; answer-eval harness + LLM judge; prompt work on dev only.
+- 21 Oct: answer eval on test (paced), 20 answers for spot check; quiz generator (Pydantic, retries, cited answers) + validity rate.
+- 22 Oct: flashcards per unit + SM-2 (user writes core; first cut if late) + wrong answer -> flashcard; Streamlit ask (modes, citation opens slide), quiz, review pages.
+- 23 Oct: FastAPI endpoints + TestClient tests + GitHub Actions; buffer.
+- 24 Oct: FREEZE: README, evaluation report + ablation table, demo script, rehearsal, PR stage-2 -> main, tag v0.2. No features.
+- 25 Oct: final evaluation.
+- Cut now (proposed): Next.js app (Phase 4), quiz UI polish, neighbour expansion, follow-up rewriting (only if 23 Oct buffer allows), weak-topic tracking.
+### Next atomic action
+- After plan approval: Phase 1 step 3, page images (ARCHITECTURE 10.5): render_page_images + pages.image_path + tests.
+
+## [2026-10-15] - Schedule approved (with changes)
+### Done
+- Plan approved: Next.js kept (4 pages), FastAPI after the answering core, Streamlit fallback; cuts: quiz UI polish, neighbour expansion, weak-topic tracking, follow-up rewriting; SM-2 first cut. CLAUDE.md Section II holds the table:
+
+| Day | Work | Notes |
+|---|---|---|
+| 15 Oct (night) | Phase 1: page images, slide chunking + context header, FTS5 keyword search, rrf_merge structure + tests (user writes it), collapse, filters, compaction | dev ablation row per change |
+| 16 Oct (Stage 1 evaluation; light) | finish Phase 1 leftovers; user writes rrf_merge after the evaluation | spot-checks after the evaluation |
+| 17 Oct | hybrid search wired with the user's rrf_merge; reranker ablation (adopt only if dev gain and p95 < 1 s) | |
+| 18 Oct | Phase 1 test run (once), close Phase 1; start Phase 2: LLM interface (Groq + Gemini, timeouts, retries, rate limits, cache) | .env with both keys needed |
+| 19 Oct | grounded [n] prompt + "not in your notes", answer modes, streaming; Streamlit Ask (fallback) | |
+| 20 Oct | citation parser (user writes) + citation check; answer evaluation on dev (LLM judge); prompt work on dev only | |
+| 21 Oct | answer evaluation on test (paced), 20 answers for spot check; quiz generator (Pydantic + retry, cited); FastAPI: documents, search, ask (streaming), page image, health | Node 24 LTS installed by end of day |
+| 22 Oct | flashcards + SM-2 (user writes core; first cut) + wrong answer -> flashcard; FastAPI: quiz, flashcards; TestClient tests, GitHub Actions; Next.js scaffold + Documents page | Streamlit quiz/review fallback |
+| 23 Oct | Next.js: Ask (streamed, mode selector, citations open slide image), Quiz, Flashcard review | |
+| 24 Oct | morning go/no-go: Next.js demoable end to end, else demo on Streamlit; FREEZE: README, evaluation report + ablation table, demo script, rehearsal, PR stage-2 -> main, tag v0.2 | report/PPT written after |
+| 25 Oct | final evaluation | |
+
+### In progress / partial
+- None.
+### Not started
+- Phase 1 step 3 onward.
+### Known issues / TODO
+- User: Node 24 LTS by end of 21 Oct; .env keys by 18 Oct; spot-checks after 16 Oct.
+### Next atomic action
+- Phase 1 step 3: page images (ARCHITECTURE 10.5).
+## [2026-10-15] - Phase 1 step 3: page images
+### Done
+- ingest/page_images.py (render_page_images, delete_page_images); store.set_page_images/get_page_image; pipeline renders after index save, before activate; failure handler deletes images; IngestReport.warnings; config paths.image_dir + images.*; load_config resolves relative paths. 4 new tests; 144 passing.
+- Local index rebuilt (data/images: 422 PNGs, 49 MB). Dev row 3: 0.879 / 0.818 (no ranking change).
+### In progress / partial
+- None.
+### Not started
+- Step 4 slide chunking + context header; step 5 FTS5 keyword search; rrf_merge (user); collapse; filters; compaction.
+### Known issues / TODO
+- Images of documents discarded via the CLI prompt or replaced stay until compaction (by design, 10.9).
+### Next atomic action
+- Phase 1 step 4: slide-aware chunking + "file > section" context header (ARCHITECTURE 10.4).
+## [2026-10-15] - Phase 1 step 4: slide-aware chunking + context header
+### Done
+- chunking.py: slide mode (slide_title, _slide_pieces, _merge_tiny_slides, context_header, embedding_text); DOCX keeps section mode; pipeline embeds header + text. Config: chunking.mode/slide_max_tokens/slide_min_tokens/slide_title_lines/slide_title_max_chars. 10 new tests; 154 passing.
+- Local index rebuilt (328 chunks). Dev row 4: hit@5 0.939, MRR 0.835, p95 55 ms.
+### In progress / partial
+- None.
+### Not started
+- Step 5 FTS5 keyword search; rrf_merge (user writes; structure + tests from me); collapse; filters; compaction; reranker.
+### Known issues / TODO
+- Dev misses: 14 (FCFS seek time, rank 8), 70 (huge time slice -> FCFS, p.77).
+### Next atomic action
+- Phase 1 step 5: keyword_search over chunks_fts (ARCHITECTURE 10.6) with tests; dev row for keyword-only as a reference.
+## [2026-10-15] - Phase 1 step 5: keyword search (FTS5)
+### Done
+- hybrid.py: fts_query, keyword_search (BM25, active only, doc/unit filters), rrf_merge STUB (author writes it). SearchFilters dataclass. tests/test_hybrid.py: 13 keyword tests pass, 5 rrf tests skip until rrf_merge exists. retrieval_eval: --config, --retriever keyword.
+- Dev reference row 5 (keyword only): 0.818 / 0.767, 1 ms. 167 passed, 5 skipped.
+### In progress / partial
+- rrf_merge: waiting for the author (structure in its docstring, tests in tests/test_hybrid.py).
+### Not started
+- collapse_results; vector-side filters in search(); compaction; hybrid wiring in search() (after rrf_merge); reranker.
+### Known issues / TODO
+- None new.
+### Next atomic action
+- Query-time collapse of near-identical results (ARCHITECTURE 10.3): collapse_results in dedup.py + SearchResult.also_on/scores + tests.
+## [2026-10-15] - Phase 1 step 6: query-time collapse
+### Done
+- dedup.collapse_results; SearchResult.scores / also_on; search() restructured into stages (vector candidates -> collapse -> k) with config retrieval.candidates/collapse and dedup.result_jaccard. 4 new tests; 171 passed, 5 skipped (rrf).
+- Dev row 6: 0.939 / 0.835 (no change; safety net).
+### In progress / partial
+- rrf_merge: waiting for the author.
+### Not started
+- vector-side filters in search(); compaction; hybrid wiring (after rrf_merge); reranker.
+### Known issues / TODO
+- None new.
+### Next atomic action
+- Filters (ARCHITECTURE 10.8): search(..., filters=SearchFilters) applied on the vector side (over-fetch) + CLI --unit/--doc options + tests.
+## [2026-10-15] - Phase 1 step 7: filters
+### Done
+- MetadataStore.allowed_doc_ids; search(..., filters) on the vector side; CLI search --unit/--file. 2 new tests; 173 passed, 5 skipped (rrf). Dev row 7 unchanged (regression check).
+### In progress / partial
+- rrf_merge: waiting for the author.
+### Not started
+- compaction; hybrid wiring (after rrf_merge); reranker.
+### Known issues / TODO
+- None new.
+### Next atomic action
+- Compaction (ARCHITECTURE 10.9): compact() + `cli compact [--yes]` + tests (nothing to compact; replaced doc removed; crash after swap).
+## [2026-10-15] - Phase 1 step 8: compaction
+### Done
+- pipeline.compact (returns new index + report; refuses while pending), MetadataStore.purge_deleted (chunks, FTS 'delete', retired pages), images of retired docs removed, `cli compact [--yes]`. 5 new tests; 178 passed, 5 skipped (rrf). Dev row 8 unchanged.
+### In progress / partial
+- rrf_merge: waiting for the author (docstring structure in src/cornerstone/hybrid.py, tests in tests/test_hybrid.py).
+### Not started
+- Hybrid wiring in search() (retrieval.hybrid; needs rrf_merge); reranker ablation; Phase 1 test run (18 Oct).
+### Known issues / TODO
+- Dev misses: 14 (FCFS seek time, rank 8), 70 (huge time slice, Unit 1-2 p.77).
+### Next atomic action
+- Author writes rrf_merge (run: PYTHONPATH=src .venv\Scripts\python -m pytest tests/test_hybrid.py -q). Meanwhile: reranker module behind retrieval.rerank (ARCHITECTURE 10.7), off by default until the dev ablation decides.
+## [2026-10-15] - Phase 1 step 9: RRF + hybrid search (stop for the night)
+### Done
+- rrf_merge implemented (assistant, at the user's request; learning rule updated in CLAUDE.md), 6 rrf tests incl. the worked example B, A, D, C. Hybrid wired into search() (_fuse: vector + FTS5 candidates, RRF, per-stage scores, filters on both sides); 2 new search tests. 186 tests passing, none skipped.
+- Dev row 9 (hybrid): 0.848 / 0.791 vs 0.939 / 0.835 without -> retrieval.hybrid = false by default (code and switch kept). VIVA.md: rrf_merge line by line + the three questions.
+- Current default pipeline: dedup at ingest, slide chunking + header, vector top 30, collapse, first k. Dev: hit@5 0.939, MRR 0.835, p95 ~50-80 ms.
+### In progress / partial
+- None.
+### Not started
+- Reranker (17 Oct, not tonight); Phase 1 test run (18 Oct); Phases 2-6.
+### Known issues / TODO
+- Hybrid off: equal-weight RRF hurt dev. Re-test on 17 Oct: reranker over vector-only vs fused candidates; possibly weighted RRF (dev only).
+- Dev misses (default pipeline): 14 (FCFS seek time, rank 8), 70 (huge time slice, p.77).
+- User: spot-checks after 16 Oct; .env keys by 18 Oct; Node 24 LTS by end of 21 Oct.
+### Next atomic action
+- 17 Oct: pin the reranker model revision (cross-encoder/ms-marco-MiniLM-L-6-v2) in config + ARCHITECTURE section 7, implement rerank.py (10.7), then dev rows: vector+rerank and hybrid+rerank.
+
+## [2026-10-15] - Read-only sub-agents
+### Done
+- .claude/agents/reviewer.md and .claude/agents/eval-auditor.md (read-only; Read/Grep/Glob/Bash for read-only commands; model sonnet). CLAUDE.md Section XIIIb: reviewer once per phase end and before every test-set run; eval-auditor before every test-set run; not after every commit.
+### In progress / partial
+- None.
+### Not started
+- Unchanged (reranker 17 Oct).
+### Known issues / TODO
+- First real use: before the Phase 1 test run (18 Oct).
+### Next atomic action
+- 17 Oct: pin the reranker revision, implement rerank.py, dev rows vector+rerank and hybrid+rerank.
+## [2026-10-15] - Review of tonight's work (5c80d2b..993ffd7)
+### Done
+- Reviewer run (Explore agent with .claude/agents/reviewer.md instructions; the named agent loads next session). 0 blockers, 3 should-fix, 3 notes; reviewer changed nothing (git status clean).
+- Fixed: 10.11 switch states (b4838ca); missing config rows slide_title_max_chars / slide_min_tokens (ea0a2af); PROGRESS.md-per-commit lapse logged in NOTES (this commit). 186 tests passing.
+### In progress / partial
+- None.
+### Not started
+- Reranker (17 Oct), Phase 1 test run (18 Oct).
+### Known issues / TODO
+- Review notes for later: ARCHITECTURE 10 diagram shows hybrid/rerank as unconditional; add test_rerank and pin the reranker revision with rerank.py.
+### Next atomic action
+- 17 Oct: pin reranker revision, implement rerank.py (10.7) with test_rerank, dev rows vector+rerank and hybrid+rerank.
+## [2026-10-15] - Phase 1 step 10: cross-encoder reranker (measured, not adopted)
+### Done
+- rerank.py: Reranker (CrossEncoder ms-marco-MiniLM-L-6-v2 @ 233902d2, CPU, max_length 512), load_reranker; RerankerUnavailable; search(..., reranker=) as the last stage behind retrieval.rerank (ValueError if on without a reranker); CLI search / Streamlit / retrieval_eval pass it. tests/test_rerank.py: 7 tests.
+- Dev rows 10 (rerank) and 11 (hybrid + rerank): 0.939 / 0.817, p95 2858 / 6297 ms -> not adopted, retrieval.rerank: false.
+### In progress / partial
+- None.
+### Not started
+- Phase 1 close: reviewer + eval-auditor, then the Phase 1 test run (once); Phases 2-6.
+### Known issues / TODO
+- Dev misses (default): 14 (rank 8), 70 (>10).
+### Next atomic action
+- Reviewer over 5c80d2b..HEAD and eval-auditor, then the Phase 1 test-split run with the default config.
+## [2026-10-15] - Phase 1 close
+### Done
+- Reviewer + eval-auditor (named agents): 0 blockers; should-fixes fixed in 948a7c7 (eval/configs/ variants, hashes in ablation table, 10.12 test names). Agents changed nothing.
+- Test run #3 (once): hit@5 0.939 (31/33), MRR 0.856, p95 47 ms -> eval/results/phase1_test.md; logged in NOTES.md. Target met.
+- Key check: Groq ok, Gemini ok.
+### In progress / partial
+- Phase 2 drafts (contract 11, llm.py, citations.py, tests) in the session scratch folder; not committed yet.
+### Not started
+- Phases 2-6.
+### Known issues / TODO
+- CI must cache the reranker/embedding models (reviewer note).
+### Next atomic action
+- Phase 2 step 1: ARCHITECTURE section 11 + llm.py (Groq, Gemini, Fake; cache, limiter, capped retries) + tests/test_llm.py; pin httpx.
+## [2026-10-15] - Phase 2 step 1: LLM layer
+### Done
+- ARCHITECTURE section 11 (Phase 2 contracts: llm, answer, citations, answer evaluation, config, edge cases).
+- llm.py: GroqProvider / GeminiProvider over httpx (timeouts, retries only on 429/5xx/timeout, max 2, long retry-after fails fast), RateLimiter (rpm + tpm sliding window), AnswerCache (SQLite, data/cache), FakeProvider, make_provider, load_env/get_key. LLMError family in __init__. Config llm.*; httpx==0.28.1 pinned. tests/test_llm.py: 16 tests (mock transport, no network).
+- Live check via llm.py: Groq ok (first token 0.6 s), Gemini ok (2.5 s), cache hit on repeat.
+### In progress / partial
+- citations.py draft in scratch folder.
+### Not started
+- answer.py, citation check wiring, answer evaluation, Streamlit Ask.
+### Known issues / TODO
+- Groq output contains narrow no-break spaces (U+202F): normalise in answer.py.
+### Next atomic action
+- citations.py (parse_citations, strip_invalid_refs, check_citations) + tests/test_citations.py + VIVA line by line.
+## [2026-10-15] - Phase 2 step 2: citation parser
+### Done
+- citations.py: parse_citations, split_sentences, strip_invalid_refs, check_citations (judge, one retry, None = unchecked), parse_judge_reply. tests/test_citations.py: 11 tests. VIVA: line by line.
+### In progress / partial
+- None.
+### Not started
+- answer.py, answer evaluation, Streamlit Ask.
+### Known issues / TODO
+- Rule-based sentence splitting ("e.g." splits); errs on the strict side.
+### Next atomic action
+- answer.py: build_prompt, answer(), stream_answer() with retrieval gate + modes + abstention, tests with FakeProvider.
+## [2026-10-15] - Phase 2 step 3: grounded answers
+### Done
+- answer.py: Source/Answer, build_prompt (rules + mode + numbered sources), stream_answer (retrieval gate, hold-back of NOT_IN_NOTES, TTFT, final Answer last), answer(), finalise (model / no-citation abstention, invalid refs stripped, NFKC), optional judge check. Config answer.* (k 5, gate 0.0 = off until calibrated on dev, judge gemini, 5 modes). provider.last_cached. citations: gap sentences need no citation.
+- cli ask (stream, sources + image paths, flags). Tests: test_answer.py 10, test_cli ask 1, test_citations +1.
+- Live: least-privilege 2-mark -> cited [1] p.5, judge ok, first token 0.72 s. Observed (not tuned): a SSTF-vs-SCAN question abstained because the top 5 had no SSTF slide; prompt rule 4 (partial answers) to be tuned on dev with the answer evaluation.
+### In progress / partial
+- None.
+### Not started
+- eval/answer_eval.py, gate calibration, prompt work on dev, Streamlit Ask.
+### Known issues / TODO
+- Comparison questions often retrieve one side only (retrieval limit, k=5).
+### Next atomic action
+- eval/answer_eval.py (metrics per ARCHITECTURE 11.4, pacing, partial results) + tests; then the dev run.
+## [2026-10-15] - Phase 2 harness + Streamlit Ask; Phase 5 step 1: SM-2 + study store
+### Done
+- eval/answer_eval.py (+ tests/test_eval_answer.py, 5 tests); judge outages mark answers "not checked" (Answer.check_error), 3 in a row stop the run.
+- Streamlit Ask tab (stream, modes, unit filter, flags, slide images); test_app +2.
+- Fixes logged in NOTES: lenticular citation brackets from gpt-oss; Gemini 503 stopping a run.
+- Contracts for quiz/flashcards (ARCHITECTURE 12) and the API (13); fastapi 0.143.2, pydantic 2.14.1 installed + pinned.
+- srs.sm2 (assistant-written, VIVA line by line), study_store.StudyStore + Card (data/study.sqlite). tests: test_srs 5, test_study_store 5.
+### In progress / partial
+- Dev answer evaluation v1 running in the background (eval/results/answer_runs/answer_eval_dev_v1.md).
+### Not started
+- quiz.py, flashcards.py, json_mode; API; CI.
+### Known issues / TODO
+- Gate threshold and prompt tuning wait for the dev v1 numbers.
+### Next atomic action
+- json_mode in llm.py + quiz.py (pick_slides, generate_quiz, pydantic validation, one top-up) + tests/test_quiz.py.
+## [2026-10-15] - Phase 5 step 2 + Phase 3: quiz, flashcards, API, schema v3
+### Done
+- quiz.py (pick_slides, generate_quiz, MCQ pydantic, one top-up), flashcards.py (generate_flashcards, card_from_question); json_mode in providers. tests: test_quiz 6, test_flashcards 3, test_llm +1.
+- Judge moved to Groq Qwen (Gemini free tier = 20 requests/day, measured); TTFT excludes rate-limit queueing.
+- api.py (FastAPI): health, documents (upload -> background job, list, delete), search, ask, ask/stream (SSE), page image, quiz, flashcards (generate, from-quiz, due, review). tests/test_api.py 7 tests (TestClient + FakeProvider).
+- Schema v3 (documents can be 'deleted'); local index rebuilt (old kept as data/index.v2.bak4); dev ranks identical (row 12).
+- Dev answer eval v1: citation accuracy 95.3%, faithfulness 75.0%, abstention 5/5, false abstention 1/33, TTFT p50 829 ms. Gate stays off (scores overlap).
+### In progress / partial
+- Prompt work on dev for faithfulness (uncited sentences).
+### Not started
+- GitHub Actions CI; Streamlit quiz/review pages; answer evaluation on test (after prompt work + reviewer + auditor); Next.js (needs Node 24).
+### Known issues / TODO
+- Starlette TestClient deprecation warning (httpx); harmless.
+### Next atomic action
+- Inspect uncited sentences in dev v1 answers, adjust the prompt (dev only), run dev v2.
+## [2026-10-16] - Phase 2 prompt work, CI, Streamlit learning tabs, quiz evaluation, pre-test reviews
+### Done
+- Prompt v2 (cite every sentence; d7c5a9a) and v3 (one fact per sentence, say only what a slide states, format example; 9fcd5d8), each measured on dev: faithfulness 75.0% -> 81.2% -> 87.5%, citation accuracy 95.3% -> 91.8% -> 100%. v3 chosen for test (NOTES).
+- .github/workflows/tests.yml: pytest on every push, HF model cache; first runs green (269 then 272 tests).
+- Streamlit Quiz + Flashcards tabs (0e2bc02); API edge-case tests (413, from-quiz 422, SSE error event); API locks each faiss read instead of whole requests (LockedIndex).
+- eval/quiz_eval.py + result: 25/25 valid, 24/25 supported. docs/demo-script.md.
+- Reviewer (9b9da41..e600306) and eval-auditor before the test answer run: 0 blockers each; findings fixed (ARCHITECTURE 11.4 wording, 5-mark sample defined; this PROGRESS entry + morning report). Neither agent changed a file.
+### In progress / partial
+- None.
+### Not started
+- Test-split answer evaluation (next, once); Next.js web app (Node 24 needed); README + evaluation report (Phase 6).
+### Known issues / TODO
+- Dev faithfulness 87.5% < 90% target (uncited sentences); reported as is.
+### Next atomic action
+- Run the test-split answer evaluation once: concise (all 43) + 5-mark sample (--limit 10); log in NOTES.md.
+## [2026-10-16] - Phase 2 test checkpoint, 5-mark fix, Phase 6 docs
+### Done
+- Test answer evaluation run once (concise all 43 + 5-mark sample 10), logged in NOTES: concise targets met; 5-mark faithfulness 12.5%.
+- Declared post-test fix of exam modes (c91c8f4, f5328eb) + stray-token cleanup; dev 5-mark v3/v4/v5 = 12.5% / 50% / 100% (v5 partial).
+- Limiter estimate chars/3; Groq daily cap (200k tokens) found and recorded (config tpd, demo script).
+- docs/evaluation-report.md + README rewritten for Stage 2; eval-auditor: 0 blockers, fixes applied (4701ce6).
+### In progress / partial
+- Dev 5-mark v5 run partial (6/8) until Groq's daily window frees.
+### Not started
+- Next.js web app (Node 24 LTS needed); PR stage-2 -> main (draft next).
+### Known issues / TODO
+- 5-mark fix not re-measured on test (no further test checkpoint before the final report).
+### Next atomic action
+- Prepare the draft PR stage-2 -> main (no merge, no tag).
+
+## [2026-10-16] - Phase 4: Next.js web app
+### Done
+- ARCHITECTURE 14 (web contract) + `api.cors_origins` in config.yaml; CORSMiddleware in api.py; test_cors_allows_only_the_configured_web_origin (274 tests pass).
+- web/: Next 16.4.1, React 19.3.0, Tailwind 4.3.3, TypeScript 5.9.3, exact pins + package-lock. lib/api.ts (typed calls, ApiError, SSE reader streamAsk), components Nav (health), SlideModal, CitedText, Notice.
+- Pages: /documents (5dc0a57), /ask (ae53cf0), /quiz (6f44fcd), /review (3f02e18); one commit each, pushed.
+- CI: `web` job (Node 24: npm ci, lint, build) in tests.yml (e2aed36), green on GitHub.
+- README two-terminal run commands; VIVA Phase 4 questions.
+### In progress / partial
+- None.
+### Not started
+- Browser click-through by the user (no browser tool in this session). docs/demo-script.md still uses Streamlit tab names.
+### Known issues / TODO
+- One Groq call used for the live /ask/stream check. Quiz and flashcard generation not called live.
+- Job status lives in API memory: restarting uvicorn loses in-progress job ids (documents already indexed stay).
+### Next atomic action
+- User: browser click-through (Morning report item 1); then decide web vs Streamlit for the demo.

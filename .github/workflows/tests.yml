@@ -1,0 +1,53 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # embedding + reranker models (~220 MB); key changes only when a pinned revision in config.yaml changes
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('config.yaml') }}
+
+      - name: Install dependencies (CPU torch from the PyTorch index in requirements.txt)
+        run: python -m pip install -r requirements.txt
+
+      # No API keys in CI: every LLM test uses FakeProvider or a mocked HTTP transport.
+      - name: Run tests
+        env:
+          PYTHONPATH: src
+        run: python -m pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # the web app needs no API at build time; every page fetches in the browser
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

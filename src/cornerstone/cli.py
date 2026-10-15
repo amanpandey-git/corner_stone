@@ -4,26 +4,34 @@
     python -m cornerstone.cli search "<query>" --k 5
     python -m cornerstone.cli stats
     python -m cornerstone.cli chunks <file> [--full]
+    python -m cornerstone.cli rebuild <file|dir>... [--yes]   # fresh index; old folder kept as *.v<N>.bak
 Run with PYTHONPATH=src from the repo root.
 """
 from __future__ import annotations
 
 import argparse
+import json
+import sqlite3
 import statistics
 import sys
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from pathlib import Path
 
 import yaml
 
-from cornerstone import CornerstoneError, EmptyQuery
+from cornerstone import CornerstoneError, EmptyQuery, SearchFilters
 from cornerstone.chunking import chunk_pages
+from cornerstone.dedup import mark_duplicates
 from cornerstone.embeddings import Embedder, load_token_counter
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.ingest.loader import load_document
-from cornerstone.pipeline import ingest_file
+from cornerstone.pipeline import compact, ingest_file
 from cornerstone.search import search
+
+if TYPE_CHECKING:
+    from cornerstone.rerank import Reranker
 
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_FILE = "hnsw.faiss"
@@ -32,7 +40,10 @@ SUPPORTED = {".pdf", ".docx"}
 
 
 def load_config(path: Path | None = None) -> dict:
-    return yaml.safe_load((Path(path) if path else ROOT / "config.yaml").read_text(encoding="utf-8"))
+    """Read config.yaml; relative entries under `paths` are resolved against the repo root."""
+    cfg = yaml.safe_load((Path(path) if path else ROOT / "config.yaml").read_text(encoding="utf-8"))
+    cfg["paths"] = {k: str(ROOT / v) for k, v in cfg["paths"].items()}   # ROOT / absolute == absolute
+    return cfg
 
 
 @dataclass
@@ -41,19 +52,30 @@ class Stack:
     index: HNSWIndex
     index_path: Path
     embedder: Embedder | None
+    reranker: "Reranker | None" = None   # loaded with the embedder when retrieval.rerank is on
+
+    def close(self) -> None:
+        """Release the SQLite file (Windows cannot move a folder while a connection is open)."""
+        self.store.close()
 
 
-def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_yes: bool = False) -> Stack:
+def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_yes: bool = False,
+               for_search: bool = False) -> Stack:
     """Open (or create) store + index under paths.index_dir and verify they agree.
 
     Raises ModelMismatch if the index was built with other settings. Interrupted ingests found
     by check_sync are shown and discarded only after the user confirms (or --yes); anything
     else out of sync is reported with the way to rebuild. Nothing is repaired silently.
+    ``for_search`` also loads the reranker when retrieval.rerank is on (ingest never needs it).
     """
     index_dir = Path(root) / cfg["paths"]["index_dir"]
     index_path = index_dir / INDEX_FILE
     store = MetadataStore(index_dir / DB_FILE)
-    index = HNSWIndex.load(index_path, cfg) if index_path.is_file() else HNSWIndex.from_config(cfg)
+    try:
+        index = HNSWIndex.load(index_path, cfg) if index_path.is_file() else HNSWIndex.from_config(cfg)
+    except Exception:
+        store.close()
+        raise
 
     problems = store.check_sync(set(index.all_ids().tolist()))
     if problems:
@@ -75,7 +97,15 @@ def open_stack(cfg: dict, root: Path = ROOT, load_embedder: bool = True, assume_
                 print("  not discarded (answer y, or pass --yes, to clean up)", file=sys.stderr)
         if any("no row in SQLite" in p or "no vector in the index" in p for p in problems):
             print(f"  to rebuild: delete {index_dir} and ingest your files again", file=sys.stderr)
-    return Stack(store, index, index_path, Embedder(cfg) if load_embedder else None)
+    if not load_embedder:
+        return Stack(store, index, index_path, None)
+    from cornerstone.rerank import load_reranker   # CrossEncoder import only when searching
+
+    try:
+        return Stack(store, index, index_path, Embedder(cfg), load_reranker(cfg) if for_search else None)
+    except Exception:
+        store.close()
+        raise
 
 
 # ------------------------------------------------------------------ commands
@@ -85,17 +115,32 @@ def location(c) -> str:
     return f"paragraphs {c.para_start}-{c.para_end}"
 
 
+def collect_files(targets: list[str]) -> list[Path]:
+    """Files named directly, plus every .pdf/.docx inside named folders (sorted, not recursive)."""
+    files: list[Path] = []
+    for t in map(Path, targets):
+        files += sorted(f for f in t.iterdir() if f.suffix.lower() in SUPPORTED) if t.is_dir() else [t]
+    return files
+
+
 def cmd_ingest(args, cfg) -> int:
-    target = Path(args.path)
-    files = sorted(f for f in target.iterdir() if f.suffix.lower() in SUPPORTED) if target.is_dir() else [target]
+    files = collect_files([args.path])
     if not files:
-        print(f"no .pdf/.docx files found in {target}", file=sys.stderr)
+        print(f"no .pdf/.docx files found in {args.path}", file=sys.stderr)
         return 1
     st = open_stack(cfg, ROOT, assume_yes=args.yes)
+    try:
+        return ingest_files(files, cfg, st, args.verbose)
+    finally:
+        st.close()
+
+
+def ingest_files(files: list[Path], cfg: dict, st: Stack, verbose: bool = False) -> int:
+    """Ingest each file and print one report line per file; exit code 1 if any failed."""
     failed = 0
     for f in files:
         r = ingest_file(f, cfg, st.store, st.index, st.embedder, st.index_path,
-                        progress=(lambda m: print("   " + m)) if args.verbose else None)
+                        progress=(lambda m: print("   " + m)) if verbose else None)
         line = f"[{r.status}] {r.file_name}"
         if r.status == "failed":
             failed += 1
@@ -104,22 +149,114 @@ def cmd_ingest(args, cfg) -> int:
             line += f" - {r.message}"
         else:
             line += (f": {r.pages_total} pages, {r.pages_with_text} with text, {r.pages_flagged} flagged, "
-                     f"{r.chunks_created} chunks, {r.seconds:.1f}s")
+                     f"{r.pages_duplicate} duplicate, {r.chunks_created} chunks, {r.seconds:.1f}s")
             if r.message:
                 line += f" ({r.message})"
         print(line)
         for page_no, why in r.flagged_pages:
             print(f"      flagged page {page_no}: {why}")
+        for w in r.warnings:
+            print(f"      warning: {w}")
+        if r.duplicate_pages:
+            print("      duplicate pages (not indexed): "
+                  + ", ".join(f"p.{p}=p.{orig}" for p, orig in r.duplicate_pages))
     return 1 if failed else 0
 
 
-def cmd_search(args, cfg) -> int:
+def stored_version(index_dir: Path) -> int | None:
+    """Schema version of an existing index folder (SQLite user_version, else manifest); None if empty.
+
+    Read directly, without MetadataStore, because the store refuses to open an old version.
+    """
+    db, manifest = index_dir / DB_FILE, index_dir / "manifest.json"
+    if db.is_file():
+        con = sqlite3.connect(db)
+        try:
+            return con.execute("PRAGMA user_version").fetchone()[0] or 1   # v0.1 never set it
+        finally:
+            con.close()
+    if manifest.is_file():
+        try:
+            return int(json.loads(manifest.read_text(encoding="utf-8")).get("index_version", 1))
+        except (ValueError, TypeError):
+            return 1
+    return None
+
+
+def cmd_rebuild(args, cfg) -> int:
+    """Move the current index folder aside (never delete it) and ingest the given files into a fresh one."""
+    files = collect_files(args.paths)
+    if not files:
+        print(f"no .pdf/.docx files found in {', '.join(args.paths)}", file=sys.stderr)
+        return 1
+    index_dir = Path(ROOT) / cfg["paths"]["index_dir"]
+    if index_dir.is_dir() and any(index_dir.iterdir()):
+        found = stored_version(index_dir) or 1
+        backup = index_dir.with_name(f"{index_dir.name}.v{found}.bak")
+        n = 2
+        while backup.exists():
+            backup = index_dir.with_name(f"{index_dir.name}.v{found}.bak{n}")
+            n += 1
+        ok = args.yes
+        if not ok and sys.stdin.isatty():
+            ok = input(f"Move {index_dir} (schema {found}) to {backup.name} and re-ingest {len(files)} file(s)? "
+                       "[y/N] ").strip().lower() == "y"
+        if not ok:
+            print("not rebuilt (answer y, or pass --yes)", file=sys.stderr)
+            return 1
+        index_dir.rename(backup)
+        print(f"old index kept at {backup}")
     st = open_stack(cfg, ROOT, assume_yes=args.yes)
     try:
-        results = search(args.query, args.k, cfg, st.store, st.index, st.embedder)
+        return ingest_files(files, cfg, st, args.verbose)
+    finally:
+        st.close()
+
+
+def cmd_compact(args, cfg) -> int:
+    """Rebuild the index without soft-deleted vectors and purge their rows (asks first unless --yes)."""
+    st = open_stack(cfg, ROOT, load_embedder=False, assume_yes=args.yes)
+    try:
+        ok = args.yes
+        if not ok and sys.stdin.isatty():
+            ok = input("Compact the index (rewrite it without deleted vectors)? [y/N] ").strip().lower() == "y"
+        if not ok:
+            print("not compacted (answer y, or pass --yes)", file=sys.stderr)
+            return 1
+        _, r = compact(cfg, st.store, st.index, st.index_path)
+    finally:
+        st.close()
+    print(f"vectors: {r['vectors_before']} -> {r['vectors_after']}; index file: {r['bytes_before'] / 1e6:.2f} -> "
+          f"{r['bytes_after'] / 1e6:.2f} MB; {r['chunk_rows_removed']} deleted chunk rows and "
+          f"{r['documents_cleaned']} retired document(s) cleaned")
+    return 0
+
+
+def _filters(st: Stack, args) -> SearchFilters | None:
+    """--unit / --file options -> SearchFilters (unknown file names are warned about and match nothing)."""
+    if not (args.unit or args.file):
+        return None
+    doc_ids = None
+    if args.file:
+        docs = [st.store.find_active_by_name(f) for f in args.file]
+        missing = [f for f, d in zip(args.file, docs) if d is None]
+        if missing:
+            print(f"warning: not indexed: {', '.join(missing)}", file=sys.stderr)
+        doc_ids = [d.doc_id for d in docs if d is not None]
+    return SearchFilters(doc_ids=doc_ids, units=args.unit)
+
+
+def cmd_search(args, cfg) -> int:
+    st = open_stack(cfg, ROOT, assume_yes=args.yes, for_search=True)
+    filters = _filters(st, args)
+    try:
+        results = search(args.query, args.k, cfg, st.store, st.index, st.embedder, filters=filters,
+                         reranker=st.reranker)
     except EmptyQuery as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    finally:
+        st.close()
     if not results:
         print("no results (the index is empty, or nothing indexed matches)")
         return 0
@@ -131,19 +268,68 @@ def cmd_search(args, cfg) -> int:
     return 0
 
 
+def cmd_ask(args, cfg) -> int:
+    """Grounded answer with [n] citations, streamed to the terminal (ARCHITECTURE 11.2)."""
+    from cornerstone.answer import Answer, stream_answer
+    from cornerstone.llm import make_provider
+
+    provider = make_provider(cfg, args.provider)       # LLMUnavailable before any model is loaded
+    judge = make_provider(cfg, cfg["answer"]["judge_provider"]) if args.check else None
+    st = open_stack(cfg, ROOT, assume_yes=args.yes, for_search=True)
+    final = None
+    try:
+        for item in stream_answer(args.question, args.mode, cfg, st.store, st.index, st.embedder, provider,
+                                  filters=_filters(st, args), reranker=st.reranker, judge=judge,
+                                  check=args.check):
+            if isinstance(item, Answer):
+                final = item
+            else:
+                print(item, end="", flush=True)
+        images = {x.n: st.store.get_page_image(x.doc_id, x.page_start) for x in final.cited_sources()
+                  if x.page_start is not None}
+    except EmptyQuery as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        st.close()
+    print()
+    if final.abstained:
+        print(f"{final.text}  (reason: {final.abstain_reason})")
+        return 0
+    print("\nSources:")
+    for s in final.cited_sources():
+        img = f"  image: {Path(cfg['paths']['image_dir']) / images[s.n]}" if images.get(s.n) else ""
+        print(f"  [{s.n}] {s.label()}" + (f" - {s.section}" if s.section else "") + img)
+    for label, items in (("uncited sentences", final.uncited_sentences), ("invalid references removed", final.invalid_refs)):
+        if items:
+            print(f"warning: {len(items)} {label}: {items}")
+    if final.unsupported:
+        print(f"warning: judge marked {len(final.unsupported)} citation(s) unsupported: "
+              f"{[final.citations[i].sentence for i in final.unsupported]}")
+    elif args.check and final.unsupported is None:
+        print("warning: citations could not be checked (judge reply invalid)")
+    print(f"({final.provider} {final.model}; first token {final.ttft_ms or 0:.0f} ms; "
+          f"{'cached' if final.cached else 'live'})")
+    return 0
+
+
 def cmd_stats(args, cfg) -> int:
     st = open_stack(cfg, ROOT, load_embedder=False, assume_yes=args.yes)
     s = st.store.stats()
+    st.close()
     size = st.index_path.stat().st_size if st.index_path.is_file() else 0
     m = st.index.manifest
     print(f"documents: {s['documents']} active, {s['documents_replaced']} replaced, "
           f"{s['documents_pending']} pending, {s['documents_abandoned']} abandoned")
-    print(f"pages:     {s['pages_total']} total, {s['pages_with_text']} with text, {s['pages_flagged']} flagged")
+    print(f"pages:     {s['pages_total']} total, {s['pages_with_text']} with text, {s['pages_flagged']} flagged, "
+          f"{s['pages_duplicate']} duplicate")
     print(f"chunks:    {s['chunks_active']} active, {s['chunks_deleted']} soft-deleted, {s['chunks_pending']} pending")
     print(f"index:     {len(st.index)} vectors, dim {m.dimension}, {m.space}, {size / 1e6:.2f} MB on disk")
     print(f"model:     {m.model_name} @ {(m.model_revision or '-')[:8]}  (index created {m.created_at})")
     for p in s["flagged_pages"]:
         print(f"  flagged: {p['file_name']} page {p['page_no']}: {p['status']} - {p['reason']}")
+    for p in s["duplicate_pages"]:
+        print(f"  duplicate: {p['file_name']} page {p['page_no']} = page {p['duplicate_of']}")
     return 0
 
 
@@ -151,7 +337,7 @@ def cmd_chunks(args, cfg) -> int:
     """Print the chunks of one file so they can be inspected by eye."""
     path = Path(args.file)
     try:
-        pages = load_document(path, cfg)
+        pages = mark_duplicates(load_document(path, cfg), cfg)
     except CornerstoneError as e:
         print(f"FAILED: {e}", file=sys.stderr)
         return 1
@@ -187,8 +373,24 @@ def main(argv: list[str] | None = None) -> int:
     p = add("search", cmd_search, "search the index")
     p.add_argument("query")
     p.add_argument("--k", type=int, default=None, help="number of results (default from config)")
+    p.add_argument("--unit", action="append", help='only this unit, e.g. --unit "Unit 4" (repeatable)')
+    p.add_argument("--file", action="append", help="only this indexed file name (repeatable)")
+    p.add_argument("--yes", action="store_true")
+    p = add("ask", cmd_ask, "answer a question from your notes, with [n] citations")
+    p.add_argument("question")
+    p.add_argument("--mode", default="concise", choices=("concise", "detailed", "2-mark", "5-mark", "10-mark"))
+    p.add_argument("--provider", choices=("groq", "gemini"), default=None, help="default: llm.provider")
+    p.add_argument("--check", action="store_true", help="ask the judge model to verify each citation")
+    p.add_argument("--unit", action="append")
+    p.add_argument("--file", action="append")
     p.add_argument("--yes", action="store_true")
     p = add("stats", cmd_stats, "show index and ingestion statistics")
+    p.add_argument("--yes", action="store_true")
+    p = add("rebuild", cmd_rebuild, "build a fresh index from files (old index folder kept as *.v<N>.bak)")
+    p.add_argument("paths", nargs="+")
+    p.add_argument("--yes", action="store_true", help="do not ask before moving the old index aside")
+    p.add_argument("-v", "--verbose", action="store_true")
+    p = add("compact", cmd_compact, "rewrite the index without deleted vectors; purge their rows and images")
     p.add_argument("--yes", action="store_true")
     p = add("chunks", cmd_chunks, "print the chunks of one file (debug)")
     p.add_argument("file")

@@ -2,6 +2,9 @@
 paths:
   raw_dir: data/raw
   index_dir: data/index          # holds hnsw.faiss, manifest.json, cornerstone.sqlite
+  image_dir: data/images         # one PNG per PDF page, for citation previews (gitignored)
+  cache_dir: data/cache          # LLM answer cache (gitignored)
+  study_db: data/study.sqlite    # flashcards + reviews; separate from the index (ARCHITECTURE 12)
 
 extraction:
   scan_min_chars: 25             # a page with fewer cleaned chars than this (and no text layer) is "needs OCR"
@@ -15,6 +18,11 @@ chunking:
   overlap_tokens: 48
   min_tokens: 40                 # smaller fragments are merged into a neighbour
   hard_max_tokens: 480           # always < model max_seq_length (512)
+  mode: slide                    # PDF: one chunk per slide (exact page citations); DOCX always uses sections
+  slide_max_tokens: 448          # header + slide text; longer slides are windowed inside the page
+  slide_min_tokens: 15           # near-empty slides (lone title, picture caption) join the next page
+  slide_title_lines: 2           # a slide title is a heading within the first 2 lines
+  slide_title_max_chars: 60      # longer 'headings' are body lines in large-font decks
 
 embedding:
   model_name: BAAI/bge-small-en-v1.5
@@ -32,6 +40,96 @@ hnsw:
   ef_construction: 200
   ef_search: 50
   initial_capacity: 10000        # informational for hnswlib; faiss grows automatically
+
+images:
+  enabled: true
+  dpi: 110                       # a 13.33x7.5 in slide -> ~1470x825 px, readable, ~150-300 KB
+
+dedup:
+  min_chars: 80                  # shorter pages (title/picture slides) are never treated as duplicates
+  page_jaccard: 0.95             # word 3-shingle overlap at which a later page counts as a copy (ARCHITECTURE 10.2)
+  result_jaccard: 0.90           # query time: a result this similar to a higher one is collapsed into it (10.3)
+
+retrieval:
+  candidates: 30                 # results gathered before collapse/fusion/rerank cut to k
+  hybrid: false                  # stage switches (ablation): FTS5 + RRF. OFF: dev row 9 lowered hit@5 0.939 -> 0.848
+  rrf_k: 60                      # RRF constant from the original paper (Cormack et al. 2009)
+  collapse: true                 # collapse near-identical results
+  rerank: false                  # cross-encoder over the candidates (ARCHITECTURE 10.7); decided by the dev ablation
+  unit_pattern: '(?i)unit\s*(\d+)'   # file name -> documents.unit for the unit filter (ARCHITECTURE 10.8)
+
+rerank:
+  model_name: cross-encoder/ms-marco-MiniLM-L-6-v2
+  model_revision: 233902d25c440f23af6f7d6e94d2946bac0bee0a
+  max_length: 512                # MiniLM's position limit; context header + slide fits (slide_max_tokens 448)
+
+llm:                             # ARCHITECTURE 11.1 / 11.5
+  provider: groq                 # groq | gemini (keys in .env: GROQ_API_KEY, GEMINI_API_KEY)
+  temperature: 0.0               # reproducible and cacheable
+  timeout_s: 30
+  max_retries: 2                 # extra attempts on 429/5xx/timeout; never a loop
+  backoff_s: 2                   # 2 s, then 4 s
+  max_backoff_s: 20              # a longer retry-after fails at once (LLMRateLimited)
+  cache: true
+  groq:
+    model: openai/gpt-oss-120b
+    rpm: 30
+    tpm: 8000                    # from Groq's x-ratelimit-limit-tokens header (2026-10-15)
+    tpd: 200000                  # free-tier tokens/day for gpt-oss-120b (Groq 429 message, 2026-10-16); informational
+    extra:
+      reasoning_effort: low      # gpt-oss reasons before answering; low keeps tokens and latency down
+  groq_judge:                    # judge: a different model family from the answerer (Qwen vs OpenAI gpt-oss)
+    model: qwen/qwen3.8-27b
+    rpm: 30
+    tpm: 8000                    # Groq limits are per model, so judging does not slow answering
+  gemini:
+    model: gemini-3.5-flash      # gemini-2.5-flash returns 404 for this key
+    rpm: 10                      # conservative free-tier value (no limit headers returned)
+    rpd: 20                      # measured 2026-10-15: GenerateRequestsPerDayPerProjectPerModel-FreeTier = 20
+    tpm: 250000
+    generation:
+      thinkingConfig:
+        thinkingBudget: 0        # no hidden reasoning tokens: faster first token, cheaper
+
+answer:                          # ARCHITECTURE 11.2 / 11.5
+  k: 5                           # sources in the prompt (hit@5 is the retrieval metric)
+  min_vector_score: 0.0          # retrieval gate; 0.0 = off until calibrated on dev (NOTES.md)
+  judge_provider: groq_judge     # Qwen judges gpt-oss; Gemini's free tier (20 requests/day) is too small to judge every answer
+  judge_max_tokens: 300
+  check_citations: false         # runtime judge call per answer; always on in eval/answer_eval.py
+  modes:                         # max_tokens include gpt-oss reasoning tokens (reasoning_effort low)
+    concise:
+      max_tokens: 700
+      instruction: "A direct answer in 2-4 sentences."
+    detailed:
+      max_tokens: 1400
+      instruction: "A clear explanation in short paragraphs or bullet points that covers every relevant point in the sources. Every sentence and every bullet ends with its citation."
+    2-mark:
+      max_tokens: 600
+      instruction: "A university 2-mark answer of about 40-60 words: a precise definition or direct answer plus one key point."
+    5-mark:
+      max_tokens: 1400
+      instruction: "A university 5-mark answer of about 150-250 words: a one-sentence introduction that defines the topic in the sources' own words, then 4-6 key points as bullets. Add a one-sentence conclusion only if a source states a purpose, summary or advantage you can cite; otherwise end after the last bullet. Every sentence and bullet ends with a citation; never add a general summary of your own."
+    10-mark:
+      max_tokens: 2400
+      instruction: "A university 10-mark answer of about 400-600 words: an introduction that defines the topic in the sources' own words, the main points as bullets under short headings, an example or the working of the method if the sources give one, advantages and disadvantages if the sources give them, and a conclusion only if a source states a purpose or summary you can cite. Every sentence and bullet ends with a citation; never add a general summary of your own."
+
+quiz:                            # ARCHITECTURE 12.1
+  min_tokens: 40                 # title-only slides make poor questions
+  max_sources: 12                # slides shown to the model; keeps one call under Groq's 8000 tokens/min
+  max_questions: 10
+  max_attempts: 2                # one top-up call at most
+  max_tokens: 3000
+
+flashcards:                      # ARCHITECTURE 12.2
+  max_cards: 20
+  max_tokens: 2500
+
+api:                             # ARCHITECTURE 13
+  max_upload_mb: 50              # a 300-page slide deck is ~20-40 MB
+  cors_origins:                  # the Next.js dev server (ARCHITECTURE 14); other origins get no CORS header
+    - http://localhost:3000
+    - http://127.0.0.1:3000
 
 search:
   default_k: 5

@@ -1,19 +1,23 @@
-"""ingest_file(): hash -> dedup/replace -> parse -> clean -> chunk -> embed -> store -> index -> activate."""
+"""ingest_file(): hash -> dedup/replace -> parse -> clean -> mark duplicate pages -> chunk -> embed -> store -> index
+-> activate."""
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 
-from cornerstone import Document, IngestReport, ModelMismatch
-from cornerstone.chunking import chunk_pages
+from cornerstone import Document, IndexOutOfSync, IngestReport, ModelMismatch
+from cornerstone.chunking import chunk_pages, embedding_text
+from cornerstone.dedup import mark_duplicates
 from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.ingest.loader import load_document
+from cornerstone.ingest.page_images import delete_page_images, render_page_images
 
 _READ_BLOCK = 1 << 20
 
@@ -25,6 +29,12 @@ def file_sha256(path: Path) -> str:
         while block := fh.read(_READ_BLOCK):
             h.update(block)
     return h.hexdigest()
+
+
+def unit_from_name(file_name: str, cfg: dict) -> str | None:
+    """'Unit 4_Storage management.pdf' -> 'Unit 4' using retrieval.unit_pattern; None if no match."""
+    m = re.search(cfg["retrieval"]["unit_pattern"], file_name)
+    return f"Unit {int(m.group(1))}" if m else None
 
 
 def _failed(name: str, t0: float, message: str) -> IngestReport:
@@ -71,35 +81,85 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
         kind = type(e).__name__
         return _failed(name, t0, f"{kind}: {e}")
 
-    # 3. chunk + embed in batches
+    # 3. near-duplicate pages (recorded, not indexed), then chunk + embed in batches
+    mark_duplicates(pages, cfg)
     chunks = chunk_pages(pages, 0, name, cfg, embedder.count_tokens)
     say(f"{name}: {len(pages)} pages -> {len(chunks)} chunks; embedding")
     bs = cfg["embedding"]["batch_size"]
     parts = []
     for i in range(0, len(chunks), bs):
-        parts.append(embedder.embed_passages([c.text for c in chunks[i:i + bs]]))
+        parts.append(embedder.embed_passages([embedding_text(c) for c in chunks[i:i + bs]]))
         say(f"{name}: embedded {min(i + bs, len(chunks))}/{len(chunks)} chunks")
     vectors = np.vstack(parts) if parts else np.zeros((0, embedder.dim), dtype=np.float32)
 
     # 4. store as pending -> index add + save -> activate
-    doc = Document(file_name=name, sha256=sha, file_type=path.suffix.lower().lstrip("."))
+    doc = Document(file_name=name, sha256=sha, file_type=path.suffix.lower().lstrip("."),
+                   unit=unit_from_name(name, cfg), source_path=str(path.resolve()))
     chunk_ids = store.add_document(doc, pages, chunks)
+    warnings: list[str] = []
     try:
         if chunk_ids:
             index.add(np.asarray(chunk_ids, dtype=np.int64), vectors)
             index.save(index_path)
+        if doc.file_type == "pdf":
+            say(f"{name}: rendering page images")
+            images, warnings = render_page_images(path, doc.doc_id, cfg)
+            store.set_page_images(doc.doc_id, images)
         store.activate(doc.doc_id, replaces=old.doc_id if old else None)
     except Exception:
         # ordinary failure (disk full, bad vectors): clean up and surface it.
         # A hard crash (process killed) skips this and leaves the document pending on purpose.
         store.discard_pending(doc.doc_id)
+        delete_page_images(doc.doc_id, cfg)
         raise
 
-    flagged = [(p.page_no, f"{p.status}: {p.reason}") for p in pages if p.status != "ok"]
+    flagged = [(p.page_no, f"{p.status}: {p.reason}") for p in pages if p.status not in ("ok", "duplicate")]
+    duplicates = [(p.page_no, p.duplicate_of) for p in pages if p.status == "duplicate"]
     msg = f"replaced previous version (doc {old.doc_id})" if old else ""
     if not chunk_ids:
         msg = (msg + "; " if msg else "") + "no indexable text found (all pages flagged)"
     return IngestReport(
         file_name=name, status="replaced" if old else "indexed", doc_id=doc.doc_id,
         pages_total=doc.n_pages, pages_with_text=doc.n_pages_text, pages_flagged=doc.n_pages_flagged,
-        flagged_pages=flagged, chunks_created=len(chunk_ids), seconds=time.perf_counter() - t0, message=msg)
+        flagged_pages=flagged, chunks_created=len(chunk_ids), pages_duplicate=len(duplicates),
+        duplicate_pages=duplicates, warnings=warnings, seconds=time.perf_counter() - t0, message=msg)
+
+
+def compact(cfg: dict, store: MetadataStore, index: HNSWIndex, index_path: Path) -> tuple[HNSWIndex, dict]:
+    """Remove soft-deleted vectors and rows (ARCHITECTURE.md 10.9). Returns (index to use from now on, report).
+
+    Order (crash safety): build a new index from the vectors of active chunks -> check it against SQLite
+    -> save it (atomic replace) -> purge deleted SQLite rows, FTS rows, retired pages -> delete their images.
+    A crash after the save leaves deleted rows without vectors, which check_sync accepts; the next compact
+    removes them. Refuses (IndexOutOfSync) while an ingest is pending, so a vector about to become active
+    is never dropped. Nothing to do -> files untouched.
+    """
+    index_path = Path(index_path)
+    if store.list_documents("pending"):
+        raise IndexOutOfSync("an ingest is pending; finish or discard it before compacting")
+    ids, matrix = index.vectors()
+    active = set(store.active_chunk_ids())
+    keep = np.array([int(i) in active for i in ids], dtype=bool)
+    dead_rows = store.conn.execute("SELECT COUNT(*) FROM chunks WHERE status='deleted'").fetchone()[0]
+    retired_pages = store.conn.execute(
+        "SELECT COUNT(*) FROM pages WHERE doc_id IN (SELECT doc_id FROM documents "
+        "WHERE status IN ('replaced','abandoned','deleted'))").fetchone()[0]
+    bytes_before = index_path.stat().st_size if index_path.is_file() else 0
+    report = {"vectors_before": len(index), "vectors_after": len(index), "bytes_before": bytes_before,
+              "bytes_after": bytes_before, "chunk_rows_removed": 0, "documents_cleaned": 0}
+    if keep.all() and dead_rows == 0 and retired_pages == 0:
+        return index, report
+    new = index
+    if not keep.all():
+        new = HNSWIndex.from_config(cfg)
+        new.add(ids[keep], matrix[keep])
+        problems = store.check_sync(set(new.all_ids().tolist()))
+        if problems:
+            raise IndexOutOfSync("compaction aborted, nothing changed: " + "; ".join(problems))
+        new.save(index_path)
+    removed, retired = store.purge_deleted()
+    for doc_id in retired:
+        delete_page_images(doc_id, cfg)
+    report.update(vectors_after=len(new), bytes_after=index_path.stat().st_size if index_path.is_file() else 0,
+                  chunk_rows_removed=removed, documents_cleaned=len(retired))
+    return new, report

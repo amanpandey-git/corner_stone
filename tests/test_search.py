@@ -117,3 +117,62 @@ def test_empty_index_k_too_large_and_bad_inputs(cfg, embedder, tmp_path):
     with pytest.raises(ValueError):
         search("cache", 0, cfg, store, index, embedder)
     store.close()
+
+
+def test_collapse_switch_hides_near_copies_across_files(cfg, embedder, tmp_path):
+    store, index, ipath = new_stack(cfg, tmp_path)
+    for name, extra in (("notes_a.docx", "Written in week one."), ("notes_b.docx", "Copied for revision.")):
+        d = docx.Document()
+        d.add_heading("Deadlock", level=1)
+        d.add_paragraph("A deadlock happens when every process in a set waits for a resource held by another "
+                        "process in the set, so none of them can ever continue. Four conditions must hold together: "
+                        "mutual exclusion, hold and wait, no preemption and circular wait. The system can prevent "
+                        "deadlock by denying one condition, avoid it with the Banker's algorithm, or detect it and "
+                        "recover by terminating processes or preempting resources. " + extra)
+        d.save(tmp_path / name)
+        assert ingest_file(tmp_path / name, cfg, store, index, embedder, ipath).status == "indexed"
+    collapse_only = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": False, "collapse": True}}
+    on = search("what is a deadlock", 5, collapse_only, store, index, embedder)
+    off = search("what is a deadlock", 5, {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": False, "collapse": False}},
+                 store, index, embedder)
+    assert len(off) == 2 and len(on) == 1
+    assert on[0].also_on and on[0].also_on[0][0] in {"notes_a.docx", "notes_b.docx"}
+    assert on[0].rank == 1 and on[0].scores["vector"] == pytest.approx(on[0].score)
+
+
+def test_filters_by_unit_and_document(cfg, embedder, samples_stack):
+    from cornerstone import SearchFilters
+    store, index = samples_stack                     # Unit 5 Part 2 + Unit 4 are indexed
+    q = "what is the seek time of a disk"
+    only5 = search(q, 5, cfg, store, index, embedder, filters=SearchFilters(units=["Unit 5"]))
+    assert only5 and all(r.chunk.file_name.startswith("Unit 5") for r in only5)
+    d4 = store.find_active_by_name("Unit 4_Storage management_ Disk Schduling.pdf").doc_id
+    only4 = search(q, 5, cfg, store, index, embedder, filters=SearchFilters(doc_ids=[d4]))
+    assert only4 and all(r.chunk.doc_id == d4 for r in only4)
+    both = SearchFilters(doc_ids=[d4], units=["Unit 5"])           # contradictory -> nothing
+    assert search(q, 5, cfg, store, index, embedder, filters=both) == []
+    assert search(q, 5, cfg, store, index, embedder, filters=SearchFilters(units=["Unit 9"])) == []
+    assert search(q, 5, cfg, store, index, embedder, filters=SearchFilters()) == search(q, 5, cfg, store, index, embedder)
+
+
+def test_hybrid_fuses_vector_and_keyword_and_records_scores(cfg, embedder, samples_stack):
+    from cornerstone import SearchFilters
+    store, index = samples_stack
+    cfg = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": True}}            # off by default (dev row 9)
+    res = search("C-LOOK seek time 341", 5, cfg, store, index, embedder)
+    assert res and [r.rank for r in res] == list(range(1, len(res) + 1))
+    assert all("rrf" in r.scores and r.score == r.scores["rrf"] for r in res)
+    assert any("bm25" in r.scores and "vector" in r.scores for r in res)        # found by both
+    assert [r.score for r in res] == sorted((r.score for r in res), reverse=True)
+    only5 = search("C-LOOK seek time", 5, cfg, store, index, embedder, filters=SearchFilters(units=["Unit 5"]))
+    assert all(r.chunk.file_name.startswith("Unit 5") for r in only5)           # filter applies to both sides
+    off = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": False, "collapse": False}}
+    plain = search("C-LOOK seek time 341", 5, off, store, index, embedder)
+    assert all(set(r.scores) == {"vector"} for r in plain)                      # all switches off = Stage 1
+
+
+def test_hybrid_with_stopword_only_query_falls_back_to_vector(cfg, embedder, samples_stack):
+    store, index = samples_stack
+    cfg = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": True}}
+    res = search("what is it", 3, cfg, store, index, embedder)
+    assert res and all("bm25" not in r.scores for r in res)
