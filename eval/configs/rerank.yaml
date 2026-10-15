@@ -1,0 +1,67 @@
+# All tunables live here. No magic numbers in code. Reasons: ARCHITECTURE.md section 5.
+paths:
+  raw_dir: data/raw
+  index_dir: data/index          # holds hnsw.faiss, manifest.json, cornerstone.sqlite
+  image_dir: data/images         # one PNG per PDF page, for citation previews (gitignored)
+
+extraction:
+  scan_min_chars: 25             # a page with fewer cleaned chars than this (and no text layer) is "needs OCR"
+  header_footer_lines: 3         # page numbers are only removed from the first/last N non-blank lines
+  header_footer_min_frac: 0.4    # a short line on >= this fraction of pages is a running header/footer
+  header_footer_max_chars: 80    # only lines up to this long can be headers/footers
+  heading_size_ratio: 1.15       # span font size >= body median * ratio => heading candidate
+
+chunking:
+  target_tokens: 256
+  overlap_tokens: 48
+  min_tokens: 40                 # smaller fragments are merged into a neighbour
+  hard_max_tokens: 480           # always < model max_seq_length (512)
+  mode: slide                    # PDF: one chunk per slide (exact page citations); DOCX always uses sections
+  slide_max_tokens: 448          # header + slide text; longer slides are windowed inside the page
+  slide_min_tokens: 15           # near-empty slides (lone title, picture caption) join the next page
+  slide_title_lines: 2           # a slide title is a heading within the first 2 lines
+  slide_title_max_chars: 60      # longer 'headings' are body lines in large-font decks
+
+embedding:
+  model_name: BAAI/bge-small-en-v1.5
+  model_revision: 5c38ec7c405ec4b44b94cc5a9bb96e735b38267a
+  dimension: 384
+  max_seq_length: 512
+  batch_size: 32
+  normalize: true
+  query_prefix: "Represent this sentence for searching relevant passages: "
+  passage_prefix: ""
+
+hnsw:
+  space: cosine                  # implemented as inner product on unit vectors
+  M: 16
+  ef_construction: 200
+  ef_search: 50
+  initial_capacity: 10000        # informational for hnswlib; faiss grows automatically
+
+images:
+  enabled: true
+  dpi: 110                       # a 13.33x7.5 in slide -> ~1470x825 px, readable, ~150-300 KB
+
+dedup:
+  min_chars: 80                  # shorter pages (title/picture slides) are never treated as duplicates
+  page_jaccard: 0.95             # word 3-shingle overlap at which a later page counts as a copy (ARCHITECTURE 10.2)
+  result_jaccard: 0.90           # query time: a result this similar to a higher one is collapsed into it (10.3)
+
+retrieval:
+  candidates: 30                 # results gathered before collapse/fusion/rerank cut to k
+  hybrid: false                  # stage switches (ablation): FTS5 + RRF. OFF: dev row 9 lowered hit@5 0.939 -> 0.848
+  rrf_k: 60                      # RRF constant from the original paper (Cormack et al. 2009)
+  collapse: true                 # collapse near-identical results
+  rerank: true                   # cross-encoder over the candidates (ARCHITECTURE 10.7); decided by the dev ablation
+  unit_pattern: '(?i)unit\s*(\d+)'   # file name -> documents.unit for the unit filter (ARCHITECTURE 10.8)
+
+rerank:
+  model_name: cross-encoder/ms-marco-MiniLM-L-6-v2
+  model_revision: 233902d25c440f23af6f7d6e94d2946bac0bee0a
+  max_length: 512                # MiniLM's position limit; context header + slide fits (slide_max_tokens 448)
+
+search:
+  default_k: 5
+  max_query_chars: 2000
+  snippet_chars: 300

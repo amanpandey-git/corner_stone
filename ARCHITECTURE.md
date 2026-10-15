@@ -437,6 +437,6 @@ def search(query, k, cfg, store, index, embedder, ef_search=None,
 | query of only punctuation / FTS syntax (`"`, `*`, `NEAR`) | no FTS error; vector results only | test_hybrid |
 | filter matching no document | `[]` | test_search |
 | rerank flag on with no reranker / model unavailable | `ValueError` / `RerankerUnavailable` | test_rerank |
-| image render failure on one page | page indexed, image NULL, warning in report | test_page_images |
-| compaction with nothing deleted / crash mid-compaction | no-op / `check_sync` clean after restart | test_compact |
+| image render failure on one page | page indexed, image NULL, warning in report | test_pipeline |
+| compaction with nothing deleted / crash mid-compaction | no-op / `check_sync` clean after restart | test_pipeline, test_cli |
 | slide longer than slide_max_tokens | split inside the page, page exact | test_chunking |

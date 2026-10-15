@@ -208,6 +208,8 @@ Not about shipping features fast. It is evidence: a correct, verified indexing p
 - 2026-10-15: 15 unanswerable questions kept (10 test, 5 dev). 16 harder paraphrased questions added (ids 66-81). Retrieval target changed (Section II).
 - 2026-10-15: Plan approved with changes: Next.js kept (22-24 Oct), FastAPI 21-22 Oct, Streamlit = fallback until the web app works end to end; follow-up rewriting cut. User installs Node 24 LTS by end of 21 Oct.
 - 2026-10-15: Commit + push + PROGRESS snapshot after every atomic step (usage limits). Dev ablation row after each retrieval change; no test-set runs until the Phase 1 close (18 Oct).
+- 2026-10-15: Schedule dates are an order of work and a priority list, not waiting times. Each step starts as soon as the previous one is done; checkpoints (Phase 1 test run, test answer evaluation, final report numbers) run when that phase's work is done, still once each, logged in NOTES.md and preceded by the reviewer and eval-auditor. Gates unchanged. When everything possible is done: add tests, tighten edge cases, update VIVA.md, keep a "What I need to do" list at the top of PROGRESS.md.
+- 2026-10-15: Autonomous run (user's standing orders): the assistant writes the citation parser and SM-2 core too, explained line by line in VIVA.md. .env holds GROQ_API_KEY and GEMINI_API_KEY (never print or log them); real providers for dev work, fake provider for unit tests.
 
 ## ARCHIVED - Stage 1 Section II (v1.0, superseded 2026-10-15)
 In scope for Stage 1:
