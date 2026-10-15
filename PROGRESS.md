@@ -239,3 +239,16 @@
 - Streamlit file watcher traces a missing torchvision import on Windows/Python 3.12 (harmless; run with --server.fileWatcherType none; torchvision deliberately not installed).
 ### Next atomic action
 - User: run .\.venv\Scripts\python -m streamlit run app\streamlit_app.py --server.fileWatcherType none (with $env:PYTHONPATH="src"), ingest samples/ through the Upload tab, run one search, and report anything wrong; then decide whether to move tag v0.1-indexing to the latest main commit.
+
+## [2026-10-15] - Session start check
+### Done
+- 109 tests passing (full run). Working tree clean, main = origin/main (6c267a7).
+- Found tag v0.1-demo -> 6c267a7 (latest main, includes the Streamlit UI), already pushed; not recorded before. v0.1-indexing stays at 92cba7b. The open "move the tag?" question is resolved by this second tag.
+### In progress / partial
+- None.
+### Not started
+- Stage 2 (out of scope for Stage 1).
+### Known issues / TODO
+- Unchanged from the previous snapshot. Demo UI still not clicked through in a real browser.
+### Next atomic action
+- User: rehearse the demo in a real browser (streamlit run app\streamlit_app.py --server.fileWatcherType none, PYTHONPATH=src) and report anything wrong.
