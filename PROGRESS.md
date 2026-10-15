@@ -1,12 +1,13 @@
 # PROGRESS - session log (append only below the Morning report)
 
 ## Morning report (kept current; overwritten each update - the log below stays append-only)
-Updated: 2026-10-15, step 10 (reranker).
-- **Done this session:** reranker built and measured (rows 10-11), not adopted.
-- **Latest dev ablation (default pipeline: vector top 30 -> collapse -> k):** hit@5 0.939 (31/33), MRR 0.835, p95 ~50-80 ms. Hybrid RRF (row 9) 0.848; rerank (rows 10-11) 0.939 / 0.817 at p95 2.9 s: both off.
-- **Latest test numbers:** only the v0.1 baseline (0.879 hit@5, 29/33). Phase 1 test run not done yet.
-- **Blocked:** real LLM providers (no `.env` file exists: need GROQ_API_KEY and GEMINI_API_KEY). Next.js (needs Node 24 LTS).
-- **You need to do:** create `.env` from `.env.example` with both keys; install Node 24 LTS by 21 Oct.
+Updated: 2026-10-15, Phase 1 closed; Phase 2 (answering) starting.
+- **Done:** Phase 1 complete. Reranker measured and not adopted. Reviewer + eval-auditor run (0 blockers; fixes in 948a7c7). Phase 1 test run done once.
+- **Phase 1 test (run #3, once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met (>= 0.90, 0 questions worse than v0.1). Misses: 71, 81.
+- **Dev default pipeline:** hit@5 0.939, MRR 0.835. Hybrid (0.848) and rerank (0.939 / MRR 0.817, p95 2.9 s) both off.
+- **LLM keys:** Groq ok, Gemini ok (gemini-3.5-flash; 2.5-flash returns 404).
+- **Blocked:** Next.js web app needs Node 24 LTS (Node v25.9.0 installed).
+- **What I need to do:** install Node 24 LTS before the web app (Phase 4); spot-check 20 answers once the answer evaluation is written (file will be eval/results/answer_spotcheck_dev.md).
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
@@ -461,3 +462,16 @@ Updated: 2026-10-15, step 10 (reranker).
 - Dev misses (default): 14 (rank 8), 70 (>10).
 ### Next atomic action
 - Reviewer over 5c80d2b..HEAD and eval-auditor, then the Phase 1 test-split run with the default config.
+## [2026-10-15] - Phase 1 close
+### Done
+- Reviewer + eval-auditor (named agents): 0 blockers; should-fixes fixed in 948a7c7 (eval/configs/ variants, hashes in ablation table, 10.12 test names). Agents changed nothing.
+- Test run #3 (once): hit@5 0.939 (31/33), MRR 0.856, p95 47 ms -> eval/results/phase1_test.md; logged in NOTES.md. Target met.
+- Key check: Groq ok, Gemini ok.
+### In progress / partial
+- Phase 2 drafts (contract 11, llm.py, citations.py, tests) in the session scratch folder; not committed yet.
+### Not started
+- Phases 2-6.
+### Known issues / TODO
+- CI must cache the reranker/embedding models (reviewer note).
+### Next atomic action
+- Phase 2 step 1: ARCHITECTURE section 11 + llm.py (Groq, Gemini, Fake; cache, limiter, capped retries) + tests/test_llm.py; pin httpx.
