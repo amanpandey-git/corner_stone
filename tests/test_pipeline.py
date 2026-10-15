@@ -8,6 +8,7 @@ from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.pipeline import ingest_file
+from conftest import SAMPLES
 
 
 class Crash(BaseException):
@@ -176,3 +177,17 @@ def test_ingest_records_unit_and_source_path(cfg, stack, embedder, small_pdf):
     r = run(small_pdf, cfg, stack, embedder)
     d = stack[0].get_document(r.doc_id)
     assert d.unit == "Unit 5" and d.source_path == str(small_pdf.resolve())
+
+
+def test_duplicate_pages_are_recorded_not_indexed(cfg, stack, embedder):
+    store = stack[0]
+    r = run(SAMPLES / "Unit 4_Storage management_ Disk Schduling.pdf", cfg, stack, embedder)
+    assert r.status == "indexed" and r.pages_duplicate == 23
+    assert r.pages_with_text + r.pages_flagged + r.pages_duplicate == r.pages_total == 51
+    assert (27, 2) in r.duplicate_pages and all(p != 27 for p, _ in r.flagged_pages)
+    chunks = store.get_chunks(store.active_chunk_ids()).values()
+    dup = {p for p, _ in r.duplicate_pages}
+    assert chunks and all(c.page_start not in dup and c.page_end not in dup for c in chunks)
+    s = store.stats()
+    assert s["pages_duplicate"] == 23 and s["pages_flagged"] == 0
+    assert {"file_name": r.file_name, "page_no": 51, "duplicate_of": 26} in s["duplicate_pages"]

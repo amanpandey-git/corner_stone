@@ -131,11 +131,13 @@ class MetadataStore:
         fails nothing is written. Counts are computed here from ``pages``/``chunks``.
         """
         ok = sum(1 for p in pages if p.status == "ok")
+        dup = sum(1 for p in pages if p.status == "duplicate")
+        flagged = len(pages) - ok - dup
         with self.conn:  # commit on success, rollback on any exception
             cur = self.conn.execute(
                 "INSERT INTO documents(file_name, sha256, file_type, n_pages, n_pages_text, n_pages_flagged,"
                 " n_chunks, status, ingested_at, unit, source_path) VALUES (?,?,?,?,?,?,?,'pending',?,?,?)",
-                (doc.file_name, doc.sha256, doc.file_type, len(pages), ok, len(pages) - ok, len(chunks),
+                (doc.file_name, doc.sha256, doc.file_type, len(pages), ok, flagged, len(chunks),
                  datetime.now(timezone.utc).isoformat(timespec="seconds"), doc.unit, doc.source_path))
             doc_id = cur.lastrowid
             self.conn.executemany(
@@ -154,7 +156,7 @@ class MetadataStore:
                                   (cur.lastrowid, c.text, c.context_header))
                 chunk_ids.append(cur.lastrowid)
         doc.doc_id, doc.status = doc_id, "pending"
-        doc.n_pages, doc.n_pages_text, doc.n_pages_flagged, doc.n_chunks = len(pages), ok, len(pages) - ok, len(chunks)
+        doc.n_pages, doc.n_pages_text, doc.n_pages_flagged, doc.n_chunks = len(pages), ok, flagged, len(chunks)
         return chunk_ids
 
     def activate(self, doc_id: int, replaces: int | None = None) -> None:
@@ -219,18 +221,22 @@ class MetadataStore:
         q = self.conn.execute
         docs = dict(q("SELECT status, COUNT(*) FROM documents GROUP BY status").fetchall())
         chunks = dict(q("SELECT status, COUNT(*) FROM chunks GROUP BY status").fetchall())
-        pg = q("SELECT COUNT(*), COALESCE(SUM(p.status='ok'),0) FROM pages p JOIN documents d USING(doc_id) "
-               "WHERE d.status='active'").fetchone()
+        pg = q("SELECT COUNT(*), COALESCE(SUM(p.status='ok'),0), COALESCE(SUM(p.status='duplicate'),0) "
+               "FROM pages p JOIN documents d USING(doc_id) WHERE d.status='active'").fetchone()
         flagged = [dict(r) for r in q(
             "SELECT d.file_name, p.page_no, p.status, p.reason FROM pages p JOIN documents d USING(doc_id) "
-            "WHERE d.status='active' AND p.status!='ok' ORDER BY d.doc_id, p.page_id")]
+            "WHERE d.status='active' AND p.status NOT IN ('ok','duplicate') ORDER BY d.doc_id, p.page_id")]
+        duplicates = [dict(r) for r in q(
+            "SELECT d.file_name, p.page_no, p.duplicate_of FROM pages p JOIN documents d USING(doc_id) "
+            "WHERE d.status='active' AND p.status='duplicate' ORDER BY d.doc_id, p.page_id")]
         return {
             "documents": docs.get("active", 0), "documents_pending": docs.get("pending", 0),
             "documents_replaced": docs.get("replaced", 0), "documents_abandoned": docs.get("abandoned", 0),
             "chunks_active": chunks.get("active", 0), "chunks_pending": chunks.get("pending", 0),
             "chunks_deleted": chunks.get("deleted", 0),
-            "pages_total": pg[0], "pages_with_text": pg[1], "pages_flagged": pg[0] - pg[1],
-            "flagged_pages": flagged,
+            "pages_total": pg[0], "pages_with_text": pg[1], "pages_duplicate": pg[2],
+            "pages_flagged": pg[0] - pg[1] - pg[2],
+            "flagged_pages": flagged, "duplicate_pages": duplicates,
         }
 
     def check_sync(self, index_ids: set[int]) -> list[str]:

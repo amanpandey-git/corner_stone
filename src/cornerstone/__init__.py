@@ -109,7 +109,9 @@ class Document:
 class IngestReport:
     """What happened to one file. status: indexed | replaced | skipped_duplicate | failed.
 
-    flagged_pages lists (page_no, "status: reason") for every page that was not indexed as text.
+    flagged_pages lists (page_no, "status: reason") for pages not indexed because of a problem (needs_ocr,
+    empty, error); duplicate_pages lists (page_no, duplicate_of) for near-copies of an earlier page.
+    pages_with_text + pages_flagged + pages_duplicate == pages_total.
     """
 
     file_name: str
@@ -120,6 +122,8 @@ class IngestReport:
     pages_flagged: int = 0
     flagged_pages: list[tuple[int | None, str]] = field(default_factory=list)
     chunks_created: int = 0
+    pages_duplicate: int = 0
+    duplicate_pages: list[tuple[int, int]] = field(default_factory=list)
     seconds: float = 0.0
     message: str = ""
 

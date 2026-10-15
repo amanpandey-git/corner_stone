@@ -1,4 +1,5 @@
-"""ingest_file(): hash -> dedup/replace -> parse -> clean -> chunk -> embed -> store -> index -> activate."""
+"""ingest_file(): hash -> dedup/replace -> parse -> clean -> mark duplicate pages -> chunk -> embed -> store -> index
+-> activate."""
 from __future__ import annotations
 
 import hashlib
@@ -11,6 +12,7 @@ import numpy as np
 
 from cornerstone import Document, IngestReport, ModelMismatch
 from cornerstone.chunking import chunk_pages
+from cornerstone.dedup import mark_duplicates
 from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
@@ -78,7 +80,8 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
         kind = type(e).__name__
         return _failed(name, t0, f"{kind}: {e}")
 
-    # 3. chunk + embed in batches
+    # 3. near-duplicate pages (recorded, not indexed), then chunk + embed in batches
+    mark_duplicates(pages, cfg)
     chunks = chunk_pages(pages, 0, name, cfg, embedder.count_tokens)
     say(f"{name}: {len(pages)} pages -> {len(chunks)} chunks; embedding")
     bs = cfg["embedding"]["batch_size"]
@@ -103,11 +106,13 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
         store.discard_pending(doc.doc_id)
         raise
 
-    flagged = [(p.page_no, f"{p.status}: {p.reason}") for p in pages if p.status != "ok"]
+    flagged = [(p.page_no, f"{p.status}: {p.reason}") for p in pages if p.status not in ("ok", "duplicate")]
+    duplicates = [(p.page_no, p.duplicate_of) for p in pages if p.status == "duplicate"]
     msg = f"replaced previous version (doc {old.doc_id})" if old else ""
     if not chunk_ids:
         msg = (msg + "; " if msg else "") + "no indexable text found (all pages flagged)"
     return IngestReport(
         file_name=name, status="replaced" if old else "indexed", doc_id=doc.doc_id,
         pages_total=doc.n_pages, pages_with_text=doc.n_pages_text, pages_flagged=doc.n_pages_flagged,
-        flagged_pages=flagged, chunks_created=len(chunk_ids), seconds=time.perf_counter() - t0, message=msg)
+        flagged_pages=flagged, chunks_created=len(chunk_ids), pages_duplicate=len(duplicates),
+        duplicate_pages=duplicates, seconds=time.perf_counter() - t0, message=msg)

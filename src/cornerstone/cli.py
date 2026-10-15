@@ -21,6 +21,7 @@ import yaml
 
 from cornerstone import CornerstoneError, EmptyQuery
 from cornerstone.chunking import chunk_pages
+from cornerstone.dedup import mark_duplicates
 from cornerstone.embeddings import Embedder, load_token_counter
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
@@ -130,12 +131,15 @@ def ingest_files(files: list[Path], cfg: dict, st: Stack, verbose: bool = False)
             line += f" - {r.message}"
         else:
             line += (f": {r.pages_total} pages, {r.pages_with_text} with text, {r.pages_flagged} flagged, "
-                     f"{r.chunks_created} chunks, {r.seconds:.1f}s")
+                     f"{r.pages_duplicate} duplicate, {r.chunks_created} chunks, {r.seconds:.1f}s")
             if r.message:
                 line += f" ({r.message})"
         print(line)
         for page_no, why in r.flagged_pages:
             print(f"      flagged page {page_no}: {why}")
+        if r.duplicate_pages:
+            print("      duplicate pages (not indexed): "
+                  + ", ".join(f"p.{p}=p.{orig}" for p, orig in r.duplicate_pages))
     return 1 if failed else 0
 
 
@@ -217,12 +221,15 @@ def cmd_stats(args, cfg) -> int:
     m = st.index.manifest
     print(f"documents: {s['documents']} active, {s['documents_replaced']} replaced, "
           f"{s['documents_pending']} pending, {s['documents_abandoned']} abandoned")
-    print(f"pages:     {s['pages_total']} total, {s['pages_with_text']} with text, {s['pages_flagged']} flagged")
+    print(f"pages:     {s['pages_total']} total, {s['pages_with_text']} with text, {s['pages_flagged']} flagged, "
+          f"{s['pages_duplicate']} duplicate")
     print(f"chunks:    {s['chunks_active']} active, {s['chunks_deleted']} soft-deleted, {s['chunks_pending']} pending")
     print(f"index:     {len(st.index)} vectors, dim {m.dimension}, {m.space}, {size / 1e6:.2f} MB on disk")
     print(f"model:     {m.model_name} @ {(m.model_revision or '-')[:8]}  (index created {m.created_at})")
     for p in s["flagged_pages"]:
         print(f"  flagged: {p['file_name']} page {p['page_no']}: {p['status']} - {p['reason']}")
+    for p in s["duplicate_pages"]:
+        print(f"  duplicate: {p['file_name']} page {p['page_no']} = page {p['duplicate_of']}")
     return 0
 
 
@@ -230,7 +237,7 @@ def cmd_chunks(args, cfg) -> int:
     """Print the chunks of one file so they can be inspected by eye."""
     path = Path(args.file)
     try:
-        pages = load_document(path, cfg)
+        pages = mark_duplicates(load_document(path, cfg), cfg)
     except CornerstoneError as e:
         print(f"FAILED: {e}", file=sys.stderr)
         return 1

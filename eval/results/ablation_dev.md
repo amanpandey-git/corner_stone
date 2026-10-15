@@ -7,4 +7,5 @@ end of Phase 1. p95 = end-to-end search latency (query embedding + retrieval + S
 | # | change | commit | hit@5 | MRR | p95 ms | notes |
 |---|---|---|---|---|---|---|
 | 0 | v0.1 (Stage 1 code and index) | 5f470b8 | 0.879 (29/33) | 0.816 | 43 | misses: 14 (FCFS seek, Unit 4 duplicates), 48 (cross-file starvation), 68 (context switch cost), 70 (huge time slice) |
-| 1 | schema v2 + version check + rebuild | step 1 | 0.879 (29/33) | 0.816 | 63 | storage change only; same 328 chunks, same ranks (latency difference is run-to-run noise) |
+| 1 | schema v2 + version check + rebuild | ba788d4 | 0.879 (29/33) | 0.816 | 63 | storage change only; same 328 chunks, same ranks (latency difference is run-to-run noise) |
+| 2 | near-duplicate pages removed at ingest | step 2 | 0.879 (29/33) | 0.818 | 56 | 24 pages not indexed (Unit 4: 23, Unit 1-2: 1); 308 chunks. 48: rank 10 -> 7; 14 still >10 (its chunk merges p.9-11 under a mis-detected heading: target of slide chunking) |

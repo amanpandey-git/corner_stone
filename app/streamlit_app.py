@@ -73,6 +73,9 @@ def render(cfg: dict, stack) -> None:
         size = stack.index_path.stat().st_size / 1e6 if stack.index_path.is_file() else 0.0
         st.write(f"Vectors: {len(index)}  \nDimension: {index.dim}  \nOn disk: {size:.2f} MB")
         st.write(f"Soft-deleted chunks: {s['chunks_deleted']}  \nModel: `{index.manifest.model_name}`")
+        if s["duplicate_pages"]:
+            with st.expander(f"{s['pages_duplicate']} duplicate page(s) (not indexed)"):
+                st.dataframe(s["duplicate_pages"], hide_index=True, use_container_width=True)
         if s["flagged_pages"]:
             with st.expander(f"{s['pages_flagged']} flagged page(s)"):
                 st.dataframe(s["flagged_pages"], hide_index=True, use_container_width=True)
@@ -115,8 +118,11 @@ def render(cfg: dict, stack) -> None:
                 r = ingest_file(dest, cfg, store, index, stack.embedder, stack.index_path)
                 rows.append({"file": r.file_name, "status": r.status, "pages": r.pages_total,
                              "with text": r.pages_with_text, "flagged": r.pages_flagged,
+                             "duplicate": r.pages_duplicate,
                              "chunks": r.chunks_created, "seconds": round(r.seconds, 1), "note": r.message})
                 flagged += [{"file": r.file_name, "page": p, "reason": why} for p, why in r.flagged_pages]
+                flagged += [{"file": r.file_name, "page": p, "reason": f"duplicate: near-copy of p.{orig}"}
+                            for p, orig in r.duplicate_pages]
                 bar.progress((i + 1) / len(files))
             st.subheader("Ingestion report")
             st.dataframe(rows, hide_index=True, use_container_width=True)

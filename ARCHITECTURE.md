@@ -327,7 +327,8 @@ def find_duplicate_pages(pages: list[Page], cfg: dict) -> dict[int, int]   # {pa
 - Within one document only. A page is a duplicate of the **earliest** earlier `ok` page whose shingle Jaccard >= `dedup.page_jaccard` (0.95).
 - Pages with fewer than `dedup.min_chars` (80) characters are never marked: short title/picture slides ("Practice Problem" x5, "Magnetic Disk") share text but differ in their images.
 - Digits are kept, so the FCFS/SSTF/SCAN example slides (same wording, different numbers) are not merged.
-- The pipeline sets `status='duplicate'`, `duplicate_of=N`, `reason="near-duplicate of p.N"`; the page is not chunked or embedded, is counted in the ingest report (`pages_duplicate`) and in `stats`. Zero silent failures: indexed + flagged + duplicate = total.
+- The pipeline sets `status='duplicate'`, `duplicate_of=N`, `reason="near-duplicate of p.N"` (`mark_duplicates(pages, cfg)`, also used by `cli chunks`); the page is not chunked or embedded. Counted **separately from flagged** (a duplicate is not a problem to fix): `IngestReport.pages_duplicate` + `duplicate_pages: [(page_no, duplicate_of)]`; `documents.n_pages_flagged` excludes duplicates; `stats()` adds `pages_duplicate` and `duplicate_pages`; CLI and Streamlit list them. Zero silent failures: with text + flagged + duplicate = total.
+- Measured on samples/ (2026-10-15): Unit 4 -> 23 duplicates (27-51 -> 2-26; p.30/33 short); Unit 1-2 -> p.67 = p.66 (identical slide text). Closest pairs NOT merged: 0.92 (SJF non-preemptive vs preemptive), 0.89 (priority variants), 0.86-0.90 (disk examples with different numbers), so 0.95 sits in a clear gap.
 - DOCX sections (page_no None) are not deduplicated in Phase 1 (no real DOCX in samples; documented).
 
 ### 10.3 Query-time collapse (`dedup.py`)
