@@ -402,3 +402,18 @@
 - Dev misses: 14 (FCFS seek time, rank 8), 70 (huge time slice, Unit 1-2 p.77).
 ### Next atomic action
 - Author writes rrf_merge (run: PYTHONPATH=src .venv\Scripts\python -m pytest tests/test_hybrid.py -q). Meanwhile: reranker module behind retrieval.rerank (ARCHITECTURE 10.7), off by default until the dev ablation decides.
+## [2026-10-15] - Phase 1 step 9: RRF + hybrid search (stop for the night)
+### Done
+- rrf_merge implemented (assistant, at the user's request; learning rule updated in CLAUDE.md), 6 rrf tests incl. the worked example B, A, D, C. Hybrid wired into search() (_fuse: vector + FTS5 candidates, RRF, per-stage scores, filters on both sides); 2 new search tests. 186 tests passing, none skipped.
+- Dev row 9 (hybrid): 0.848 / 0.791 vs 0.939 / 0.835 without -> retrieval.hybrid = false by default (code and switch kept). VIVA.md: rrf_merge line by line + the three questions.
+- Current default pipeline: dedup at ingest, slide chunking + header, vector top 30, collapse, first k. Dev: hit@5 0.939, MRR 0.835, p95 ~50-80 ms.
+### In progress / partial
+- None.
+### Not started
+- Reranker (17 Oct, not tonight); Phase 1 test run (18 Oct); Phases 2-6.
+### Known issues / TODO
+- Hybrid off: equal-weight RRF hurt dev. Re-test on 17 Oct: reranker over vector-only vs fused candidates; possibly weighted RRF (dev only).
+- Dev misses (default pipeline): 14 (FCFS seek time, rank 8), 70 (huge time slice, p.77).
+- User: spot-checks after 16 Oct; .env keys by 18 Oct; Node 24 LTS by end of 21 Oct.
+### Next atomic action
+- 17 Oct: pin the reranker model revision (cross-encoder/ms-marco-MiniLM-L-6-v2) in config + ARCHITECTURE section 7, implement rerank.py (10.7), then dev rows: vector+rerank and hybrid+rerank.

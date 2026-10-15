@@ -50,7 +50,9 @@ dedup:
 
 retrieval:
   candidates: 30                 # results gathered before collapse/fusion/rerank cut to k
-  collapse: true                 # stage switches (ablation): collapse near-identical results
+  hybrid: false                  # stage switches (ablation): FTS5 + RRF. OFF: dev row 9 lowered hit@5 0.939 -> 0.848
+  rrf_k: 60                      # RRF constant from the original paper (Cormack et al. 2009)
+  collapse: true                 # collapse near-identical results
   unit_pattern: '(?i)unit\s*(\d+)'   # file name -> documents.unit for the unit filter (ARCHITECTURE 10.8)
 
 search:

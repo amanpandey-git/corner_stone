@@ -68,23 +68,16 @@ def test_replaced_documents_are_not_returned(store):
     assert keyword_search("setuid", 5, store) == []
 
 
-# ------------------------------------------------------------------ rrf_merge (written by the author)
-def _require_rrf():
-    try:
-        rrf_merge([])
-    except NotImplementedError:
-        pytest.skip("rrf_merge not written yet (the author writes it; see its docstring)")
+# ------------------------------------------------------------------ rrf_merge
 
 
 def test_rrf_single_list_keeps_order_and_formula():
-    _require_rrf()
     out = rrf_merge([[7, 3, 9]], k_rrf=60)
     assert [c for c, _ in out] == [7, 3, 9]
     assert out[0][1] == pytest.approx(1 / 61) and out[2][1] == pytest.approx(1 / 63)
 
 
 def test_rrf_rewards_agreement():
-    _require_rrf()
     # 5 is 2nd in both lists; 1 is 1st in one list only -> 5 wins: 2/62 > 1/61
     out = dict(rrf_merge([[1, 5, 2], [3, 5, 4]]))
     assert out[5] == pytest.approx(2 / 62)
@@ -92,13 +85,11 @@ def test_rrf_rewards_agreement():
 
 
 def test_rrf_item_in_one_list_only_still_counts():
-    _require_rrf()
     out = dict(rrf_merge([[1, 2], [3]]))
     assert set(out) == {1, 2, 3} and out[3] == pytest.approx(1 / 61)
 
 
 def test_rrf_ties_break_by_best_rank_then_chunk_id():
-    _require_rrf()
     # same score and same best rank (1/61 + 1/62 each, both ranked 1st once) -> smaller chunk_id first
     out = rrf_merge([[20, 10], [10, 20]])
     assert [c for c, _ in out] == [10, 20] and out[0][1] == pytest.approx(out[1][1])
@@ -108,6 +99,12 @@ def test_rrf_ties_break_by_best_rank_then_chunk_id():
 
 
 def test_rrf_empty_inputs_and_k():
-    _require_rrf()
     assert rrf_merge([]) == [] and rrf_merge([[], []]) == []
     assert rrf_merge([[1]], k_rrf=0)[0][1] == pytest.approx(1.0)
+
+
+def test_rrf_worked_example_from_the_viva():
+    A, B, C, D = 1, 2, 3, 4
+    out = rrf_merge([[A, B, C], [B, D, A]], k_rrf=60)       # vector list, keyword list
+    assert [c for c, _ in out] == [B, A, D, C]
+    assert [round(s, 5) for _, s in out] == [0.03252, 0.03227, 0.01613, 0.01587]

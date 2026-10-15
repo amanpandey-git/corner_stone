@@ -369,7 +369,8 @@ def rrf_merge(rankings: list[list[int]], k_rrf: int = 60) -> list[tuple[int, flo
     # sorted by score desc; ties broken by best single rank, then chunk_id. Empty input -> [].
 ```
 - `fts_query(query)`: the `\w+` tokens of the lower-cased query minus a fixed list of ~40 English question/stop words (not tuned on eval), de-duplicated, each double-quoted, joined with `OR`, so punctuation or FTS syntax in a question can never raise. No tokens -> `[]`, and the vector side alone is used. Score returned = `-bm25(chunks_fts)` (FTS5's bm25 is lower-is-better). `k < 1` -> `ValueError`. `SearchFilters` lives in `cornerstone/__init__.py`; `keyword_search` applies `doc_ids` and `units` in SQL (an empty list matches nothing).
-- `rrf_merge` ships as a stub raising `NotImplementedError` until the author writes it; its tests in `tests/test_hybrid.py` skip until then.
+- `rrf_merge` implemented (by the assistant, at the user's request); 6 tests incl. the worked example [A,B,C] + [B,D,A] -> B, A, D, C.
+- In `search()`, `retrieval.hybrid` adds `keyword_search(query, candidates, store, filters)` and fuses `[vector ids, keyword ids]` with `rrf_merge`; keyword-only hits are loaded from SQLite (active only). `SearchResult.score` = RRF score; `scores` keeps `vector` / `bm25` (whichever found it) and `rrf`. **Default off** (dev ablation row 9: 0.939 -> 0.848).
 - `eval/retrieval_eval.py` gains `--config <file>` (ablation variants) and `--retriever search|keyword` (keyword-only reference rows).
 - `k_rrf = retrieval.rrf_k` (60, the constant from the RRF paper; it damps the very top ranks so neither retriever dominates).
 

@@ -57,7 +57,7 @@ Schedule (approved 2026-10-15; tag v0.2 on 24 Oct; report and PPT written after)
 | 24 Oct | morning go/no-go: Next.js demoable end to end, else demo on Streamlit; FREEZE: README, evaluation report + ablation table, demo script, rehearsal, PR stage-2 -> main, tag v0.2 | report/PPT written after |
 | 25 Oct | final evaluation | |
 
-Learning rule: for Reciprocal Rank Fusion, SM-2 and the citation parser, the user writes the core function: give the structure and tests, then review their code. Everything else: explain the key lines in VIVA.md.
+Learning rule: for SM-2 and the citation parser, the user writes the core function: give the structure and tests, then review their code. (rrf_merge: written by the assistant at the user's request on 2026-10-15, explained line by line in VIVA.md.) Everything else: explain the key lines in VIVA.md.
 
 Protected (never touch): ../corner_stone_stable (the Stage 1 evaluation demo), branch stage-1-stable, tags v0.1-*. Never commit .env, keys, data/, page images, model files or files over 5 MB; never print keys. Never uninstall already-installed packages. When the user says "freeze": stop, snapshot to PROGRESS.md, commit and push.
 

@@ -131,8 +131,9 @@ def test_collapse_switch_hides_near_copies_across_files(cfg, embedder, tmp_path)
                         "recover by terminating processes or preempting resources. " + extra)
         d.save(tmp_path / name)
         assert ingest_file(tmp_path / name, cfg, store, index, embedder, ipath).status == "indexed"
-    on = search("what is a deadlock", 5, cfg, store, index, embedder)
-    off = search("what is a deadlock", 5, {**cfg, "retrieval": {**cfg["retrieval"], "collapse": False}},
+    collapse_only = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": False, "collapse": True}}
+    on = search("what is a deadlock", 5, collapse_only, store, index, embedder)
+    off = search("what is a deadlock", 5, {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": False, "collapse": False}},
                  store, index, embedder)
     assert len(off) == 2 and len(on) == 1
     assert on[0].also_on and on[0].also_on[0][0] in {"notes_a.docx", "notes_b.docx"}
@@ -152,3 +153,26 @@ def test_filters_by_unit_and_document(cfg, embedder, samples_stack):
     assert search(q, 5, cfg, store, index, embedder, filters=both) == []
     assert search(q, 5, cfg, store, index, embedder, filters=SearchFilters(units=["Unit 9"])) == []
     assert search(q, 5, cfg, store, index, embedder, filters=SearchFilters()) == search(q, 5, cfg, store, index, embedder)
+
+
+def test_hybrid_fuses_vector_and_keyword_and_records_scores(cfg, embedder, samples_stack):
+    from cornerstone import SearchFilters
+    store, index = samples_stack
+    cfg = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": True}}            # off by default (dev row 9)
+    res = search("C-LOOK seek time 341", 5, cfg, store, index, embedder)
+    assert res and [r.rank for r in res] == list(range(1, len(res) + 1))
+    assert all("rrf" in r.scores and r.score == r.scores["rrf"] for r in res)
+    assert any("bm25" in r.scores and "vector" in r.scores for r in res)        # found by both
+    assert [r.score for r in res] == sorted((r.score for r in res), reverse=True)
+    only5 = search("C-LOOK seek time", 5, cfg, store, index, embedder, filters=SearchFilters(units=["Unit 5"]))
+    assert all(r.chunk.file_name.startswith("Unit 5") for r in only5)           # filter applies to both sides
+    off = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": False, "collapse": False}}
+    plain = search("C-LOOK seek time 341", 5, off, store, index, embedder)
+    assert all(set(r.scores) == {"vector"} for r in plain)                      # all switches off = Stage 1
+
+
+def test_hybrid_with_stopword_only_query_falls_back_to_vector(cfg, embedder, samples_stack):
+    store, index = samples_stack
+    cfg = {**cfg, "retrieval": {**cfg["retrieval"], "hybrid": True}}
+    res = search("what is it", 3, cfg, store, index, embedder)
+    assert res and all("bm25" not in r.scores for r in res)

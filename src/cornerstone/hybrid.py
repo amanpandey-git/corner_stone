@@ -58,20 +58,20 @@ def keyword_search(query: str, k: int, store: MetadataStore,
 
 
 def rrf_merge(rankings: list[list[int]], k_rrf: int = 60) -> list[tuple[int, float]]:
-    """Reciprocal Rank Fusion. YOU (the author) write this function: see tests/test_hybrid.py.
+    """Reciprocal Rank Fusion: merge several ranked lists of chunk_ids into one, using ranks only.
 
-    rankings: several ranked lists of chunk_ids, best first (e.g. [vector_ids, keyword_ids]).
+    rankings: ranked lists, best first, each id at most once per list (e.g. [vector_ids, keyword_ids]).
     Returns [(chunk_id, score)] sorted best first, where
 
         score(d) = sum over the rankings that contain d of  1 / (k_rrf + rank_of_d_in_that_ranking)
 
-    with rank starting at 1. Ties: better best-single-rank first, then smaller chunk_id.
+    with rank starting at 1. Ties: better best-single-rank first, then smaller chunk_id (deterministic).
     An empty input (or only empty lists) returns [].
-
-    Structure (about 10 lines):
-      1. scores = {} and best = {} (best single rank seen per chunk_id)
-      2. for each ranking, for rank, cid in enumerate(ranking, start=1): add 1 / (k_rrf + rank) to scores[cid],
-         keep best[cid] = min(best.get(cid, rank), rank)
-      3. return sorted(scores.items(), key=...) using (-score, best rank, chunk_id) as the sort key
     """
-    raise NotImplementedError("rrf_merge is written by the author (learning rule); see tests/test_hybrid.py")
+    scores: dict[int, float] = {}
+    best: dict[int, int] = {}
+    for ranking in rankings:
+        for rank, cid in enumerate(ranking, start=1):
+            scores[cid] = scores.get(cid, 0.0) + 1.0 / (k_rrf + rank)
+            best[cid] = min(best.get(cid, rank), rank)
+    return sorted(scores.items(), key=lambda item: (-item[1], best[item[0]], item[0]))
