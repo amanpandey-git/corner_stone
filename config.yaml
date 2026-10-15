@@ -113,6 +113,17 @@ answer:                          # ARCHITECTURE 11.2 / 11.5
       max_tokens: 2400
       instruction: "A university 10-mark answer of about 400-600 words: an introduction, the main points as bullets under short headings, an example or the working of the method if the sources give one, advantages and disadvantages if the sources give them, and a conclusion."
 
+quiz:                            # ARCHITECTURE 12.1
+  min_tokens: 40                 # title-only slides make poor questions
+  max_sources: 12                # slides shown to the model; keeps one call under Groq's 8000 tokens/min
+  max_questions: 10
+  max_attempts: 2                # one top-up call at most
+  max_tokens: 3000
+
+flashcards:                      # ARCHITECTURE 12.2
+  max_cards: 20
+  max_tokens: 2500
+
 search:
   default_k: 5
   max_query_chars: 2000
