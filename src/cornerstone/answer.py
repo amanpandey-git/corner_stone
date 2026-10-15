@@ -124,6 +124,8 @@ def finalise(question: str, mode: str, raw: str, sources: list[Source], **meta) 
     base = dict(question=question, mode=mode, sources=sources, **meta)
     if text.upper().startswith(NOT_IN_NOTES_TOKEN) or (NOT_IN_NOTES_TOKEN in text and "[" not in text):
         return Answer(text=NOT_IN_NOTES, abstained=True, abstain_reason="model", **base)
+    # a partial answer sometimes ends with a stray NOT_IN_NOTES after its gap sentence: not part of the answer
+    text = "\n".join(line.replace(NOT_IN_NOTES_TOKEN, "").rstrip() for line in text.splitlines()).strip()
     citations, uncited, invalid = parse_citations(text, len(sources))
     if not citations:
         return Answer(text=NOT_IN_NOTES, abstained=True, abstain_reason="no_citations",

@@ -102,16 +102,16 @@ answer:                          # ARCHITECTURE 11.2 / 11.5
       instruction: "A direct answer in 2-4 sentences."
     detailed:
       max_tokens: 1400
-      instruction: "A clear explanation in short paragraphs or bullet points that covers every relevant point in the sources."
+      instruction: "A clear explanation in short paragraphs or bullet points that covers every relevant point in the sources. Every sentence and every bullet ends with its citation."
     2-mark:
       max_tokens: 600
       instruction: "A university 2-mark answer of about 40-60 words: a precise definition or direct answer plus one key point."
     5-mark:
       max_tokens: 1400
-      instruction: "A university 5-mark answer of about 150-250 words: a one-sentence introduction, 4-6 key points as bullets, and a one-sentence conclusion."
+      instruction: "A university 5-mark answer of about 150-250 words: a one-sentence introduction, 4-6 key points as bullets, and a one-sentence conclusion. The introduction, every bullet and the conclusion each end with a citation; build the introduction and conclusion only from what the cited sources say, never a general summary of your own."
     10-mark:
       max_tokens: 2400
-      instruction: "A university 10-mark answer of about 400-600 words: an introduction, the main points as bullets under short headings, an example or the working of the method if the sources give one, advantages and disadvantages if the sources give them, and a conclusion."
+      instruction: "A university 10-mark answer of about 400-600 words: an introduction, the main points as bullets under short headings, an example or the working of the method if the sources give one, advantages and disadvantages if the sources give them, and a conclusion. Every sentence and bullet, including the introduction and conclusion, ends with a citation; build them only from what the cited sources say."
 
 quiz:                            # ARCHITECTURE 12.1
   min_tokens: 40                 # title-only slides make poor questions

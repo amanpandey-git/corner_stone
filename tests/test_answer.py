@@ -137,3 +137,8 @@ def test_judge_failure_marks_not_checked_and_keeps_the_answer(cfg, stack):
     a = answer(QUESTION, "concise", cfg, store, index, emb, FakeProvider(["Minimal rights only [1]."]),
                judge=DownJudge(["x"]), check=True)
     assert not a.abstained and a.unsupported is None and "503" in a.check_error
+
+
+def test_stray_abstention_token_after_a_partial_answer_is_removed():
+    a = finalise("q", "5-mark", "An RTOS meets deadlines [1].\nThe notes do not list its advantages. NOT_IN_NOTES", [src(1)])
+    assert not a.abstained and "NOT_IN_NOTES" not in a.text and a.uncited_sentences == []
