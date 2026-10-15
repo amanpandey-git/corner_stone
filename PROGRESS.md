@@ -429,3 +429,15 @@
 - First real use: before the Phase 1 test run (18 Oct).
 ### Next atomic action
 - 17 Oct: pin the reranker revision, implement rerank.py, dev rows vector+rerank and hybrid+rerank.
+## [2026-10-15] - Review of tonight's work (5c80d2b..993ffd7)
+### Done
+- Reviewer run (Explore agent with .claude/agents/reviewer.md instructions; the named agent loads next session). 0 blockers, 3 should-fix, 3 notes; reviewer changed nothing (git status clean).
+- Fixed: 10.11 switch states (b4838ca); missing config rows slide_title_max_chars / slide_min_tokens (ea0a2af); PROGRESS.md-per-commit lapse logged in NOTES (this commit). 186 tests passing.
+### In progress / partial
+- None.
+### Not started
+- Reranker (17 Oct), Phase 1 test run (18 Oct).
+### Known issues / TODO
+- Review notes for later: ARCHITECTURE 10 diagram shows hybrid/rerank as unconditional; add test_rerank and pin the reranker revision with rerank.py.
+### Next atomic action
+- 17 Oct: pin reranker revision, implement rerank.py (10.7) with test_rerank, dev rows vector+rerank and hybrid+rerank.
