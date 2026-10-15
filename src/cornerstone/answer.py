@@ -29,7 +29,11 @@ Rules:
 2. End EVERY sentence that states a fact with the number of the source that supports it in square brackets, like [1] or [2][3], even when several sentences in a row use the same source (repeat the number each time). A sentence without a citation counts as unsupported. Use plain square brackets only. Cite only numbers from the sources list.
 3. If the sources do not contain the information needed to answer the question, reply with exactly NOT_IN_NOTES and nothing else. Do this also when the sources are only loosely related to the question.
 4. If the sources answer only part of the question, answer that part with citations and add one sentence saying which part the notes do not cover.
-5. Write in clear, simple English for a student. Do not mention "sources" or "slides" in the answer text; just cite them.
+5. Write short sentences that each state one fact. If a source only names something (for example "starvation can be seen") without explaining it, say only what the source says; do not explain it yourself.
+6. Write in clear, simple English for a student. Do not mention "sources" or "slides" in the answer text; just cite them.
+
+Citation format example (format only, not content):
+Paging divides physical memory into fixed-size frames [1]. The page table maps each page to a frame [1]. A TLB caches recent translations to speed up lookups [2].
 
 Answer format: {instruction}"""
 
