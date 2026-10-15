@@ -39,7 +39,23 @@ Targets (on the test split; report the real number either way): hit@5 >= 0.90 an
 
 Evaluation rules: eval/questions.jsonl has a dev and a test split (rule in eval/QUESTIONS_FORMAT.md). Tune only on dev. The test split is run only at: the baseline (done), the end of Phase 1, the Phase 2 answer evaluation, and the final report; every test run is logged in NOTES.md, and nothing is changed because of a test result without saying so next to the number.
 
-Cut list (if behind): SM-2 scheduling (keep plain flashcards), then quiz UI polish, then neighbour expansion. If the Next.js app stalls, demo on the Streamlit page over the same API. Never cut citations, abstention, the evaluation, the tests, or quiz + flashcard generation.
+Cut (decided 2026-10-15): quiz UI polish, neighbour expansion, weak-topic tracking, follow-up rewriting. If behind: SM-2 is the first cut (keep plain flashcards). Next.js is kept (4 pages: Documents, Ask, Quiz, Flashcard review); the Streamlit page stays working as the fallback until the web app works end to end, and if the web app is not demoable on the morning of 24 Oct the demo runs on Streamlit. Never cut citations, abstention, the evaluation, the tests, or quiz + flashcard generation.
+
+Schedule (approved 2026-10-15; tag v0.2 on 24 Oct; report and PPT written after):
+
+| Day | Work | Notes |
+|---|---|---|
+| 15 Oct (night) | Phase 1: page images, slide chunking + context header, FTS5 keyword search, rrf_merge structure + tests (user writes it), collapse, filters, compaction | dev ablation row per change |
+| 16 Oct (Stage 1 evaluation; light) | finish Phase 1 leftovers; user writes rrf_merge after the evaluation | spot-checks after the evaluation |
+| 17 Oct | hybrid search wired with the user's rrf_merge; reranker ablation (adopt only if dev gain and p95 < 1 s) | |
+| 18 Oct | Phase 1 test run (once), close Phase 1; start Phase 2: LLM interface (Groq + Gemini, timeouts, retries, rate limits, cache) | .env with both keys needed |
+| 19 Oct | grounded [n] prompt + "not in your notes", answer modes, streaming; Streamlit Ask (fallback) | |
+| 20 Oct | citation parser (user writes) + citation check; answer evaluation on dev (LLM judge); prompt work on dev only | |
+| 21 Oct | answer evaluation on test (paced), 20 answers for spot check; quiz generator (Pydantic + retry, cited); FastAPI: documents, search, ask (streaming), page image, health | Node 24 LTS installed by end of day |
+| 22 Oct | flashcards + SM-2 (user writes core; first cut) + wrong answer -> flashcard; FastAPI: quiz, flashcards; TestClient tests, GitHub Actions; Next.js scaffold + Documents page | Streamlit quiz/review fallback |
+| 23 Oct | Next.js: Ask (streamed, mode selector, citations open slide image), Quiz, Flashcard review | |
+| 24 Oct | morning go/no-go: Next.js demoable end to end, else demo on Streamlit; FREEZE: README, evaluation report + ablation table, demo script, rehearsal, PR stage-2 -> main, tag v0.2 | report/PPT written after |
+| 25 Oct | final evaluation | |
 
 Learning rule: for Reciprocal Rank Fusion, SM-2 and the citation parser, the user writes the core function: give the structure and tests, then review their code. Everything else: explain the key lines in VIVA.md.
 
@@ -183,7 +199,8 @@ Not about shipping features fast. It is evidence: a correct, verified indexing p
 - 2026-10-15: Final (Stage 2) evaluation: 25 October 2026; freeze on 24 October for report + rehearsal. Stage 1 evaluation: 16 October 2026 (uses ../corner_stone_stable).
 - 2026-10-15: Node stays v25.9.0; user installs Node 24 LTS before Phase 4. Install nothing.
 - 2026-10-15: 15 unanswerable questions kept (10 test, 5 dev). 16 harder paraphrased questions added (ids 66-81). Retrieval target changed (Section II).
-- 2026-10-15: Streamlit page is the guaranteed demo UI; Next.js only if the plan leaves room.
+- 2026-10-15: Plan approved with changes: Next.js kept (22-24 Oct), FastAPI 21-22 Oct, Streamlit = fallback until the web app works end to end; follow-up rewriting cut. User installs Node 24 LTS by end of 21 Oct.
+- 2026-10-15: Commit + push + PROGRESS snapshot after every atomic step (usage limits). Dev ablation row after each retrieval change; no test-set runs until the Phase 1 close (18 Oct).
 
 ## ARCHIVED - Stage 1 Section II (v1.0, superseded 2026-10-15)
 In scope for Stage 1:

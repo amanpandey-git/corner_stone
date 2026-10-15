@@ -305,3 +305,30 @@
 - Cut now (proposed): Next.js app (Phase 4), quiz UI polish, neighbour expansion, follow-up rewriting (only if 23 Oct buffer allows), weak-topic tracking.
 ### Next atomic action
 - After plan approval: Phase 1 step 3, page images (ARCHITECTURE 10.5): render_page_images + pages.image_path + tests.
+
+## [2026-10-15] - Schedule approved (with changes)
+### Done
+- Plan approved: Next.js kept (4 pages), FastAPI after the answering core, Streamlit fallback; cuts: quiz UI polish, neighbour expansion, weak-topic tracking, follow-up rewriting; SM-2 first cut. CLAUDE.md Section II holds the table:
+
+| Day | Work | Notes |
+|---|---|---|
+| 15 Oct (night) | Phase 1: page images, slide chunking + context header, FTS5 keyword search, rrf_merge structure + tests (user writes it), collapse, filters, compaction | dev ablation row per change |
+| 16 Oct (Stage 1 evaluation; light) | finish Phase 1 leftovers; user writes rrf_merge after the evaluation | spot-checks after the evaluation |
+| 17 Oct | hybrid search wired with the user's rrf_merge; reranker ablation (adopt only if dev gain and p95 < 1 s) | |
+| 18 Oct | Phase 1 test run (once), close Phase 1; start Phase 2: LLM interface (Groq + Gemini, timeouts, retries, rate limits, cache) | .env with both keys needed |
+| 19 Oct | grounded [n] prompt + "not in your notes", answer modes, streaming; Streamlit Ask (fallback) | |
+| 20 Oct | citation parser (user writes) + citation check; answer evaluation on dev (LLM judge); prompt work on dev only | |
+| 21 Oct | answer evaluation on test (paced), 20 answers for spot check; quiz generator (Pydantic + retry, cited); FastAPI: documents, search, ask (streaming), page image, health | Node 24 LTS installed by end of day |
+| 22 Oct | flashcards + SM-2 (user writes core; first cut) + wrong answer -> flashcard; FastAPI: quiz, flashcards; TestClient tests, GitHub Actions; Next.js scaffold + Documents page | Streamlit quiz/review fallback |
+| 23 Oct | Next.js: Ask (streamed, mode selector, citations open slide image), Quiz, Flashcard review | |
+| 24 Oct | morning go/no-go: Next.js demoable end to end, else demo on Streamlit; FREEZE: README, evaluation report + ablation table, demo script, rehearsal, PR stage-2 -> main, tag v0.2 | report/PPT written after |
+| 25 Oct | final evaluation | |
+
+### In progress / partial
+- None.
+### Not started
+- Phase 1 step 3 onward.
+### Known issues / TODO
+- User: Node 24 LTS by end of 21 Oct; .env keys by 18 Oct; spot-checks after 16 Oct.
+### Next atomic action
+- Phase 1 step 3: page images (ARCHITECTURE 10.5).
