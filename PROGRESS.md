@@ -1,18 +1,20 @@
 # PROGRESS - session log (append only below the Morning report)
 
 ## Morning report (kept current; overwritten each update - the log below stays append-only)
-Updated: 2026-10-16, before the test-split answer evaluation. Branch stage-2, 272 tests passing (local + GitHub Actions).
-- **Done:** Phase 1 closed. Phase 2 built (LLM layer, grounded answers, citations, judge, evaluation); prompt v3 chosen on dev. Phase 3 API + CI. Phase 5 quiz, flashcards, SM-2 + Streamlit tabs. Demo script.
-- **Retrieval (test, run once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met.
-- **Answers (dev v3, prompt v3):** citation accuracy **100%** (71/71), faithfulness **87.5%** (28/32; target 90%, all misses are uncited sentences), abstention 5/5, false abstention 1/33, first token p50 0.93 s.
-- **Quiz:** 25/25 valid (target >= 95%); 24/25 answers supported by their slide (judge).
-- **Reviews before the test answer run:** reviewer 0 blockers (3 PROGRESS should-fixes, fixed); eval-auditor 0 blockers (2 wording fixes, done).
-- **Blocked:** Next.js web app - Node v25.9.0 installed, Node 24 LTS needed.
+Updated: 2026-10-16. Branch stage-2, 273 tests (local + GitHub Actions green). Everything except the Next.js web app is built.
+- **Retrieval (test, once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met.
+- **Answers (test, once, concise, 43 questions):** citation accuracy **100%** (75/75), faithfulness **96.9%** (31/32), "Not in your notes." **10/10**, first token p50 **0.88 s**. All four answer targets met (LLM-judged).
+- **5-mark test sample:** faithfulness **12.5% (1/8), target not met** (uncited intro/conclusion). Fixed after the test, declared in NOTES + report; dev 5-mark sample 12.5% -> 50% -> 100% (last run partial, 6/8).
+- **Quiz:** 25/25 valid; 24/25 answers supported by their slide.
+- **Docs:** README (Stage 2), docs/evaluation-report.md (eval-auditor checked every number), docs/demo-script.md, VIVA.md (incl. citation parser + SM-2 line by line).
+- **Blocked:** Next.js web app (Node v25.9.0; Node 24 LTS needed). Groq free tier: 200k tokens/day for the answer model, nearly used today; LLM evaluation paused until it frees.
 
 ### What I need to do
-1. Install Node 24 LTS (the web app is the only thing waiting on it).
-2. Spot-check the 20 answers in eval/results/answer_runs/answer_spotcheck_dev_v3.md (and the test one when it exists); note disagreements with the judge in NOTES.md.
-3. Optional: old index backups in data/ (index.v1.bak, index.v2.bak .. bak4, ~4 MB) can be deleted by you; I do not delete data.
+1. Install Node 24 LTS (the web app is the only thing waiting on it). If it is not demoable by the morning of 24 Oct, the demo runs on Streamlit (all tabs work).
+2. Spot-check eval/results/answer_spotcheck_test.md (20 test answers in full) and note any disagreement with the judge in NOTES.md.
+3. Review the draft pull request stage-2 -> main (I prepare it; you merge and tag v0.2 - I will not).
+4. Optional: delete old index backups in data/ (index.v1.bak, index.v2.bak..bak4, ~4 MB); I do not delete data.
+5. Demo day: warm the cache early; run no evaluations that day (Groq daily cap).
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
@@ -562,3 +564,17 @@ Updated: 2026-10-16, before the test-split answer evaluation. Branch stage-2, 27
 - Dev faithfulness 87.5% < 90% target (uncited sentences); reported as is.
 ### Next atomic action
 - Run the test-split answer evaluation once: concise (all 43) + 5-mark sample (--limit 10); log in NOTES.md.
+## [2026-10-16] - Phase 2 test checkpoint, 5-mark fix, Phase 6 docs
+### Done
+- Test answer evaluation run once (concise all 43 + 5-mark sample 10), logged in NOTES: concise targets met; 5-mark faithfulness 12.5%.
+- Declared post-test fix of exam modes (c91c8f4, f5328eb) + stray-token cleanup; dev 5-mark v3/v4/v5 = 12.5% / 50% / 100% (v5 partial).
+- Limiter estimate chars/3; Groq daily cap (200k tokens) found and recorded (config tpd, demo script).
+- docs/evaluation-report.md + README rewritten for Stage 2; eval-auditor: 0 blockers, fixes applied (4701ce6).
+### In progress / partial
+- Dev 5-mark v5 run partial (6/8) until Groq's daily window frees.
+### Not started
+- Next.js web app (Node 24 LTS needed); PR stage-2 -> main (draft next).
+### Known issues / TODO
+- 5-mark fix not re-measured on test (no further test checkpoint before the final report).
+### Next atomic action
+- Prepare the draft PR stage-2 -> main (no merge, no tag).
