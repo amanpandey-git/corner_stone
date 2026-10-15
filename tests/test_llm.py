@@ -197,3 +197,19 @@ def test_fake_provider_streams_and_records():
     f = FakeProvider(["hello world [1]."], chunk=4)
     assert "".join(f.stream("s", "u", 5)) == "hello world [1]."
     assert f.complete("s", "u2", 5).text == "hello world [1]." and len(f.calls) == 2
+
+
+def test_json_mode_request_fields_and_separate_cache_entry(lcfg):
+    seen = []
+
+    def h(req):
+        seen.append(json.loads(req.content))
+        if "generativelanguage" in str(req.url):
+            return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "{}"}]}}]})
+        return groq_ok("{}")
+    g = provider(lcfg, h)
+    g.complete("S", "U", 10, json_mode=True)
+    g.complete("S", "U", 10)                                  # plain call is a different cache entry
+    assert seen[0]["response_format"] == {"type": "json_object"} and "response_format" not in seen[1]
+    provider(lcfg, h, cls=GeminiProvider, cache=False).complete("S", "U", 10, json_mode=True)
+    assert seen[2]["generationConfig"]["responseMimeType"] == "application/json"

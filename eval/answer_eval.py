@@ -8,7 +8,8 @@ Definitions (ARCHITECTURE.md 11.4; fixed before the first run, do not change aft
   * correct page        = answered answerable questions citing at least one labelled page (no judge needed).
   * abstention          = unanswerable questions answered "Not in your notes." / unanswerable questions.
   * false abstention    = answerable questions answered "Not in your notes." / answerable questions.
-  * time to first token = p50 / p95 over live (not cached) answers: question submitted -> first model text.
+  * time to first token = p50 / p95 over live (not cached) answers: question submitted -> first model text,
+                          minus time queued in the free-tier rate limiter (an evaluation artefact; reported).
 The three Step 5 questions are excluded, as in retrieval_eval.py. Calls are paced by the provider's rate limiter;
 an answerer failure after the retry cap stops the run and the partial results are written, marked PARTIAL.
 A judge failure only marks that answer "not checked"; JUDGE_STOP failures in a row stop the run (PARTIAL).
@@ -52,7 +53,8 @@ def score_answer(answer, question: dict) -> dict:
            "abstained": answer.abstained, "reason": answer.abstain_reason, "top_vector": answer.top_vector_score,
            "n_citations": len(answer.citations), "unsupported": None, "faithful": None, "checked": False,
            "correct_page": None, "uncited": len(answer.uncited_sentences), "invalid": len(answer.invalid_refs),
-           "ttft_ms": answer.ttft_ms, "cached": answer.cached, "check_error": answer.check_error}
+           "ttft_ms": answer.ttft_ms, "cached": answer.cached, "check_error": answer.check_error,
+           "queue_ms": answer.queue_ms}
     if answer.abstained:
         return row
     if answer.unsupported is not None:
@@ -86,6 +88,7 @@ def summarise(rows: list[dict]) -> dict:
         "abstained_unanswerable": sum(r["abstained"] for r in unans),
         "false_abstentions": sum(r["abstained"] for r in ans),
         "ttft_n": len(live), "ttft_p50": pct(live, 50), "ttft_p95": pct(live, 95),
+        "queue_s": sum(r.get("queue_ms", 0.0) for r in rows) / 1000,
     }
 
 
@@ -115,7 +118,7 @@ def report(rows, answers, sm, args, cfg, partial: str | None) -> tuple[str, str]
         f"| cites a labelled page | {_f(sm['correct_page_rate'], True)} ({sm['correct_page']} answered answerable questions) |",
         f"| **abstention on unanswerable** | **{sm['abstained_unanswerable']}/{sm['n_unanswerable']}** |",
         f"| false abstention on answerable | {sm['false_abstentions']}/{sm['n_answerable']} |",
-        f"| **time to first token p50 / p95** | **{_f(sm['ttft_p50'])} ms / {_f(sm['ttft_p95'])} ms** ({sm['ttft_n']} live answers) |",
+        f"| **time to first token p50 / p95** | **{_f(sm['ttft_p50'])} ms / {_f(sm['ttft_p95'])} ms** ({sm['ttft_n']} live answers; excludes {sm['queue_s']:.0f} s spent queueing for the free-tier rate limit) |",
         "", "## Per question", "",
         "| id | ans? | outcome | top vec | cites | unsupported | uncited | invalid | right page | TTFT ms |",
         "|---|---|---|---|---|---|---|---|---|---|"]

@@ -77,9 +77,14 @@ llm:                             # ARCHITECTURE 11.1 / 11.5
     tpm: 8000                    # from Groq's x-ratelimit-limit-tokens header (2026-10-15)
     extra:
       reasoning_effort: low      # gpt-oss reasons before answering; low keeps tokens and latency down
+  groq_judge:                    # judge: a different model family from the answerer (Qwen vs OpenAI gpt-oss)
+    model: qwen/qwen3.8-27b
+    rpm: 30
+    tpm: 8000                    # Groq limits are per model, so judging does not slow answering
   gemini:
     model: gemini-3.5-flash      # gemini-2.5-flash returns 404 for this key
     rpm: 10                      # conservative free-tier value (no limit headers returned)
+    rpd: 20                      # measured 2026-10-15: GenerateRequestsPerDayPerProjectPerModel-FreeTier = 20
     tpm: 250000
     generation:
       thinkingConfig:
@@ -88,7 +93,7 @@ llm:                             # ARCHITECTURE 11.1 / 11.5
 answer:                          # ARCHITECTURE 11.2 / 11.5
   k: 5                           # sources in the prompt (hit@5 is the retrieval metric)
   min_vector_score: 0.0          # retrieval gate; 0.0 = off until calibrated on dev (NOTES.md)
-  judge_provider: gemini         # a different model family from the answerer
+  judge_provider: groq_judge     # Qwen judges gpt-oss; Gemini's free tier (20 requests/day) is too small to judge every answer
   judge_max_tokens: 300
   check_citations: false         # runtime judge call per answer; always on in eval/answer_eval.py
   modes:                         # max_tokens include gpt-oss reasoning tokens (reasoning_effort low)

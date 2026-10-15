@@ -21,7 +21,7 @@ import httpx
 from cornerstone import LLMError, LLMRateLimited, LLMTimeout, LLMUnavailable
 
 ROOT = Path(__file__).resolve().parents[2]
-KEY_VARS = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
+KEY_VARS = {"groq": "GROQ_API_KEY", "groq_judge": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
 _RETRYABLE = {429, 500, 502, 503, 504}
 
 
@@ -39,7 +39,8 @@ class LLMProvider(Protocol):
     name: str
     model: str
 
-    def complete(self, system: str, user: str, max_tokens: int, temperature: float) -> LLMResponse: ...
+    def complete(self, system: str, user: str, max_tokens: int, temperature: float,
+                 json_mode: bool = False) -> LLMResponse: ...
     def stream(self, system: str, user: str, max_tokens: int, temperature: float) -> Iterator[str]: ...
     # after stream() finishes, last_cached tells whether the text came from the cache (for honest TTFT numbers)
     last_cached: bool
@@ -122,8 +123,10 @@ class AnswerCache:
         return sqlite3.connect(self.path)   # short-lived: safe across threads (Streamlit, FastAPI)
 
     @staticmethod
-    def key(provider: str, model: str, system: str, user: str, max_tokens: int, temperature: float) -> str:
-        blob = json.dumps([provider, model, system, user, max_tokens, temperature], ensure_ascii=False)
+    def key(provider: str, model: str, system: str, user: str, max_tokens: int, temperature: float,
+            json_mode: bool = False) -> str:
+        parts = [provider, model, system, user, max_tokens, temperature] + (["json"] if json_mode else [])
+        blob = json.dumps(parts, ensure_ascii=False)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
     def get(self, key: str) -> str | None:
@@ -160,6 +163,7 @@ class _HTTPProvider:
     client: httpx.Client | None = None
     sleep: Callable[[float], None] = time.sleep
     last_cached: bool = False
+    last_wait_s: float = 0.0      # time the last call queued in the rate limiter (not model latency)
 
     def __post_init__(self) -> None:
         c = self.cfg["llm"]
@@ -171,12 +175,13 @@ class _HTTPProvider:
             self.client = httpx.Client(timeout=httpx.Timeout(self.timeout))
 
     # subclass hooks
-    def _request(self, system: str, user: str, max_tokens: int, temperature: float, stream: bool) -> dict: ...
+    def _request(self, system: str, user: str, max_tokens: int, temperature: float, stream: bool,
+                 json_mode: bool = False) -> dict: ...
     def _parse(self, body: dict) -> str: ...
     def _parse_stream_event(self, data: str) -> str: ...
 
-    def _cache_key(self, system, user, max_tokens, temperature) -> str:
-        return AnswerCache.key(self.name, self.model, system, user, max_tokens, temperature)
+    def _cache_key(self, system, user, max_tokens, temperature, json_mode=False) -> str:
+        return AnswerCache.key(self.name, self.model, system, user, max_tokens, temperature, json_mode)
 
     def _error(self, r: httpx.Response) -> LLMError:
         """Status code + the provider's error type only (bodies may echo request data)."""
@@ -242,13 +247,16 @@ class _HTTPProvider:
                 raise err
             self.sleep(wait)
 
-    def complete(self, system: str, user: str, max_tokens: int, temperature: float = 0.0) -> LLMResponse:
-        key = self._cache_key(system, user, max_tokens, temperature)
+    def complete(self, system: str, user: str, max_tokens: int, temperature: float = 0.0,
+                 json_mode: bool = False) -> LLMResponse:
+        """One reply. json_mode asks the provider for a JSON object (quiz, flashcards, judge)."""
+        key = self._cache_key(system, user, max_tokens, temperature, json_mode)
         if self.cache is not None and (hit := self.cache.get(key)) is not None:
             return LLMResponse(hit, self.name, self.model, cached=True)
-        self.limiter.acquire(estimate_tokens(system, user, max_tokens))
+        self.last_wait_s = self.limiter.acquire(estimate_tokens(system, user, max_tokens))
         t = time.perf_counter()
-        r = self._send(self._request(system, user, max_tokens, temperature, stream=False), stream=False)
+        r = self._send(self._request(system, user, max_tokens, temperature, stream=False, json_mode=json_mode),
+                       stream=False)
         text = self._parse(r.json())
         if not text.strip():
             raise LLMError(f"{self.name} {self.model}: empty reply")
@@ -259,12 +267,12 @@ class _HTTPProvider:
     def stream(self, system: str, user: str, max_tokens: int, temperature: float = 0.0) -> Iterator[str]:
         """Yield text deltas. A cached reply is yielded whole. Only complete replies are cached."""
         key = self._cache_key(system, user, max_tokens, temperature)
-        self.last_cached = False
+        self.last_cached, self.last_wait_s = False, 0.0
         if self.cache is not None and (hit := self.cache.get(key)) is not None:
             self.last_cached = True
             yield hit
             return
-        self.limiter.acquire(estimate_tokens(system, user, max_tokens))
+        self.last_wait_s = self.limiter.acquire(estimate_tokens(system, user, max_tokens))
         ctx, r = self._send(self._request(system, user, max_tokens, temperature, stream=True), stream=True)
         parts: list[str] = []
         try:
@@ -292,11 +300,13 @@ class _HTTPProvider:
 class GroqProvider(_HTTPProvider):
     URL = "https://api.groq.com/openai/v1/chat/completions"
 
-    def _request(self, system, user, max_tokens, temperature, stream):
+    def _request(self, system, user, max_tokens, temperature, stream, json_mode=False):
         body = {"model": self.model, "messages": [{"role": "system", "content": system},
                                                   {"role": "user", "content": user}],
                 "max_completion_tokens": max_tokens, "temperature": temperature, "stream": stream}
-        body.update(self.cfg["llm"]["groq"].get("extra", {}) or {})
+        body.update(self.cfg["llm"][self.name].get("extra", {}) or {})
+        if json_mode:
+            body["response_format"] = {"type": "json_object"}
         return {"url": self.URL, "headers": {"Authorization": f"Bearer {self.key}"}, "json": body}
 
     def _parse(self, body):
@@ -310,11 +320,13 @@ class GroqProvider(_HTTPProvider):
 class GeminiProvider(_HTTPProvider):
     BASE = "https://generativelanguage.googleapis.com/v1beta/models/"
 
-    def _request(self, system, user, max_tokens, temperature, stream):
+    def _request(self, system, user, max_tokens, temperature, stream, json_mode=False):
         body = {"systemInstruction": {"parts": [{"text": system}]},
                 "contents": [{"role": "user", "parts": [{"text": user}]}],
                 "generationConfig": {"maxOutputTokens": max_tokens, "temperature": temperature,
                                      **(self.cfg["llm"]["gemini"].get("generation", {}) or {})}}
+        if json_mode:
+            body["generationConfig"]["responseMimeType"] = "application/json"
         method = "streamGenerateContent" if stream else "generateContent"
         return {"url": f"{self.BASE}{self.model}:{method}", "headers": {"x-goog-api-key": self.key},
                 "json": body, "params": {"alt": "sse"} if stream else None}
@@ -342,6 +354,7 @@ class FakeProvider:
         self.replies, self.chunk = replies, chunk
         self.calls: list[tuple[str, str]] = []
         self.last_cached = False
+        self.last_wait_s = 0.0
 
     def _next(self, system: str, user: str) -> str:
         self.calls.append((system, user))
@@ -349,7 +362,7 @@ class FakeProvider:
             return self.replies(system, user)
         return self.replies[min(len(self.calls), len(self.replies)) - 1]
 
-    def complete(self, system, user, max_tokens, temperature=0.0) -> LLMResponse:
+    def complete(self, system, user, max_tokens, temperature=0.0, json_mode=False) -> LLMResponse:
         return LLMResponse(self._next(system, user), self.name, self.model, total_ms=0.0)
 
     def stream(self, system, user, max_tokens, temperature=0.0) -> Iterator[str]:
@@ -366,7 +379,7 @@ def make_provider(cfg: dict, name: str | None = None, env: Mapping[str, str] | N
                   client: httpx.Client | None = None) -> LLMProvider:
     """Provider `name` (default llm.provider) with its key, the shared per-process limiter and the cache."""
     name = name or cfg["llm"]["provider"]
-    classes = {"groq": GroqProvider, "gemini": GeminiProvider}
+    classes = {"groq": GroqProvider, "groq_judge": GroqProvider, "gemini": GeminiProvider}
     if name not in classes:
         raise ValueError(f"unknown LLM provider {name!r}; choose one of {sorted(classes)}")
     p = cfg["llm"][name]

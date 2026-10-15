@@ -478,6 +478,7 @@ def load_env(path: Path) -> dict[str, str]          # KEY=value lines; no new de
 - Keys: `os.environ` first, then `.env` at the repo root (`load_env`). A missing or empty key -> `LLMUnavailable("GROQ_API_KEY is not set (see .env.example)")`. Keys are only placed in HTTP headers, never in URLs, logs, cache rows or exception messages (errors carry the status code and the provider's error *type* only).
 - Timeouts: `llm.timeout_s` (connect + read; streaming read timeout per chunk). Retries: only on 429, 5xx, timeout and connection errors, at most `llm.max_retries` (2) extra attempts with exponential backoff `llm.backoff_s * 2^i` capped at `llm.max_backoff_s`; a 429 `retry-after` header is honoured if it is <= `max_backoff_s`, else `LLMRateLimited` is raised at once (no loop). 400/401/403/404 are never retried (`LLMError` / `LLMUnavailable` for 401/403).
 - Rate limiter (`RateLimiter`, one per provider per process): sliding 60 s window over requests (`rpm`) and estimated tokens (`tpm`; estimate = (len(system)+len(user))/4 + max_tokens); `acquire()` sleeps until both fit. Limits per provider in config (below), set from the providers' own headers/documentation, not guessed upward.
+- `provider.last_wait_s` = seconds the last call queued in the rate limiter; `Answer.queue_ms` records it and `ttft_ms` excludes it (queueing is an artefact of paced evaluation runs, not model latency; the total queue time is reported next to TTFT).
 - `provider.last_cached` is set by `stream()` (True when the text came from the cache), so TTFT is reported only for live calls.
 - Cache (`AnswerCache`, SQLite `paths.cache_dir/llm_cache.sqlite`, gitignored under data/): key = sha256 of (provider, model, system, user, max_tokens, temperature). `complete()` returns a cached hit with `cached=True` and does not touch the limiter. `stream()` of a cached text yields it as one delta. Only successful, non-empty responses are cached. `llm.cache: false` disables it.
 - Exceptions (all `CornerstoneError`): `LLMError` (base), `LLMUnavailable` (no key, auth refused, model not found), `LLMRateLimited`, `LLMTimeout`. The UI/API shows the message; nothing is retried beyond the cap.
@@ -515,7 +516,7 @@ def check_citations(citations: list[Citation], source_texts: dict[int, str], jud
     # 0-based indexes into citations judged unsupported; None = could not be checked
 ```
 - Grammar: a reference is `[n]` or a group `[n, m]` / `[n][m]` / `[n-m]` (range expanded) with 1 <= n. Sentence split on `. ! ?` followed by whitespace/newline, plus line breaks (bullet lines are sentences); a reference group right after the full stop belongs to the sentence before it. Headings (a line ending with `:` or starting with `#`), the line `NOT_IN_NOTES`, fragments under 4 words and gap statements ("the notes do not cover X", which prompt rule 4 asks for) are not "factual sentences". Text without any reference -> no citations, every factual sentence uncited.
-- `check_citations`: one judge call per answer (provider `answer.judge_provider`, default Gemini so the judge is a different model family from the answerer): for each citation, sentence + the cited slide texts -> JSON list of unsupported indexes. Invalid judge JSON -> retried once, then `None` (reported as "not checked", never as "supported"). Runtime switch `answer.check_citations` (default false in the UI for speed; always on in the answer evaluation). A judge `LLMError` (e.g. Gemini 503 overloaded) does not fail the answer: `Answer.unsupported = None`, `Answer.check_error` says why, and it counts as "not checked" (never as supported).
+- `check_citations`: one judge call per answer, JSON mode (provider `answer.judge_provider`, default `groq_judge` = Qwen on Groq, a different model family from the answerer): for each citation, sentence + the cited slide texts -> JSON list of unsupported indexes. Invalid judge JSON -> retried once, then `None` (reported as "not checked", never as "supported"). Runtime switch `answer.check_citations` (default false in the UI for speed; always on in the answer evaluation). A judge `LLMError` (e.g. Gemini 503 overloaded) does not fail the answer: `Answer.unsupported = None`, `Answer.check_error` says why, and it counts as "not checked" (never as supported).
 - Written by the assistant at the user's request (2026-10-15 standing orders); explained line by line in VIVA.md.
 
 ### 11.4 Answer evaluation (`eval/answer_eval.py`)
@@ -543,7 +544,7 @@ def check_citations(citations: list[Citation], source_texts: dict[int, str], jud
 | paths.cache_dir | data/cache | gitignored |
 | answer.k | 5 | sources in the prompt; matches hit@5 |
 | answer.min_vector_score | chosen on dev | retrieval gate (11.2) |
-| answer.judge_provider | gemini | judge differs from answerer |
+| answer.judge_provider | groq_judge (qwen/qwen3.8-27b on Groq) | judge is a different model family (Qwen) from the answerer (OpenAI gpt-oss); Gemini's free tier allows only 20 requests/day per model (measured), too few to judge every answer |
 | answer.check_citations | false | runtime switch; on in evaluation |
 | answer.modes.* | instruction + max_tokens per mode | 11.2 |
 

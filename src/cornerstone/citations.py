@@ -146,7 +146,7 @@ def check_citations(citations: list[Citation], source_texts: dict[int, str], jud
     max_tokens = cfg["answer"]["judge_max_tokens"]
     for attempt in range(2):   # one retry on malformed JSON, then give up honestly
         reply = judge.complete(JUDGE_SYSTEM + (" Reply with the JSON object only." if attempt else ""),
-                               user, max_tokens, 0.0).text
+                               user, max_tokens, 0.0, json_mode=True).text
         result = parse_judge_reply(reply, len(citations))
         if result is not None:
             return result

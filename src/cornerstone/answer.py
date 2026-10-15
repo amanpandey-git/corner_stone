@@ -74,6 +74,7 @@ class Answer:
     total_ms: float = 0.0
     top_vector_score: float | None = None
     check_error: str | None = None           # why the judge could not check (then unsupported is None)
+    queue_ms: float = 0.0                    # time waiting for the free-tier rate limiter (excluded from ttft_ms)
 
     def cited_sources(self) -> list[Source]:
         """Sources actually cited, in order of first citation."""
@@ -152,10 +153,12 @@ def stream_answer(question: str, mode: str, cfg: dict, store, index, embedder, p
     system, user = build_prompt(question, sources, mode, cfg)
     parts: list[str] = []
     ttft = None
+    queue_ms = 0.0
     released = False                        # becomes True once the reply cannot be NOT_IN_NOTES
     for delta in provider.stream(system, user, a["modes"][mode]["max_tokens"], cfg["llm"]["temperature"]):
         if ttft is None and delta:
-            ttft = (time.perf_counter() - t0) * 1000
+            queue_ms = getattr(provider, "last_wait_s", 0.0) * 1000
+            ttft = (time.perf_counter() - t0) * 1000 - queue_ms
         parts.append(delta)
         if released:
             yield delta
@@ -166,7 +169,8 @@ def stream_answer(question: str, mode: str, cfg: dict, store, index, embedder, p
             yield so_far
     cached = bool(getattr(provider, "last_cached", False))
     ans = finalise(question, mode, "".join(parts), sources, provider=provider.name, model=provider.model,
-                   cached=cached, ttft_ms=ttft, total_ms=(time.perf_counter() - t0) * 1000, top_vector_score=top)
+                   cached=cached, ttft_ms=ttft, total_ms=(time.perf_counter() - t0) * 1000, top_vector_score=top,
+                   queue_ms=queue_ms)
     if not released and not ans.abstained:
         yield ans.text                      # a reply shorter than the hold-back window
     if (a["check_citations"] if check is None else check) and not ans.abstained and judge is not None:
