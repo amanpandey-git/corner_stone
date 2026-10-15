@@ -19,10 +19,10 @@ English documents only; CPU-only laptop (Intel i5, 8 GB RAM); free-tier LLM APIs
 | retrieval, test split (run once) | hit@5 | **0.939** (31/33) vs v0.1 0.879 | >= 0.90, <= 1 question worse than v0.1 (0 worse) |
 | | MRR / search p95 | 0.856 / 47 ms | p95 < 1 s |
 | answers, test split (run once, concise) | citation accuracy | **100.0%** (75/75) | >= 90% |
-| | faithfulness (every sentence cited and supported) | **96.9%** (31/32) | >= 90% |
+| | faithfulness (every sentence cited and supported; LLM-judged) | **96.9%** (31/32) | >= 90% |
 | | "Not in your notes." on out-of-scope questions | **10/10** | >= 8/10 |
 | | time to first token p50 | **0.88 s** | < 3 s |
-| answers, test 5-mark sample (8 + 2) | faithfulness | 12.5% (1/8): uncited intro/conclusion; fixed afterwards and measured on dev only (declared in the report) | - |
+| answers, test 5-mark sample (8 + 2) | faithfulness | **12.5% (1/8): target not met** - 6 answers had an uncited intro/conclusion, 1 an unsupported citation; the mode was fixed afterwards and measured on dev only (declared in the report) | >= 90% |
 | quiz | valid questions | **100%** (25/25) | >= 95% |
 
 What did **not** help, measured on the dev split and switched off: hybrid keyword + vector search with RRF

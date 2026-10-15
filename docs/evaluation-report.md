@@ -2,8 +2,9 @@
 
 Every number below is copied from a result file in `eval/results/` (named in each table) and every test-split run is
 logged in `NOTES.md`. Rules followed: tuning on the **dev** split only; the **test** split run once per checkpoint
-(v0.1 baseline, end of Phase 1, Phase 2 answer evaluation), after a reviewer and an evaluation auditor; any change
-made after seeing a test number is declared next to that number.
+(end of Phase 1, Phase 2 answer evaluation), after a reviewer and an evaluation auditor; any change made after seeing
+a test number is declared next to that number. The v0.1 baseline was run twice: run #1 (0.960, 24/25) before 8
+harder test questions were added, run #2 (0.879, 29/33) on the final set; both are logged, and #2 is the reference.
 
 Corpus: 7 operating-systems slide decks (`samples/`, 422 pages). Questions: `eval/questions.jsonl`, 33 answerable +
 5 unanswerable on dev, 33 answerable + 10 unanswerable on test (split rule in `eval/QUESTIONS_FORMAT.md`).
@@ -62,8 +63,9 @@ temperature 0. Definitions: ARCHITECTURE.md 11.4 and `eval/answer_eval.py`.
 | false abstention on answerable | 1/33 | 0/8 | - |
 | time to first token p50 / p95 | **884 / 2071 ms** | 838 / 1173 ms | p50 < 3 s |
 
-The concise mode meets every target. The 5-mark sample did not: 7 of 8 answers had an uncited one-sentence
-introduction and conclusion, which the 5-mark format asked for. **Declared change after this test result:** the
+The concise mode meets the four Phase 2 answer targets (citation accuracy and faithfulness as judged by an LLM).
+The 5-mark sample did not: 6 of 8 answers had an uncited one-sentence introduction and conclusion, which the 5-mark
+format asked for, and 1 had an unsupported citation; only 1 of 8 was faithful. **Declared change after this test result:** the
 exam-mode instructions now require a sourced introduction and a conclusion only when a slide supports one; this
 was measured on a dev 5-mark sample only (2.3). The test numbers above remain the reported Phase 2 numbers.
 
@@ -84,7 +86,7 @@ of unanswerable questions (0.57-0.80) overlap those of answerable ones (from 0.5
 |---|---|---|
 | v3 (as tested) | 93.8% | 12.5% (1/8) |
 | v4: cite introduction and conclusion | 90.6% | 50.0% (4/8) |
-| v5: sourced introduction, conclusion only if supported | 100% (29/29) | 100% (6/6, PARTIAL: Groq's 200k tokens/day free-tier cap stopped the run after 6 of 8) |
+| v5: sourced introduction, conclusion only if supported - **PARTIAL run** (6 of 8 answerable, 0 of 2 unanswerable: Groq's 200k tokens/day cap); not like-for-like with the rows above | 100% (29/29) | 100% (6/6) |
 
 ## 3. Quiz (Phase 5; `quiz_eval.md`, one run, nothing tuned)
 
