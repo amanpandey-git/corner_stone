@@ -142,9 +142,11 @@ class SearchResult:
     """One hit. ``chunk`` carries the full metadata so Stage 2 (LLM, reranker) needs no index access."""
 
     chunk: "Chunk"
-    score: float  # cosine similarity, -1..1
+    score: float  # score of the last stage that ran (cosine similarity -1..1 for vector-only search)
     rank: int  # 1-based
     snippet: str
+    scores: dict[str, float] = field(default_factory=dict)  # per stage: vector, bm25, rrf, rerank
+    also_on: list[tuple[str, int | None]] = field(default_factory=list)  # (file, page) of collapsed near-copies
 
 
 @dataclass

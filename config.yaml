@@ -46,8 +46,11 @@ images:
 dedup:
   min_chars: 80                  # shorter pages (title/picture slides) are never treated as duplicates
   page_jaccard: 0.95             # word 3-shingle overlap at which a later page counts as a copy (ARCHITECTURE 10.2)
+  result_jaccard: 0.90           # query time: a result this similar to a higher one is collapsed into it (10.3)
 
 retrieval:
+  candidates: 30                 # results gathered before collapse/fusion/rerank cut to k
+  collapse: true                 # stage switches (ablation): collapse near-identical results
   unit_pattern: '(?i)unit\s*(\d+)'   # file name -> documents.unit for the unit filter (ARCHITECTURE 10.8)
 
 search:

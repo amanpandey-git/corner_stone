@@ -117,3 +117,23 @@ def test_empty_index_k_too_large_and_bad_inputs(cfg, embedder, tmp_path):
     with pytest.raises(ValueError):
         search("cache", 0, cfg, store, index, embedder)
     store.close()
+
+
+def test_collapse_switch_hides_near_copies_across_files(cfg, embedder, tmp_path):
+    store, index, ipath = new_stack(cfg, tmp_path)
+    for name, extra in (("notes_a.docx", "Written in week one."), ("notes_b.docx", "Copied for revision.")):
+        d = docx.Document()
+        d.add_heading("Deadlock", level=1)
+        d.add_paragraph("A deadlock happens when every process in a set waits for a resource held by another "
+                        "process in the set, so none of them can ever continue. Four conditions must hold together: "
+                        "mutual exclusion, hold and wait, no preemption and circular wait. The system can prevent "
+                        "deadlock by denying one condition, avoid it with the Banker's algorithm, or detect it and "
+                        "recover by terminating processes or preempting resources. " + extra)
+        d.save(tmp_path / name)
+        assert ingest_file(tmp_path / name, cfg, store, index, embedder, ipath).status == "indexed"
+    on = search("what is a deadlock", 5, cfg, store, index, embedder)
+    off = search("what is a deadlock", 5, {**cfg, "retrieval": {**cfg["retrieval"], "collapse": False}},
+                 store, index, embedder)
+    assert len(off) == 2 and len(on) == 1
+    assert on[0].also_on and on[0].also_on[0][0] in {"notes_a.docx", "notes_b.docx"}
+    assert on[0].rank == 1 and on[0].scores["vector"] == pytest.approx(on[0].score)

@@ -368,3 +368,15 @@
 - None new.
 ### Next atomic action
 - Query-time collapse of near-identical results (ARCHITECTURE 10.3): collapse_results in dedup.py + SearchResult.also_on/scores + tests.
+## [2026-10-15] - Phase 1 step 6: query-time collapse
+### Done
+- dedup.collapse_results; SearchResult.scores / also_on; search() restructured into stages (vector candidates -> collapse -> k) with config retrieval.candidates/collapse and dedup.result_jaccard. 4 new tests; 171 passed, 5 skipped (rrf).
+- Dev row 6: 0.939 / 0.835 (no change; safety net).
+### In progress / partial
+- rrf_merge: waiting for the author.
+### Not started
+- vector-side filters in search(); compaction; hybrid wiring (after rrf_merge); reranker.
+### Known issues / TODO
+- None new.
+### Next atomic action
+- Filters (ARCHITECTURE 10.8): search(..., filters=SearchFilters) applied on the vector side (over-fetch) + CLI --unit/--doc options + tests.

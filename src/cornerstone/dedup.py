@@ -12,8 +12,9 @@ three-word sequences of each page. Digits are kept, so worked examples that diff
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 
-from cornerstone import Page
+from cornerstone import Page, SearchResult
 
 _WORD = re.compile(r"\w+")
 
@@ -64,3 +65,19 @@ def mark_duplicates(pages: list[Page], cfg: dict) -> list[Page]:
             p.status, p.duplicate_of = "duplicate", dups[p.page_no]
             p.reason = f"near-duplicate of p.{dups[p.page_no]}"
     return pages
+
+
+def collapse_results(results: list[SearchResult], cfg: dict) -> list[SearchResult]:
+    """Drop results whose text is a near-copy (Jaccard >= dedup.result_jaccard) of a higher-ranked kept
+    result, across documents too (ARCHITECTURE.md 10.3). The kept result lists the dropped location in
+    also_on as (file, page_start). Ranks are renumbered 1..n; the order is otherwise unchanged."""
+    threshold = cfg["dedup"]["result_jaccard"]
+    kept: list[tuple[SearchResult, set[str]]] = []
+    for r in results:
+        sig = page_signature(r.chunk.text)
+        twin = next((k for k, s in kept if jaccard(sig, s) >= threshold), None)
+        if twin is None:
+            kept.append((replace(r, also_on=list(r.also_on)), sig))
+        else:
+            twin.also_on.append((r.chunk.file_name, r.chunk.page_start))
+    return [replace(k, rank=i + 1) for i, (k, _) in enumerate(kept)]

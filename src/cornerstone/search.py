@@ -1,7 +1,15 @@
-"""Query -> top-k active chunks with full metadata. No LLM."""
+"""Query -> top-k active chunks with full metadata. No LLM.
+
+Stages (ARCHITECTURE.md 10.8), each switched in config `retrieval.*`:
+  vector candidates -> [collapse near-identical results] -> first k.
+With every switch off this is exactly the Stage 1 search (the ablation baseline).
+"""
 from __future__ import annotations
 
+from dataclasses import replace
+
 from cornerstone import SearchResult
+from cornerstone.dedup import collapse_results
 from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
@@ -27,6 +35,19 @@ def search(query: str, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex
     n = len(index)
     if n == 0:
         return []
+    r = cfg["retrieval"]
+    staged = r["collapse"]
+    want = max(k, r["candidates"]) if staged else k   # later stages need more than k candidates
+    results = _vector_candidates(q, want, cfg, store, index, ef_search)
+    if r["collapse"]:
+        results = collapse_results(results, cfg)
+    return [replace(x, rank=i + 1) for i, x in enumerate(results[:k])]
+
+
+def _vector_candidates(q, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex,
+                       ef_search: int | None) -> list[SearchResult]:
+    """Up to k live (active) chunks nearest to the query vector, best first."""
+    n = len(index)
 
     # HNSW cannot delete, so some of the nearest vectors may belong to retired chunks.
     # Fetch more than k, keep only active ones (SQLite decides), widen until k are found or
@@ -41,5 +62,6 @@ def search(query: str, k: int, cfg: dict, store: MetadataStore, index: HNSWIndex
         fetch = min(fetch * 2, n)
 
     limit = cfg["search"]["snippet_chars"]
-    return [SearchResult(chunk=live[lab], score=s, rank=i + 1, snippet=_snippet(live[lab].text, limit))
+    return [SearchResult(chunk=live[lab], score=s, rank=i + 1, snippet=_snippet(live[lab].text, limit),
+                         scores={"vector": s})
             for i, (lab, s) in enumerate(hits[:k])]

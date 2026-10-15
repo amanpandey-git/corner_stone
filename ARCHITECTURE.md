@@ -335,6 +335,7 @@ def find_duplicate_pages(pages: list[Page], cfg: dict) -> dict[int, int]   # {pa
 ```python
 def collapse_results(results: list[SearchResult], cfg: dict) -> list[SearchResult]
 ```
+- Implemented in `dedup.py`; `search()` gathers `retrieval.candidates` (30) vector candidates when `retrieval.collapse` is on, collapses, then cuts to k. Returns new objects (input not mutated).
 - Walks results in rank order; drops a result whose text-shingle Jaccard with a kept higher-ranked result is >= `dedup.result_jaccard` (0.90), across documents too. The kept result records the dropped location in `SearchResult.also_on: list[tuple[str, int | None]]` (file, page) so a citation can say "also on p.N". Ranks renumbered 1..n; order otherwise unchanged; empty in -> empty out.
 
 ### 10.4 Slide-aware chunking (`chunking.py`)

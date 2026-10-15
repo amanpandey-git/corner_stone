@@ -57,3 +57,34 @@ def test_preemptive_and_non_preemptive_examples_are_not_merged(cfg):
     d = find_duplicate_pages(pages, cfg)
     assert d == {67: 66}                                        # 66/67: identical slide text
     assert 54 not in d and 86 not in d                          # SJF / priority variants differ by one word
+
+
+# ---- query-time collapse (ARCHITECTURE 10.3)
+from cornerstone import Chunk, SearchResult  # noqa: E402
+from cornerstone.dedup import collapse_results  # noqa: E402
+
+
+def res(rank, file, page, text):
+    c = Chunk(rank, 1, file, text, 0, 10, page_start=page, page_end=page)
+    return SearchResult(c, 1.0 - rank / 10, rank, text[:20], scores={"vector": 1.0 - rank / 10})
+
+
+def test_collapse_keeps_first_and_records_copies(cfg):
+    out = collapse_results([res(1, "a.pdf", 3, BODY), res(2, "b.pdf", 7, "Something different " * 5),
+                            res(3, "c.pdf", 9, BODY + " extra")], cfg)
+    assert [(r.chunk.file_name, r.rank) for r in out] == [("a.pdf", 1), ("b.pdf", 2)]
+    assert out[0].also_on == [("c.pdf", 9)] and out[1].also_on == []
+    assert out[0].scores == {"vector": 0.9}
+
+
+def test_collapse_does_not_mutate_input_and_handles_empty(cfg):
+    inp = [res(1, "a.pdf", 1, BODY), res(2, "a.pdf", 2, BODY)]
+    collapse_results(inp, cfg)
+    assert inp[0].also_on == [] and inp[1].rank == 2
+    assert collapse_results([], cfg) == []
+
+
+def test_collapse_keeps_worked_examples_with_different_numbers(cfg):
+    fcfs = "Seek time = (82-50) + (170-82) + (170-43) + (140-43) + (140-24) + (24-16) + (190-16) = 642"
+    sstf = "Seek time = (50-43) + (43-24) + (24-16) + (82-16) + (140-82) + (170-140) + (190-170) = 208"
+    assert len(collapse_results([res(1, "a.pdf", 10, fcfs), res(2, "a.pdf", 13, sstf)], cfg)) == 2
