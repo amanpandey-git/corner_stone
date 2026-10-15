@@ -2,7 +2,7 @@ import docx
 import pytest
 import yaml
 
-from cornerstone import cli
+from cornerstone import SCHEMA_VERSION, cli
 from cornerstone.embeddings import Embedder
 from cornerstone.index.metadata_store import MetadataStore
 
@@ -104,7 +104,7 @@ def test_v01_index_fails_loudly_and_rebuild_keeps_the_old_folder(env, capsys, mo
     assert cli.main(base + ["stats"]) == 0
     assert "documents: 1 active" in capsys.readouterr().out
     assert cli.main(base + ["rebuild", str(f), "--yes"]) == 0  # second rebuild: backup name does not clash
-    assert (tmp / "index.v2.bak").is_dir()
+    assert (tmp / f"index.v{SCHEMA_VERSION}.bak").is_dir()       # named after the version being replaced
 
 
 def test_rebuild_with_no_files_fails(env, capsys):

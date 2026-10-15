@@ -20,7 +20,7 @@ The operating system provides these five user‐convenience services: program ex
 
 ## 3. What are the user mode and kernel mode, and what is a system call?
 
-*concise; answered; judge unsupported: not checked*
+*concise; answered; judge unsupported: []*
 
 User mode is the execution state in which a program runs with limited privileges, while kernel mode is the privileged state where the operating system’s core functions can directly access hardware and memory resources[1]. A system call is the mechanism by which a user‐mode program requests a service from the kernel, causing a transition from user mode to kernel mode and back after the request is handled[1][2].
 
@@ -55,7 +55,7 @@ A parent creates a child process with the fork system call and then blocks until
 
 ## 7. Which multithreading model gives every user thread its own kernel thread?
 
-*concise; answered; judge unsupported: not checked*
+*concise; answered; judge unsupported: []*
 
 The one‐to‐one model creates a separate kernel thread for each user thread, giving every user thread its own kernel thread[3].
 
@@ -123,7 +123,7 @@ Not in your notes.
 
 ## 15. What are the advantages and disadvantages of the shortest seek time first disk scheduling algorithm?
 
-*concise; answered; judge unsupported: not checked*
+*concise; answered; judge unsupported: []*
 
 The Shortest Seek Time First algorithm gives a lower disk response time and is more efficient than FCFS[1]. Its drawbacks are that the algorithm runs more slowly and it can cause starvation of some requests[1].
 
@@ -131,7 +131,7 @@ The Shortest Seek Time First algorithm gives a lower disk response time and is m
 
 ## 16. What are the three methods of allocating disk blocks to files?
 
-*concise; answered; judge unsupported: not checked*
+*concise; answered; judge unsupported: []*
 
 The three methods of allocating disk blocks to files are contiguous allocation, linked allocation, and indexed allocation [1].
 
@@ -139,9 +139,33 @@ The three methods of allocating disk blocks to files are contiguous allocation, 
 
 ## 17. How can a dangling pointer be avoided when a file shared in an acyclic-graph directory is deleted?
 
-*concise; answered; judge unsupported: not checked*
+*concise; answered; judge unsupported: []*
 
 Use backpointers (or a daisy‐chain of backpointers) so that when a shared file is removed the system can locate and delete every directory entry that still points to it, preventing any dangling pointers [1].
 
 - [1] Unit 5_Part 1_File-system-interface, p.26 - ACYCLIC-GRAPH DIRECTORIES: ACYCLIC-GRAPH DIRECTORIES (CONT.) • Two different names (aliasing) • If dict deletes list dangling pointer Solutions: • Backpointers, so we can delete all pointers Variable size records a problem • Backpointers using a daisy chain organizat
+
+## 18. What do the three digits of chmod 761 mean for owner, group and public?
+
+*concise; answered; judge unsupported: []*
+
+The three digits of chmod 761 specify the access rights for each class of users: the first digit 7 gives the owner read, write and execute permission; the second digit 6 gives the group read and write permission but not execute; the third digit 1 gives the public only execute permission [1].
+
+- [1] Unit 5_Part 1_File-system-interface, p.38 - ACCESS LISTS AND GROUPS: ACCESS LISTS AND GROUPS • Mode of access: read, write, execute • Three classes of users RWX a) owner access 7 1 1 1 RWX b) group access 6 1 1 0 RWX c) public access 1 0 0 1 • Ask manager to create a group (unique name), say G, and add some 
+
+## 19. How does a UNIX process change its protection domain with the setuid bit, su and sudo?
+
+*concise; answered; judge unsupported: []*
+
+A UNIX process changes its protection domain by using the set‐uid bit: when a file with the setuid bit set is executed, the process’s user‐id is switched to the file’s owner for the duration of the execution and then reset afterward [1]. It can also switch domains by password: the su command temporarily adopts another user’s domain after the target user’s password is entered [1]. Finally, the sudo command prefixes a command to run it in another domain, provided the invoking user has the necessary privilege or supplies a password [1].
+
+- [1] Unit 5_Part 2_System Protection, p.7 - Domain Implementation (UNIX): Domain Implementation (UNIX) • Domain = user-id • Domain switch accomplished via file system • Each file has associated with it a domain bit (setuid bit) • When file is executed and setuid = on, then user-id is set to owner of the file bein
+
+## 20. In an access matrix, what do the rows and columns represent?
+
+*concise; answered; judge unsupported: []*
+
+Rows represent domains, and columns represent objects in an access matrix[1].
+
+- [1] Unit 5_Part 2_System Protection, p.10 - Access Matrix: Access Matrix • View protection as a matrix (access matrix) • Rows represent domains • Columns represent objects • Access(i, j) is the set of operations that a process executing in Domaini can invoke on Objectj
 

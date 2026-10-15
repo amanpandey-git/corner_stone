@@ -527,3 +527,18 @@ Updated: 2026-10-15, Phase 1 closed; Phase 2 (answering) starting.
 - Gate threshold and prompt tuning wait for the dev v1 numbers.
 ### Next atomic action
 - json_mode in llm.py + quiz.py (pick_slides, generate_quiz, pydantic validation, one top-up) + tests/test_quiz.py.
+## [2026-10-15] - Phase 5 step 2 + Phase 3: quiz, flashcards, API, schema v3
+### Done
+- quiz.py (pick_slides, generate_quiz, MCQ pydantic, one top-up), flashcards.py (generate_flashcards, card_from_question); json_mode in providers. tests: test_quiz 6, test_flashcards 3, test_llm +1.
+- Judge moved to Groq Qwen (Gemini free tier = 20 requests/day, measured); TTFT excludes rate-limit queueing.
+- api.py (FastAPI): health, documents (upload -> background job, list, delete), search, ask, ask/stream (SSE), page image, quiz, flashcards (generate, from-quiz, due, review). tests/test_api.py 7 tests (TestClient + FakeProvider).
+- Schema v3 (documents can be 'deleted'); local index rebuilt (old kept as data/index.v2.bak4); dev ranks identical (row 12).
+- Dev answer eval v1: citation accuracy 95.3%, faithfulness 75.0%, abstention 5/5, false abstention 1/33, TTFT p50 829 ms. Gate stays off (scores overlap).
+### In progress / partial
+- Prompt work on dev for faithfulness (uncited sentences).
+### Not started
+- GitHub Actions CI; Streamlit quiz/review pages; answer evaluation on test (after prompt work + reviewer + auditor); Next.js (needs Node 24).
+### Known issues / TODO
+- Starlette TestClient deprecation warning (httpx); harmless.
+### Next atomic action
+- Inspect uncited sentences in dev v1 answers, adjust the prompt (dev only), run dev v2.

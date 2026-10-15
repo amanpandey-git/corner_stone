@@ -143,7 +143,7 @@ def compact(cfg: dict, store: MetadataStore, index: HNSWIndex, index_path: Path)
     dead_rows = store.conn.execute("SELECT COUNT(*) FROM chunks WHERE status='deleted'").fetchone()[0]
     retired_pages = store.conn.execute(
         "SELECT COUNT(*) FROM pages WHERE doc_id IN (SELECT doc_id FROM documents "
-        "WHERE status IN ('replaced','abandoned'))").fetchone()[0]
+        "WHERE status IN ('replaced','abandoned','deleted'))").fetchone()[0]
     bytes_before = index_path.stat().st_size if index_path.is_file() else 0
     report = {"vectors_before": len(index), "vectors_after": len(index), "bytes_before": bytes_before,
               "bytes_after": bytes_before, "chunk_rows_removed": 0, "documents_cleaned": 0}

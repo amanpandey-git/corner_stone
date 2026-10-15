@@ -124,6 +124,9 @@ flashcards:                      # ARCHITECTURE 12.2
   max_cards: 20
   max_tokens: 2500
 
+api:                             # ARCHITECTURE 13
+  max_upload_mb: 50              # a 300-page slide deck is ~20-40 MB
+
 search:
   default_k: 5
   max_query_chars: 2000

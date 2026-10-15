@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS documents(
     n_pages_text    INTEGER NOT NULL DEFAULT 0,
     n_pages_flagged INTEGER NOT NULL DEFAULT 0,
     n_chunks        INTEGER NOT NULL DEFAULT 0,
-    status          TEXT NOT NULL CHECK(status IN ('pending','active','replaced','abandoned')),
+    status          TEXT NOT NULL CHECK(status IN ('pending','active','replaced','abandoned','deleted')),
     ingested_at     TEXT NOT NULL,
     unit            TEXT,
     source_path     TEXT
@@ -191,6 +191,16 @@ class MetadataStore:
         with self.conn:
             self._retire(doc_id)
 
+    def delete_document(self, doc_id: int) -> None:
+        """The student removed a document: status 'deleted', all its chunks soft-deleted, in one transaction.
+        Its vectors stay in the graph (filtered out) until compaction. KeyError if it is not active."""
+        with self.conn:
+            cur = self.conn.execute("UPDATE documents SET status='deleted' WHERE doc_id=? AND status='active'",
+                                    (doc_id,))
+            if cur.rowcount != 1:
+                raise KeyError(f"no active document with id {doc_id}")
+            self.conn.execute("UPDATE chunks SET status='deleted' WHERE doc_id=?", (doc_id,))
+
     def discard_pending(self, doc_id: int) -> None:
         """Abandon an interrupted ingest: document 'abandoned', its chunks soft-deleted."""
         with self.conn:
@@ -240,7 +250,7 @@ class MetadataStore:
 
     def purge_deleted(self) -> tuple[int, list[int]]:
         """Compaction, SQLite side (call only after the compacted index is saved). ONE transaction:
-        remove 'deleted' chunk rows and their FTS rows, and the page rows of replaced/abandoned documents.
+        remove 'deleted' chunk rows and their FTS rows, and the page rows of replaced/abandoned/deleted documents.
         Document rows stay (history). Returns (chunk rows removed, doc_ids whose pages were removed)."""
         with self.conn:
             rows = self.conn.execute("SELECT chunk_id, text, context_header FROM chunks WHERE status='deleted'"
@@ -250,7 +260,7 @@ class MetadataStore:
                                   "VALUES('delete', ?, ?, ?)", [tuple(r) for r in rows])
             self.conn.execute("DELETE FROM chunks WHERE status='deleted'")
             retired = [r[0] for r in self.conn.execute(
-                "SELECT doc_id FROM documents WHERE status IN ('replaced','abandoned') "
+                "SELECT doc_id FROM documents WHERE status IN ('replaced','abandoned','deleted') "
                 "AND doc_id IN (SELECT doc_id FROM pages)")]
             self.conn.executemany("DELETE FROM pages WHERE doc_id=?", [(d,) for d in retired])
         return len(rows), retired
@@ -274,6 +284,7 @@ class MetadataStore:
         return {
             "documents": docs.get("active", 0), "documents_pending": docs.get("pending", 0),
             "documents_replaced": docs.get("replaced", 0), "documents_abandoned": docs.get("abandoned", 0),
+            "documents_deleted": docs.get("deleted", 0),
             "chunks_active": chunks.get("active", 0), "chunks_pending": chunks.get("pending", 0),
             "chunks_deleted": chunks.get("deleted", 0),
             "pages_total": pg[0], "pages_with_text": pg[1], "pages_duplicate": pg[2],

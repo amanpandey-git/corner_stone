@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 # Version of the on-disk format (SQLite user_version and manifest index_version). v0.1 = 1.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3   # v3 (Stage 2 Phase 3): documents.status may be 'deleted'
 
 
 # ---------------------------------------------------------------- exceptions

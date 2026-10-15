@@ -146,7 +146,7 @@ from cornerstone import SCHEMA_VERSION, IndexVersionMismatch, ModelMismatch  # n
 
 def test_fresh_database_gets_current_schema_version(tmp_path):
     s = MetadataStore(tmp_path / "m.sqlite")
-    assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 2
+    assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION == 3
     s.close()
     MetadataStore(tmp_path / "m.sqlite").close()          # reopening a v2 database is fine
 
@@ -157,7 +157,7 @@ def test_v01_database_fails_loudly_with_rebuild_command(tmp_path):
     con.execute("CREATE TABLE documents(doc_id INTEGER PRIMARY KEY, file_name TEXT)")
     con.commit()
     con.close()
-    with pytest.raises(IndexVersionMismatch, match=r"schema 1 \(v0.1\).*needs schema 2.*cli rebuild"):
+    with pytest.raises(IndexVersionMismatch, match=r"schema 1 \(v0.1\).*needs schema 3.*cli rebuild"):
         MetadataStore(db)
     assert issubclass(IndexVersionMismatch, ModelMismatch)
     con = sqlite3.connect(db)                              # untouched: still the old table, no new ones
@@ -188,3 +188,18 @@ def test_fts_row_is_rolled_back_with_a_failed_write(store):
     with pytest.raises(sqlite3.IntegrityError):
         store.add_document(make_doc(), make_pages(), bad)
     assert store.conn.execute("SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts MATCH 'fine'").fetchone()[0] == 0
+
+
+def test_delete_document_hides_chunks_and_is_purged(store):
+    doc = make_doc()
+    ids = store.add_document(doc, make_pages(), make_chunks())
+    store.activate(doc.doc_id)
+    store.delete_document(doc.doc_id)
+    assert store.get_chunks(ids) == {} and store.get_document(doc.doc_id).status == "deleted"
+    with pytest.raises(KeyError):
+        store.delete_document(doc.doc_id)
+    with pytest.raises(KeyError):
+        store.delete_document(999)
+    assert store.stats()["documents_deleted"] == 1
+    removed, retired = store.purge_deleted()
+    assert removed == 4 and retired == [doc.doc_id]
