@@ -127,6 +127,9 @@ flashcards:                      # ARCHITECTURE 12.2
 
 api:                             # ARCHITECTURE 13
   max_upload_mb: 50              # a 300-page slide deck is ~20-40 MB
+  cors_origins:                  # the Next.js dev server (ARCHITECTURE 14); other origins get no CORS header
+    - http://localhost:3000
+    - http://127.0.0.1:3000
 
 search:
   default_k: 5

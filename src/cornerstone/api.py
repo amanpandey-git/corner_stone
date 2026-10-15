@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Iterator
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -117,6 +118,9 @@ def create_app(cfg: dict | None = None, provider_factory=make_provider, embedder
 
     app = FastAPI(title="Cornerstone", version="0.2",
                   description="Exam answers, quizzes and flashcards from your own notes, every claim cited to a slide.")
+    # the Next.js app runs on another port (another origin), so the browser needs CORS headers (ARCHITECTURE 14)
+    app.add_middleware(CORSMiddleware, allow_origins=cfg["api"].get("cors_origins", []), allow_methods=["*"],
+                       allow_headers=["*"])
     first = MetadataStore(index_dir / DB_FILE)      # creates the database (and checks its schema) once
     first.close()
     index = HNSWIndex.load(index_path, cfg) if index_path.is_file() else HNSWIndex.from_config(cfg)

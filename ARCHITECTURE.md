@@ -650,3 +650,26 @@ def sm2(ef: float, interval: int, reps: int, grade: int) -> tuple[float, int, in
 - `MetadataStore.delete_document(doc_id)` (new; status 'deleted', chunks 'deleted', one transaction; `purge_deleted` treats 'deleted' like 'replaced'). Unknown or not active -> `KeyError` -> 404.
 - Tests: `tests/test_api.py` with `fastapi.testclient.TestClient` on a temp index and `FakeProvider` (no network): every route, SSE event order, upload -> job done -> searchable, delete -> gone, 404/415/422/503.
 - CI (`.github/workflows/tests.yml`): ubuntu-latest, Python 3.12, CPU torch from the PyTorch CPU index, `pip install -r requirements.txt`, Hugging Face cache restored with `actions/cache` (key = model revisions), `pytest -q`. No secrets needed (FakeProvider); live-provider checks are not part of CI.
+
+## 14. Stage 2 - Phase 4: web app (`web/`, Next.js + TypeScript + Tailwind CSS)
+
+A thin client over the HTTP API (section 13). **No retrieval, answering, quiz or SM-2 logic in `web/`**: every page calls an API route and renders the JSON. The Streamlit page (8b) stays as the fallback and keeps working.
+
+- Toolchain: Node 24 LTS (v24.20.0 on this laptop), npm 11; exact versions pinned in `web/package.json` (no `^`) and `web/package-lock.json` committed. App Router, all pages are client components (`"use client"`); no Next.js API routes, no server actions, no database access.
+- API base URL: `NEXT_PUBLIC_API_URL` (default `http://127.0.0.1:8000`), read once in `web/lib/api.ts`. Image URLs from the API (`image_url`, relative) are prefixed with it.
+- CORS: `api.cors_origins` in config.yaml (default `http://localhost:3000`, `http://127.0.0.1:3000`), passed to FastAPI's `CORSMiddleware` (methods `*`, headers `*`, no credentials). An origin not in the list gets no `Access-Control-Allow-Origin` header. Test: preflight from an allowed origin succeeds, from another origin it has no allow header.
+- Run (two terminals): `PYTHONPATH=src uvicorn cornerstone.api:app --port 8000` and `cd web && npm run dev` (http://localhost:3000).
+
+| file | role |
+|---|---|
+| `web/lib/api.ts` | `API` base URL; typed `getJSON/postJSON/del` (throw `ApiError(status, detail)` with the API's `detail`; network failure -> "API not reachable at ...; start uvicorn"); `streamAsk(body, onDelta)` parses the `/ask/stream` SSE (`delta` / `final` / `error`) from `fetch` + `ReadableStream`; types mirror section 13 |
+| `web/components/Nav.tsx` | links to the four pages + API health dot (`GET /health`) |
+| `web/components/SlideModal.tsx` | overlay showing a page image with file + page label; closes on Esc / backdrop click |
+| `web/components/CitedText.tsx` | renders answer text, turning each `[n]`, `[1, 2]`, `[1-3]` marker into buttons that open source n's slide (display only; citation parsing and checking stay in `citations.py`) |
+| `web/app/documents/page.tsx` | upload (`POST /documents`, multi-file), job polling (`GET /documents/jobs/{id}` every 1 s until done/failed, report shown), list (`GET /documents`), delete with confirm |
+| `web/app/ask/page.tsx` | question, mode selector (the 5 modes from section 11.2), unit filter (from `/documents`), optional citation check; streamed answer; sources list; abstention shown as "Not in your notes."; flags (uncited / invalid / unsupported) shown as warnings |
+| `web/app/quiz/page.tsx` | unit filter + n -> `POST /quiz`; answer each MCQ, reveal explanation + source (click -> slide); a wrong answer offers "Make flashcard" (`POST /flashcards/from-quiz`) |
+| `web/app/review/page.tsx` | `GET /flashcards/due`; show front, reveal back + source slide, grade buttons (Again 1, Hard 3, Good 4, Easy 5) -> `POST /flashcards/{id}/review`; "Generate cards" (`POST /flashcards/generate`) for a unit |
+
+Edge cases (each shown, never silent): API down (banner with the start command); 503 LLM unavailable/limited (the API's message); 422 (message); upload of an unsupported type (415 message); job failed (report message); empty question (button disabled); no documents (hint to upload); no due cards (message + stats); missing slide image (`image_url` null -> "no image for this page").
+- CI: a `web` job in `.github/workflows/tests.yml` on Node 24: `npm ci`, `npm run lint`, `npm run build`. No API needed at build time.

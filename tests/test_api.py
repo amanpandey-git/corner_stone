@@ -182,3 +182,13 @@ def test_upload_rejects_wrong_type_and_delete_hides_document(env):
     assert client.get("/documents").json() == []
     assert client.get("/search", params={"q": "least privilege"}).json() == []
     assert client.delete(f"/documents/{doc_id}").status_code == 404
+
+
+def test_cors_allows_only_the_configured_web_origin(env):
+    client, _ = env
+    pre = {"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"}
+    ok = client.options("/ask/stream", headers={"Origin": "http://localhost:3000", **pre})
+    assert ok.status_code == 200
+    assert ok.headers["access-control-allow-origin"] == "http://localhost:3000"
+    other = client.get("/health", headers={"Origin": "http://evil.example"})
+    assert "access-control-allow-origin" not in other.headers
