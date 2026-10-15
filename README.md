@@ -57,7 +57,7 @@ flowchart LR
 | citation parser + judge check | `citations.py` |
 | quiz, flashcards, SM-2, study database | `quiz.py`, `flashcards.py`, `srs.py`, `study_store.py` |
 | HTTP API (FastAPI) | `api.py` |
-| UIs | `app/streamlit_app.py` (working); `web/` Next.js (pending Node 24 LTS) |
+| UIs | `web/` Next.js + TypeScript + Tailwind (Documents, Ask, Quiz, Flashcards; a thin client over the API); `app/streamlit_app.py` (fallback, same features) |
 
 Every contract (inputs, outputs, errors, edge cases) is in [`ARCHITECTURE.md`](ARCHITECTURE.md); decisions and bugs
 in [`NOTES.md`](NOTES.md); examiner questions in [`VIVA.md`](VIVA.md).
@@ -90,19 +90,35 @@ $env:PYTHONPATH = "src"
 .\.venv\Scripts\python -m uvicorn cornerstone.api:app --port 8000              # API; docs at http://127.0.0.1:8000/docs
 ```
 
+### Web app (two terminals; Node 24 LTS)
+
+```powershell
+# terminal 1 - the API (all the logic)
+$env:PYTHONPATH = "src"; .\.venv\Scripts\python -m uvicorn cornerstone.api:app --port 8000
+
+# terminal 2 - the web app, then open http://localhost:3000
+cd web
+npm ci          # first time only
+npm run dev
+```
+
+The browser calls the API directly (CORS allows `http://localhost:3000` and `http://127.0.0.1:3000`, set in
+`config.yaml` `api.cors_origins`). Another API address: set `NEXT_PUBLIC_API_URL` before `npm run dev`. If the web
+app is not working, the Streamlit page above has every feature.
+
 An index built by older code refuses to open and names the fix: `cli rebuild samples --yes` (the old folder is
 kept as `data/index.v<N>.bak`).
 
 ## Tests and evaluation
 
 ```powershell
-.\.venv\Scripts\python -m pytest -q                     # 273 tests, ~3 min, no API keys needed (fake provider)
+.\.venv\Scripts\python -m pytest -q                     # 274 tests, ~3.5 min, no API keys needed (fake provider)
 .\.venv\Scripts\python eval\retrieval_eval.py --split dev
 .\.venv\Scripts\python eval\answer_eval.py --split dev  # uses the real providers; paced for the free tier
 .\.venv\Scripts\python eval\quiz_eval.py
 ```
 
-GitHub Actions runs the test suite on every push (`.github/workflows/tests.yml`).
+GitHub Actions runs the test suite and the web app's lint + build on every push (`.github/workflows/tests.yml`).
 
 ## Known limitations
 

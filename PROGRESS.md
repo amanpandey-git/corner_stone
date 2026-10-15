@@ -1,20 +1,22 @@
 # PROGRESS - session log (append only below the Morning report)
 
 ## Morning report (kept current; overwritten each update - the log below stays append-only)
-Updated: 2026-10-16. Branch stage-2, 273 tests (local + GitHub Actions green). Everything except the Next.js web app is built.
+Updated: 2026-10-16. Branch stage-2, 274 tests; GitHub Actions green (pytest + new web lint/build job). Everything in scope is built, including the Next.js web app.
 - **Retrieval (test, once):** hit@5 **0.939** (31/33) vs v0.1 0.879; MRR 0.856; p95 47 ms. Target met.
 - **Answers (test, once, concise, 43 questions):** citation accuracy **100%** (75/75), faithfulness **96.9%** (31/32), "Not in your notes." **10/10**, first token p50 **0.88 s**. All four answer targets met (LLM-judged).
 - **5-mark test sample:** faithfulness **12.5% (1/8), target not met** (uncited intro/conclusion). Fixed after the test, declared in NOTES + report; dev 5-mark sample 12.5% -> 50% -> 100% (last run partial, 6/8).
 - **Quiz:** 25/25 valid; 24/25 answers supported by their slide.
-- **Docs:** README (Stage 2), docs/evaluation-report.md (eval-auditor checked every number), docs/demo-script.md, VIVA.md (incl. citation parser + SM-2 line by line).
-- **Blocked:** Next.js web app (Node v25.9.0; Node 24 LTS needed). Groq free tier: 200k tokens/day for the answer model, nearly used today; LLM evaluation paused until it frees.
+- **Web app (new, `web/`):** Next.js 16.4.1 + TypeScript + Tailwind 4, Node 24.20.0. Documents (upload, live ingestion status, list, delete), Ask (streamed answer, 5 modes, unit filter, clickable [n] -> slide image), Quiz (cited source, wrong answer -> flashcard), Flashcards (due cards, Again/Hard/Good/Easy via SM-2 in the API, generate). API has CORS for localhost:3000. Run: README "Web app (two terminals)". Streamlit still starts (fallback).
+- **Checked live:** API health + CORS header, /ask/stream through the real API (1 Groq call, 2-mark "What is a TLB?", cited Unit 3 p.43, image served), all 5 pages return 200, lint + production build clean. **Not checked in a browser by me** (no browser tool connected): clicking through the pages is item 1 below. Quiz/flashcard generation not called live (Groq quota; API routes covered by tests).
+- **Docs:** README (Stage 2 + web app run commands), docs/evaluation-report.md, docs/demo-script.md, VIVA.md (incl. web app questions).
 
 ### What I need to do
-1. Install Node 24 LTS (the web app is the only thing waiting on it). If it is not demoable by the morning of 24 Oct, the demo runs on Streamlit (all tabs work).
-2. Spot-check eval/results/answer_spotcheck_test.md (20 test answers in full) and note any disagreement with the judge in NOTES.md.
-3. Review the draft pull request https://github.com/amanpandey-git/corner_stone/pull/1 (stage-2 -> main). You merge and tag v0.2; I will not.
-4. Optional: delete old index backups in data/ (index.v1.bak, index.v2.bak..bak4, ~4 MB); I do not delete data.
-5. Demo day: warm the cache early; run no evaluations that day (Groq daily cap).
+1. Browser click-through (5 min): run the two terminals from the README, open http://localhost:3000. Documents shows 7 decks; Ask "What is a TLB?" mode 2-mark (cached now, no quota), click the blue 1 -> Unit 3 p.43 slide opens; Quiz Unit 4, answer one wrong, "Make flashcard"; Flashcards -> grade it. Tell me anything that looks wrong.
+2. Decide the demo UI: web app if item 1 works (go/no-go on the morning of 24 Oct per CLAUDE.md), else Streamlit. Update docs/demo-script.md tab names if you go with the web app (I left it on Streamlit wording).
+3. Spot-check eval/results/answer_spotcheck_test.md (20 test answers in full) and note any disagreement with the judge in NOTES.md.
+4. Review the draft pull request https://github.com/amanpandey-git/corner_stone/pull/1 (stage-2 -> main). You merge and tag v0.2; I will not.
+5. Optional: delete old index backups in data/ (index.v1.bak, index.v2.bak..bak4, ~4 MB); I do not delete data.
+6. Demo day: warm the cache early (ask the demo questions once); run no evaluations that day (Groq daily cap).
 
 ## [2026-10-15] - Step 0: Setup, docs, version lock
 ### Done
@@ -578,3 +580,20 @@ Updated: 2026-10-16. Branch stage-2, 273 tests (local + GitHub Actions green). E
 - 5-mark fix not re-measured on test (no further test checkpoint before the final report).
 ### Next atomic action
 - Prepare the draft PR stage-2 -> main (no merge, no tag).
+
+## [2026-10-16] - Phase 4: Next.js web app
+### Done
+- ARCHITECTURE 14 (web contract) + `api.cors_origins` in config.yaml; CORSMiddleware in api.py; test_cors_allows_only_the_configured_web_origin (274 tests pass).
+- web/: Next 16.4.1, React 19.3.0, Tailwind 4.3.3, TypeScript 5.9.3, exact pins + package-lock. lib/api.ts (typed calls, ApiError, SSE reader streamAsk), components Nav (health), SlideModal, CitedText, Notice.
+- Pages: /documents (5dc0a57), /ask (ae53cf0), /quiz (6f44fcd), /review (3f02e18); one commit each, pushed.
+- CI: `web` job (Node 24: npm ci, lint, build) in tests.yml (e2aed36), green on GitHub.
+- README two-terminal run commands; VIVA Phase 4 questions.
+### In progress / partial
+- None.
+### Not started
+- Browser click-through by the user (no browser tool in this session). docs/demo-script.md still uses Streamlit tab names.
+### Known issues / TODO
+- One Groq call used for the live /ask/stream check. Quiz and flashcard generation not called live.
+- Job status lives in API memory: restarting uvicorn loses in-progress job ids (documents already indexed stay).
+### Next atomic action
+- User: browser click-through (Morning report item 1); then decide web vs Streamlit for the demo.
