@@ -20,27 +20,35 @@ You are the development pilot for this repo, not an autocomplete. You:
 - Keep state in files in the repo, never only in chat.
 - Teach while building: the user must be able to explain every part in the viva.
 
-## II. PROJECT LOCK
-In scope for Stage 1:
-1. Ingestion of PDF and DOCX files.
-2. Extraction with location metadata. PDF: page number. DOCX: paragraph/heading position (DOCX has no fixed pages, never invent page numbers). Pages with no text layer (scanned) are flagged "needs OCR" with a reason, never silently skipped.
-3. Cleaning: remove repeated headers/footers and page numbers, normalise whitespace, keep symbols and ligatures (maths symbols, fi/fl) intact, without garbling.
-4. Chunking: structure-aware (split on headings/sections first, then by token length with overlap). Every chunk keeps: chunk_id, doc_id, file name, page or paragraph range, section heading, chunk index, token count.
-5. Embeddings: English sentence-embedding model that runs well on a CPU laptop with 8 GB RAM. Follow its recommended query prefix. Vectors normalised.
-6. Vector index: HNSW. Cosine space. Saved to disk. Incremental: adding a file never rebuilds the index. (hnswlib could not be built on this Windows machine, so faiss-cpu IndexHNSWFlat is used behind the same interface; see NOTES.md.)
-7. Metadata store: SQLite with documents, pages and chunks, keyed by the same integer IDs used as HNSW labels.
-8. Deduplication: SHA-256 of each file. Same file again = skip. Same file name with new content = replace the old version (mark its old vectors deleted).
-9. Search, to prove the index works: query -> top-k chunks with file name, page/section, score and snippet. No LLM.
-10. Interface: a CLI first (ingest, search, stats). Then, if time allows, a minimal Streamlit page (upload, ingestion report, stats, search with sources).
-11. Verification: HNSW vs exact brute-force search, plus a small labelled retrieval set (Section X).
+## II. PROJECT LOCK (Stage 2: study assistant; Stage 1 text archived at the end of this file)
+Product (decided): an exam-prep assistant for a student studying their own course slides. It answers only from their notes, every claim cites file and page, and the citation opens the slide image. When the notes don't contain the answer it says "not in your notes". Answers can be shaped as 2, 5 or 10-mark university answers. It also generates quizzes (MCQs with cited answers) and flashcards (with spaced repetition) per unit or per document. The demo leads with cited exam-style answers; the quiz + flashcard loop is the second act. Both are core scope.
+Tie-breaker: when a decision is unclear, choose whatever makes citations, abstention and measured quality stronger.
 
-NOT building now (Stage 2): LLM answer generation, citations in answers, "I don't know" handling, reranking, hybrid BM25 search, quizzes/flashcards/any learning feature, OCR, table extraction, equations and images, non-English documents and multilingual search, knowledge graph/concept map, HNSW from scratch, FastAPI, auth, deployment, React. If reaching for any of these: stop, that is scope creep.
+In scope for Stage 2, built in this order (contracts in ARCHITECTURE.md before each phase's code):
+1. Retrieval quality: near-duplicate page removal at ingest (record which page each skipped slide duplicates) + collapse of near-identical results at query time; slide-aware chunking (one slide per chunk where it fits, exact page numbers, a "file > section" context header prepended before embedding); page images (PyMuPDF PNG under data/); hybrid search (SQLite FTS5 + vector, merged with Reciprocal Rank Fusion; rank_bm25 only if FTS5 is missing); cross-encoder reranker on the top 30; filter by document and by unit; index compaction command; schema + index version bump (an old index fails loudly and offers a rebuild). After each change: an ablation row on the dev split (change, hit@5, MRR, p95 latency). Test split reported once, at the end of the phase.
+2. Answering: provider-agnostic LLM interface with Groq and Gemini adapters chosen in config.yaml (timeouts, retries, rate-limit handling, answer cache); grounded prompt (answer only from retrieved chunks, numbered [n] citations mapped to file + page, "not in your notes" when evidence is insufficient); modes concise / detailed / 2-mark / 5-mark / 10-mark; follow-up rewriting from the last few turns; streaming; citation check (each cited chunk supports its sentence, unsupported claims flagged); answer evaluation on the test split (citation accuracy, faithfulness, abstention rate, time to first token) with an LLM judge + 20 answers listed for the user's manual spot check; runs paced for free-tier limits.
+3. API: FastAPI endpoints for documents (upload with background ingestion + status, list, delete), search, ask (streaming), page image, quiz, flashcards, health. OpenAPI docs, TestClient tests, GitHub Actions running pytest on every push.
+4. Frontend: Next.js + TypeScript in web/, Tailwind CSS only: upload + list with ingestion status, chat with streamed answers, clickable citations showing the slide image, answer-mode selector. Simple components; all logic stays in the API. The Streamlit page keeps working as a fallback.
+5. Learning: quiz generator (MCQs from a document or unit, each correct answer cited to its slide, JSON validated with Pydantic, retried on failure); flashcards from a unit, each linked to its source slide, SM-2 spaced repetition stored in SQLite; a wrong quiz answer can become a flashcard; quiz and review pages in the app.
+6. Polish: README, evaluation report with the ablation table, demo script (5-mark answer -> click citation -> slide; unrelated question -> "not in your notes"; quiz; flashcards), PR stage-2 -> main, tag v0.2.
+Only if everything else is green: weak-topic tracking.
 
-Design for Stage 2 anyway: search() returns result objects with full chunk metadata, so generation, reranking and BM25 can plug in later without changing the index.
+NOT building in Stage 2: OCR, PPTX/URL ingestion, table and diagram extraction, notebooks, accounts or multi-user, an external vector database, deployment, knowledge graph, audio, past-paper analysis. Still out: non-English documents. If reaching for any of these: stop, that is scope creep.
 
-Success for Stage 1: zero silent failures (every page is either indexed or flagged with a reason), ANN recall@10 vs brute force >= 0.95, and hit@5 >= 0.8 on the user's labelled questions (report the real number either way).
+Targets (on the test split; report the real number either way): hit@5 >= 0.90 and not below the v0.1 test baseline (0.960, eval/results/baseline_v0.1_test.md); reranked search p95 < 1 s on this laptop; citation accuracy >= 90%; faithfulness >= 90%; >= 8 of the 10 test out-of-scope questions answered "not in your notes"; time to first token p50 < 3 s; >= 95% of quiz questions valid.
+
+Evaluation rules: eval/questions.jsonl has a dev and a test split (rule in eval/QUESTIONS_FORMAT.md). Tune only on dev. The test split is run only at: the baseline (done), the end of Phase 1, the Phase 2 answer evaluation, and the final report; every test run is logged in NOTES.md, and nothing is changed because of a test result without saying so next to the number.
+
+Cut list (if behind): SM-2 scheduling (keep plain flashcards), then quiz UI polish, then neighbour expansion. If the Next.js app stalls, demo on the Streamlit page over the same API. Never cut citations, abstention, the evaluation, the tests, or quiz + flashcard generation.
+
+Learning rule: for Reciprocal Rank Fusion, SM-2 and the citation parser, the user writes the core function: give the structure and tests, then review their code. Everything else: explain the key lines in VIVA.md.
+
+Protected (never touch): ../corner_stone_stable (the Stage 1 evaluation demo), branch stage-1-stable, tags v0.1-*. Never commit .env, keys, data/, page images, model files or files over 5 MB; never print keys. Never uninstall already-installed packages. When the user says "freeze": stop, snapshot to PROGRESS.md, commit and push.
+
+Stage 2 overrides: Section V "work on main" -> work on branch stage-2, PR to main at the end. Section XV build order -> the phases above. Section X metrics -> plus the Stage 2 targets above (new metrics only via ARCHITECTURE.md).
 
 ## III. REPO STRUCTURE (fixed - do not improvise another layout)
+Stage 2 adds, at top level: `web/` (Next.js app), `.github/workflows/` (CI), `data/images/` (page PNGs, gitignored), and new modules under `src/cornerstone/` whose names are fixed in ARCHITECTURE.md before each phase.
 ```
 corner_stone/
 ├── CLAUDE.md            # these rules; read at the start of every session
@@ -171,3 +179,24 @@ Not about shipping features fast. It is evidence: a correct, verified indexing p
 ## Standing decisions made after v1.0
 - 2026-10-15: user said proceed to the next step without waiting for "go" unless blocked.
 - 2026-10-15: faiss-cpu IndexHNSWFlat replaces hnswlib (no wheel, no C++ compiler). See NOTES.md.
+- 2026-10-15: Stage 2 started on branch stage-2 (Section II rewritten). Final evaluation date: NOT YET GIVEN (asked).
+
+## ARCHIVED - Stage 1 Section II (v1.0, superseded 2026-10-15)
+In scope for Stage 1:
+1. Ingestion of PDF and DOCX files.
+2. Extraction with location metadata. PDF: page number. DOCX: paragraph/heading position (DOCX has no fixed pages, never invent page numbers). Pages with no text layer (scanned) are flagged "needs OCR" with a reason, never silently skipped.
+3. Cleaning: remove repeated headers/footers and page numbers, normalise whitespace, keep symbols and ligatures (maths symbols, fi/fl) intact, without garbling.
+4. Chunking: structure-aware (split on headings/sections first, then by token length with overlap). Every chunk keeps: chunk_id, doc_id, file name, page or paragraph range, section heading, chunk index, token count.
+5. Embeddings: English sentence-embedding model that runs well on a CPU laptop with 8 GB RAM. Follow its recommended query prefix. Vectors normalised.
+6. Vector index: HNSW. Cosine space. Saved to disk. Incremental: adding a file never rebuilds the index. (hnswlib could not be built on this Windows machine, so faiss-cpu IndexHNSWFlat is used behind the same interface; see NOTES.md.)
+7. Metadata store: SQLite with documents, pages and chunks, keyed by the same integer IDs used as HNSW labels.
+8. Deduplication: SHA-256 of each file. Same file again = skip. Same file name with new content = replace the old version (mark its old vectors deleted).
+9. Search, to prove the index works: query -> top-k chunks with file name, page/section, score and snippet. No LLM.
+10. Interface: a CLI first (ingest, search, stats). Then, if time allows, a minimal Streamlit page (upload, ingestion report, stats, search with sources).
+11. Verification: HNSW vs exact brute-force search, plus a small labelled retrieval set (Section X).
+
+NOT building now (Stage 2): LLM answer generation, citations in answers, "I don't know" handling, reranking, hybrid BM25 search, quizzes/flashcards/any learning feature, OCR, table extraction, equations and images, non-English documents and multilingual search, knowledge graph/concept map, HNSW from scratch, FastAPI, auth, deployment, React. If reaching for any of these: stop, that is scope creep.
+
+Design for Stage 2 anyway: search() returns result objects with full chunk metadata, so generation, reranking and BM25 can plug in later without changing the index.
+
+Success for Stage 1: zero silent failures (every page is either indexed or flagged with a reason), ANN recall@10 vs brute force >= 0.95, and hit@5 >= 0.8 on the user's labelled questions (report the real number either way).

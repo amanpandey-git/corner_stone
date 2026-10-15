@@ -1,4 +1,4 @@
-# ARCHITECTURE - Cornerstone Stage 1 (source of truth)
+# ARCHITECTURE - Cornerstone (source of truth; sections 1-9 Stage 1, section 10+ Stage 2)
 
 If code and this file disagree, fix this file first and log why in NOTES.md.
 
@@ -282,3 +282,143 @@ Thin layer: `open_stack` (per script run), `ingest_file` for uploads saved to `p
 - **BM25 / hybrid**: second retriever over `chunks.text` (SQLite FTS5); merge ranks (RRF) in a new `hybrid_search()`.
 - **OCR**: pages with `status='needs_ocr'` are already stored; an OCR job fills their text and re-runs chunk + embed for that doc only.
 - **Multilingual**: change `embedding.model_name`; the manifest forces a deliberate re-index.
+
+## 10. Stage 2 - Phase 1: retrieval quality (contracts; no code before the user's "go")
+
+Goal: fix the v0.1 failure modes seen in Stage 1 (duplicate slides eating top-k, sections merged across slides, mis-detected headings, vector-only misses on exact terms) and give Phase 2 exact, image-backed citations. Every change below is switchable in `config.yaml` so each one gets its own ablation row on the dev split (10.10).
+
+```mermaid
+flowchart LR
+  P[pages] --> D{near-duplicate of an earlier page?}
+  D -->|yes| DP[status=duplicate, duplicate_of=p.N]
+  D -->|no| SC[slide chunker: 1 slide = 1 chunk] --> H[prepend file > section] --> E[embed] --> V[(HNSW)]
+  SC --> F[(FTS5 chunks_fts)]
+  P --> IMG[render PNG per page] --> I[(data/images)]
+  Q[query + filters] --> VQ[vector top 30] --> RRF[RRF merge]
+  Q --> KQ[FTS5 bm25 top 30] --> RRF
+  RRF --> C[collapse near-identical] --> RR[cross-encoder rerank] --> R[top k SearchResult]
+```
+
+### 10.1 Schema version 2 and the loud failure
+- `SCHEMA_VERSION = 2`, stored in SQLite `PRAGMA user_version` and in `manifest.json` `index_version`. A v0.1 database has `user_version = 0`.
+- `MetadataStore.__init__` and `HNSWIndex.load` raise **`IndexVersionMismatch`** (new `CornerstoneError`) when the stored version != 2: "index was built with schema 1 (v0.1); this code needs schema 2. Rebuild: python -m cornerstone.cli rebuild <files or folder> --yes (the old index is kept as data/index.v1.bak)". `open_stack` prints it and exits 1; it never migrates silently.
+- New CLI: `rebuild <file|dir>... [--yes]` renames `index_dir` to `index_dir + ".v<N>.bak"` (never deletes), creates a fresh v2 index and re-ingests the given files. Without `--yes` it asks.
+
+SQLite v2 changes (all additive; same ID mapping chunk_id == index label):
+```
+documents  + unit TEXT NULL          -- from the file name via retrieval.unit_pattern, e.g. "Unit 4"; NULL if no match
+           + source_path TEXT NULL   -- absolute path at ingest, so rebuild/compaction can find the file again
+pages      + duplicate_of INT NULL   -- page_no (same document) this page duplicates
+           + image_path TEXT NULL    -- relative to paths.image_dir; NULL if rendering failed (reason in report)
+           status gains 'duplicate'  -- reason = "near-duplicate of p.N"
+chunks     + context_header TEXT     -- "<file stem> > <section heading>" (or just the stem)
+chunks_fts   VIRTUAL TABLE fts5(text, context_header, content='chunks', content_rowid='chunk_id',
+                                tokenize='porter unicode61')   -- written in the same transaction as chunks
+```
+FTS5 verified in this venv: SQLite 3.49.1, `CREATE VIRTUAL TABLE ... USING fts5` and `bm25()` work, so `rank_bm25` is not needed.
+
+### 10.2 Near-duplicate pages at ingest (`src/cornerstone/dedup.py`)
+```python
+def page_signature(text: str) -> set[str]            # word 3-shingles of lower-cased, whitespace-collapsed text (digits kept)
+def find_duplicate_pages(pages: list[Page], cfg: dict) -> dict[int, int]   # {page_no: earlier page_no it duplicates}
+```
+- Within one document only. A page is a duplicate of the **earliest** earlier `ok` page whose shingle Jaccard >= `dedup.page_jaccard` (0.95).
+- Pages with fewer than `dedup.min_chars` (80) characters are never marked: short title/picture slides ("Practice Problem" x5, "Magnetic Disk") share text but differ in their images.
+- Digits are kept, so the FCFS/SSTF/SCAN example slides (same wording, different numbers) are not merged.
+- The pipeline sets `status='duplicate'`, `duplicate_of=N`, `reason="near-duplicate of p.N"`; the page is not chunked or embedded, is counted in the ingest report (`pages_duplicate`) and in `stats`. Zero silent failures: indexed + flagged + duplicate = total.
+- DOCX sections (page_no None) are not deduplicated in Phase 1 (no real DOCX in samples; documented).
+
+### 10.3 Query-time collapse (`dedup.py`)
+```python
+def collapse_results(results: list[SearchResult], cfg: dict) -> list[SearchResult]
+```
+- Walks results in rank order; drops a result whose text-shingle Jaccard with a kept higher-ranked result is >= `dedup.result_jaccard` (0.90), across documents too. The kept result records the dropped location in `SearchResult.also_on: list[tuple[str, int | None]]` (file, page) so a citation can say "also on p.N". Ranks renumbered 1..n; order otherwise unchanged; empty in -> empty out.
+
+### 10.4 Slide-aware chunking (`chunking.py`)
+```python
+def chunk_pages(pages, doc_id, file_name, cfg, count_tokens) -> list[Chunk]   # signature unchanged
+```
+- `chunking.mode: slide` (default for PDF) | `section` (Stage 1 behaviour; always used for DOCX, which has no pages).
+- Slide mode: one chunk per `ok` page, `page_start == page_end`, except a merged fragment (below).
+- Section heading of a slide = its first detected heading if it is within the first `chunking.slide_title_lines` (2) lines, else the heading carried over from the previous slide. This replaces "repeated titles merge consecutive slides into one section" and stops a body line mid-slide from becoming the section of later slides.
+- `context_header = f"{Path(file_name).stem} > {section}"` (or the stem alone). Embedded text = `context_header + "\n" + text`; `Chunk.text` stays the slide text (display/snippets); `token_count` counts the embedded text.
+- A slide whose embedded text exceeds `chunking.slide_max_tokens` (448 = 480 hard max minus header margin) is split with the Stage 1 window logic **inside that page** (overlap kept, page exact). Nothing is truncated.
+- A slide under `chunking.min_tokens` (40) is merged into the **next** slide's chunk (range p..p+1; the last slide merges backwards). The only case a chunk spans two pages; documented.
+- Empty input -> `[]`.
+
+### 10.5 Page images (`src/cornerstone/ingest/page_images.py`)
+```python
+def render_page_images(pdf_path: Path, doc_id: int, cfg: dict) -> tuple[dict[int, str], list[str]]
+    # ({page_no: relative png path}, [warnings]); one page in memory at a time
+```
+- Every page (including flagged and duplicate ones) -> `<paths.image_dir>/<doc_id>/p<NNN>.png` at `images.dpi` (110: a 13.33 x 7.5 in slide becomes ~1470 x 825 px, readable, ~150-300 KB).
+- A page that fails to render -> `pages.image_path` NULL + warning in the ingest report; ingest continues. DOCX: no images.
+- Rendered after the index is saved and before `activate`; on `discard_pending` or compaction of a document its image folder is deleted. `images.enabled: false` skips rendering (tests).
+
+### 10.6 Hybrid search (`src/cornerstone/hybrid.py`)
+```python
+def keyword_search(query: str, k: int, store: MetadataStore, filters: SearchFilters | None = None) -> list[tuple[int, float]]
+    # [(chunk_id, bm25 score)] best first; active chunks only
+def rrf_merge(rankings: list[list[int]], k_rrf: int = 60) -> list[tuple[int, float]]
+    # USER WRITES THIS (learning rule). score(d) = sum over rankings containing d of 1 / (k_rrf + rank_d), rank 1-based;
+    # sorted by score desc; ties broken by best single rank, then chunk_id. Empty input -> [].
+```
+- FTS query built from the `\w+` tokens of the query, each double-quoted, joined with `OR`, so punctuation or FTS syntax in a question can never raise. No tokens -> `[]`, and the vector side alone is used.
+- `k_rrf = retrieval.rrf_k` (60, the constant from the RRF paper; it damps the very top ranks so neither retriever dominates).
+
+### 10.7 Reranker (`src/cornerstone/rerank.py`)
+```python
+class Reranker:
+    def __init__(self, cfg: dict) -> None                     # loads the cross-encoder once (CPU)
+    def rerank(self, query: str, results: list[SearchResult], top_k: int) -> list[SearchResult]
+```
+- Proposed model: **`cross-encoder/ms-marco-MiniLM-L-6-v2`**: 22.7M parameters (~90 MB), 6 layers, English, trained for passage ranking on MS MARCO, loaded with sentence-transformers `CrossEncoder` (already installed: no new dependency). 30 pairs of ~300 tokens should fit well under 1 s on the i5-1135G7; measured in the ablation table. Rejected: `BAAI/bge-reranker-base` (278M, ~10x slower, would break p95 < 1 s), `ms-marco-MiniLM-L-12-v2` (2x slower for a small gain), `ms-marco-TinyBERT-L-2-v2` (faster but clearly weaker). Revision hash pinned in config and section 7 at download.
+- Pairs: (raw query **without** the bge prefix, `context_header + "\n" + text`), max 512 tokens. `SearchResult.score` becomes the reranker score; earlier scores stay in `SearchResult.scores`.
+- Model cannot be loaded (offline, no cache) -> `RerankerUnavailable` (new `CornerstoneError`) naming the model; never a silent fallback.
+
+### 10.8 `search()` stays the single entry point (`search.py`)
+```python
+@dataclass class SearchFilters: doc_ids: list[int] | None = None; units: list[str] | None = None
+def search(query, k, cfg, store, index, embedder, ef_search=None,
+           filters: SearchFilters | None = None, reranker: Reranker | None = None) -> list[SearchResult]
+```
+- Stages follow config flags: vector top `retrieval.candidates` (30) -> if `retrieval.hybrid`: keyword top 30 + `rrf_merge` -> if `retrieval.collapse`: `collapse_results` -> if `retrieval.rerank`: `reranker.rerank` (`ValueError` if the flag is on and no reranker is passed) -> first k. All flags off == Stage 1 behaviour (the ablation baseline).
+- `SearchResult` gains `scores: dict[str, float]` (keys among `vector`, `bm25`, `rrf`, `rerank`) and `also_on` (10.3), both with defaults, so Stage 1 callers keep working.
+- Filters apply inside both retrievers (FTS via a join on documents; vector via the existing over-fetch loop). A filter matching nothing -> `[]`; an unknown unit -> `[]`, not an error. `units` compare with `documents.unit`.
+- Errors unchanged: `EmptyQuery`; `ValueError` for k < 1.
+
+### 10.9 Compaction (`cli compact [--yes]`; `compact(cfg, store, index, index_path) -> dict`)
+- Rebuilds the faiss index from the vectors of `active` chunks only (read back with `HNSWIndex.vectors()`; `IndexHNSWFlat` keeps raw vectors), writes it to a temp file, runs `check_sync` against it, atomically replaces the index, and only then deletes the `deleted` chunk rows, their FTS rows, the pages of `replaced`/`abandoned` documents and their image folders. `documents` rows stay (history).
+- A crash after the swap but before the SQLite delete leaves deleted rows without vectors, which `check_sync` already accepts. Prints vectors and bytes on disk before/after. Nothing to compact -> reports 0, files untouched.
+
+### 10.10 Ablation protocol
+- `eval/retrieval_eval.py --split dev --config <file>` (a `--config` option is added) runs the same harness on a config variant. One row per change in `eval/results/ablation_dev.md`: `change | commit | hit@5 | MRR | p95 ms | notes`, starting with the v0.1 dev row. Planned rows, in build order: dedup at ingest; slide chunking + context header; hybrid RRF; collapse at query; reranker. Filters and compaction do not change ranking, so they get tests, not rows.
+- The test split is run once at the end of Phase 1 and compared with `eval/results/baseline_v0.1_test.md`.
+
+### 10.11 Config additions (values confirmed in Phase 1)
+| key | value | reason |
+|---|---|---|
+| chunking.mode | slide | slides are the citation unit; one slide per chunk gives exact page citations |
+| chunking.slide_max_tokens | 448 | 480 hard max minus room for the context header |
+| chunking.slide_title_lines | 2 | a slide title sits in the first lines; deeper "headings" were body text (NOTES 2026-10-15) |
+| dedup.page_jaccard / dedup.min_chars | 0.95 / 80 | verbatim repeats (Unit 4 p.27-51) score ~1.0; short title slides excluded |
+| dedup.result_jaccard | 0.90 | collapses copies across files or near-copies that slipped through ingest |
+| retrieval.candidates | 30 | reranking 30 pairs fits the 1 s budget; recall headroom over k = 5 |
+| retrieval.rrf_k | 60 | standard RRF constant |
+| retrieval.hybrid / collapse / rerank | true | switches for the ablation table |
+| retrieval.unit_pattern | `(?i)unit\s*(\d+)` | sample file names start with "Unit N" |
+| rerank.model_name / model_revision | cross-encoder/ms-marco-MiniLM-L-6-v2 / pinned at download | 10.7 |
+| images.enabled / images.dpi / paths.image_dir | true / 110 / data/images | 10.5; data/ is gitignored |
+
+### 10.12 Phase 1 edge cases
+| case | behaviour | test |
+|---|---|---|
+| v0.1 index opened by v2 code | `IndexVersionMismatch` naming the rebuild command; exit 1 | test_metadata_store, test_index |
+| a PDF that repeats its own slides (Unit 4) | later copies `duplicate` with `duplicate_of`, counted in report | test_dedup |
+| short identical title slides | not deduplicated (min_chars) | test_dedup |
+| query of only punctuation / FTS syntax (`"`, `*`, `NEAR`) | no FTS error; vector results only | test_hybrid |
+| filter matching no document | `[]` | test_search |
+| rerank flag on with no reranker / model unavailable | `ValueError` / `RerankerUnavailable` | test_rerank |
+| image render failure on one page | page indexed, image NULL, warning in report | test_page_images |
+| compaction with nothing deleted / crash mid-compaction | no-op / `check_sync` clean after restart | test_compact |
+| slide longer than slide_max_tokens | split inside the page, page exact | test_chunking |

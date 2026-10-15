@@ -1,20 +1,65 @@
-{"question": "What are the two parts of an operating system and what does each one do?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [12]}
-{"question": "Which five services does an operating system provide for the convenience of its users?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [14, 15]}
-{"question": "What are the user mode and kernel mode, and what is a system call?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [43]}
-{"question": "What does the dispatcher do and which steps does it involve?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [40]}
-{"question": "How does the size of the time quantum affect context switches, response time and starvation in round robin scheduling?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [75, 76]}
-{"question": "Which system calls does a parent use to create a child process and to wait for it to finish?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [34]}
-{"question": "Which multithreading model gives every user thread its own kernel thread?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [115]}
-{"question": "What three requirements must a solution to the critical section problem satisfy?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [6]}
-{"question": "How do binary semaphores differ from counting semaphores?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [11, 12]}
-{"question": "What does a cycle in a resource allocation graph tell us when every resource has a single instance?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [44]}
-{"question": "Which of first fit, best fit and worst fit used memory most efficiently for the 212 KB, 417 KB, 112 KB and 426 KB requests?", "file": "Unit 3_Memory management.pdf", "pages": [22]}
-{"question": "What is a TLB and why is it used with page tables?", "file": "Unit 3_Memory management.pdf", "pages": [43]}
-{"question": "How many page faults does FIFO page replacement produce for the reference string with three frames?", "file": "Unit 3_Memory management.pdf", "pages": [48]}
-{"question": "What is the total seek time for FCFS disk scheduling on a 200-track disk with the head starting at 50?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [10], "equivalent_pages": [35]}
-{"question": "What are the advantages and disadvantages of the shortest seek time first disk scheduling algorithm?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [14], "equivalent_pages": [39]}
-{"question": "What are the three methods of allocating disk blocks to files?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [45]}
-{"question": "How can a dangling pointer be avoided when a file shared in an acyclic-graph directory is deleted?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [26]}
-{"question": "What do the three digits of chmod 761 mean for owner, group and public?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [38]}
-{"question": "How does a UNIX process change its protection domain with the setuid bit, su and sudo?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [7]}
-{"question": "In an access matrix, what do the rows and columns represent?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [10]}
+{"id": 1, "split": "dev", "question": "What are the two parts of an operating system and what does each one do?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [12]}
+{"id": 2, "split": "dev", "question": "Which five services does an operating system provide for the convenience of its users?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [14, 15]}
+{"id": 3, "split": "dev", "question": "What are the user mode and kernel mode, and what is a system call?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [43]}
+{"id": 4, "split": "dev", "question": "What does the dispatcher do and which steps does it involve?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [40]}
+{"id": 5, "split": "dev", "question": "How does the size of the time quantum affect context switches, response time and starvation in round robin scheduling?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [75, 76]}
+{"id": 6, "split": "dev", "question": "Which system calls does a parent use to create a child process and to wait for it to finish?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [34]}
+{"id": 7, "split": "dev", "question": "Which multithreading model gives every user thread its own kernel thread?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [115]}
+{"id": 8, "split": "dev", "question": "What three requirements must a solution to the critical section problem satisfy?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [6]}
+{"id": 9, "split": "dev", "question": "How do binary semaphores differ from counting semaphores?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [11, 12]}
+{"id": 10, "split": "dev", "question": "What does a cycle in a resource allocation graph tell us when every resource has a single instance?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [44]}
+{"id": 11, "split": "dev", "question": "Which of first fit, best fit and worst fit used memory most efficiently for the 212 KB, 417 KB, 112 KB and 426 KB requests?", "file": "Unit 3_Memory management.pdf", "pages": [22]}
+{"id": 12, "split": "dev", "question": "What is a TLB and why is it used with page tables?", "file": "Unit 3_Memory management.pdf", "pages": [43]}
+{"id": 13, "split": "dev", "question": "How many page faults does FIFO page replacement produce for the reference string with three frames?", "file": "Unit 3_Memory management.pdf", "pages": [48]}
+{"id": 14, "split": "dev", "question": "What is the total seek time for FCFS disk scheduling on a 200-track disk with the head starting at 50?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [10], "equivalent_pages": [35]}
+{"id": 15, "split": "dev", "question": "What are the advantages and disadvantages of the shortest seek time first disk scheduling algorithm?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [14], "equivalent_pages": [39]}
+{"id": 16, "split": "dev", "question": "What are the three methods of allocating disk blocks to files?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [45]}
+{"id": 17, "split": "dev", "question": "How can a dangling pointer be avoided when a file shared in an acyclic-graph directory is deleted?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [26]}
+{"id": 18, "split": "dev", "question": "What do the three digits of chmod 761 mean for owner, group and public?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [38]}
+{"id": 19, "split": "dev", "question": "How does a UNIX process change its protection domain with the setuid bit, su and sudo?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [7]}
+{"id": 20, "split": "dev", "question": "In an access matrix, what do the rows and columns represent?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [10]}
+{"id": 21, "split": "test", "question": "What are the four components of a computer system?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [11]}
+{"id": 22, "split": "test", "question": "Besides user services, which three services does the OS provide to keep the system itself running efficiently?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [16]}
+{"id": 23, "split": "test", "question": "What is a real-time operating system, what types exist and what are its advantages?", "file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [37, 38]}
+{"id": 24, "split": "dev", "question": "What does fork return in the parent process, in the child process and on failure?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [35]}
+{"id": 25, "split": "test", "question": "Using exponential averaging with alpha 0.5, what is the predicted burst time for the fifth process?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [63]}
+{"id": 26, "split": "test", "question": "What is the convoy effect in FCFS CPU scheduling?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [48]}
+{"id": 27, "split": "test", "question": "What are the five basic states a process goes through from creation to termination?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [9, 10]}
+{"id": 28, "split": "test", "question": "What happens to the whole process when a user-level thread performs a blocking operation, compared with a kernel-level thread?", "file": "Unit 1_Part 2_ Process management.pdf", "pages": [108]}
+{"id": 29, "split": "test", "question": "What is the minimum number of units of a resource that guarantees no deadlock for n processes?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [30]}
+{"id": 30, "split": "dev", "question": "How can the circular wait condition be eliminated to prevent deadlock?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [36]}
+{"id": 31, "split": "test", "question": "Which data structures (Available, Max, Allocation, Need) does the Banker's algorithm maintain and what do they mean?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [48]}
+{"id": 32, "split": "test", "question": "What is the difference between a safe state and an unsafe state?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [38]}
+{"id": 33, "split": "test", "question": "In the first and second readers-writers problems, who can starve?", "file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [17]}
+{"id": 34, "split": "test", "question": "What are the advantages and disadvantages of dynamic partitioning?", "file": "Unit 3_Memory management.pdf", "pages": [16]}
+{"id": 35, "split": "test", "question": "For a logical address space of eight pages of 1024 words mapped onto 32 frames, how many bits are in the logical and physical addresses?", "file": "Unit 3_Memory management.pdf", "pages": [41, 42]}
+{"id": 36, "split": "dev", "question": "What does the modified (dirty) bit in a page table entry indicate?", "file": "Unit 3_Memory management.pdf", "pages": [33]}
+{"id": 37, "split": "test", "question": "How many page faults does LRU page replacement give for the reference string with three frames?", "file": "Unit 3_Memory management.pdf", "pages": [49]}
+{"id": 38, "split": "test", "question": "Why is the SCAN disk scheduling algorithm called the elevator algorithm?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [15], "equivalent_pages": [40]}
+{"id": 39, "split": "test", "question": "What is the total seek time for C-LOOK on the request sequence 82, 170, 43, 140, 24, 16, 190 with the head at 50?", "file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [25], "equivalent_pages": [50]}
+{"id": 40, "split": "test", "question": "What is the difference between mandatory and advisory file locking?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [9]}
+{"id": 41, "split": "test", "question": "What are the advantages and drawbacks of contiguous allocation of disk blocks?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [46]}
+{"id": 42, "split": "dev", "question": "How do UNIX file system semantics differ from AFS session semantics for shared files?", "file": "Unit 5_Part 1_File-system-interface.pdf", "pages": [36]}
+{"id": 43, "split": "test", "question": "What is the principle of least privilege?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [5]}
+{"id": 44, "split": "test", "question": "How do access lists for objects differ from capability lists for domains when implementing the access matrix?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [18, 19, 20]}
+{"id": 45, "split": "test", "question": "How does Java protect privileged operations using protection domains and stack inspection?", "file": "Unit 5_Part 2_System Protection.pdf", "pages": [27]}
+{"id": 46, "split": "test", "question": "What is a race condition and how can it be avoided?", "targets": [{"file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [17]}, {"file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [5]}]}
+{"id": 47, "split": "test", "question": "What is a semaphore and how is it used for synchronization between processes?", "targets": [{"file": "Unit 1_Part 2_ Process management.pdf", "pages": [15]}, {"file": "Unit 2_Process Synchronization_Deadlock.pdf", "pages": [10]}]}
+{"id": 48, "split": "dev", "question": "How does starvation arise in round robin CPU scheduling and in shortest seek time first disk scheduling?", "targets": [{"file": "Unit 1_Part 2_ Process management.pdf", "pages": [74]}, {"file": "Unit 4_Storage management_ Disk Schduling.pdf", "pages": [14], "equivalent_pages": [39]}]}
+{"id": 49, "split": "test", "question": "What is protection in an operating system and how does an access matrix represent it?", "targets": [{"file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [24]}, {"file": "Unit 5_Part 2_System Protection.pdf", "pages": [10]}]}
+{"id": 50, "split": "test", "question": "What memory-management activities is the OS responsible for, and how does paging turn a logical address into a physical address?", "targets": [{"file": "Unit 1_Part 1_Introduction & OS Structure.pdf", "pages": [19]}, {"file": "Unit 3_Memory management.pdf", "pages": [27]}]}
+{"id": 51, "split": "test", "question": "What is Belady's anomaly in FIFO page replacement?", "answerable": false, "note": "FIFO page replacement is on Unit 3 p.48, but Belady's anomaly is never mentioned"}
+{"id": 52, "split": "test", "question": "What is thrashing and how does the working-set model prevent it?", "answerable": false, "note": "no slide mentions thrashing or the working-set model"}
+{"id": 53, "split": "test", "question": "How does copy-on-write make fork faster?", "answerable": false, "note": "fork is on Unit 1-2 p.34-36, copy-on-write is never mentioned"}
+{"id": 54, "split": "test", "question": "What is priority inversion and how does priority inheritance solve it?", "answerable": false, "note": "priority scheduling is covered, priority inversion/inheritance are not"}
+{"id": 55, "split": "test", "question": "How does a journaling file system recover after a crash?", "answerable": false, "note": "no slide mentions journaling"}
+{"id": 56, "split": "test", "question": "What is an inverted page table?", "answerable": false, "note": "page tables are covered, inverted page tables are not"}
+{"id": 57, "split": "test", "question": "How do semaphores solve the producer-consumer bounded-buffer problem?", "answerable": false, "note": "semaphores and readers-writers/dining philosophers are covered; producer-consumer/bounded buffer is not"}
+{"id": 58, "split": "test", "question": "What is a microkernel and how does it differ from a monolithic kernel?", "answerable": false, "note": "the contents slide lists 'Kernel' and 'OS Structure' (slides 60-81) but the PDF ends at page 48; no microkernel/monolithic text"}
+{"id": 59, "split": "test", "question": "How does the test-and-set instruction implement a lock?", "answerable": false, "note": "Unit 2 p.9 says hardware offers locks, but test-and-set is never described"}
+{"id": 60, "split": "test", "question": "Who proposed the theory of general relativity?", "answerable": false, "note": "off-topic control question"}
+{"id": 61, "split": "dev", "question": "How does the second-chance (clock) page replacement algorithm work?", "answerable": false, "note": "only optimal, FIFO and LRU are covered"}
+{"id": 62, "split": "dev", "question": "Why do solid-state drives have no seek time, unlike magnetic disks?", "answerable": false, "note": "magnetic disks are covered, SSDs are not"}
+{"id": 63, "split": "dev", "question": "What is the sleeping barber problem?", "answerable": false, "note": "classic problems covered: dining philosophers, readers-writers only"}
+{"id": 64, "split": "dev", "question": "How does multilevel feedback queue scheduling move processes between queues?", "answerable": false, "note": "multilevel queue is covered (Unit 1-2 p.88-93), feedback queues are not"}
+{"id": 65, "split": "dev", "question": "What is the average time complexity of quicksort?", "answerable": false, "note": "off-topic control question"}

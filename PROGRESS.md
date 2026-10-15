@@ -252,3 +252,22 @@
 - Unchanged from the previous snapshot. Demo UI still not clicked through in a real browser.
 ### Next atomic action
 - User: rehearse the demo in a real browser (streamlit run app\streamlit_app.py --server.fileWatcherType none, PYTHONPATH=src) and report anything wrong.
+## [2026-10-15] - Stage 2 Phase 0: setup (steps 5-7)
+### Done
+- Verified (git): tag v0.1-demo -> 6c267a7 on origin; branch stage-1-stable -> 6c267a7 in worktree ../corner_stone_stable; stage-2 = main = 5c80d2b, on origin. 109 tests passed at session start.
+- Step 5: CLAUDE.md Section II rewritten for Stage 2 (scope = Phases 1-6, not-building list, targets, eval rules, cut list, learning rule, protected items, overrides of V/XV/X); Stage 1 Section II archived at the end; Section III lists the Stage 2 top-level additions.
+- Step 6: eval/questions.jsonl now 65 lines: 20 Stage 1 + 30 new answerable (4 multi-page, 5 cross-file) + 15 unanswerable; dev 25+5, test 25+10 (rule in eval/QUESTIONS_FORMAT.md). Harness extended (id/split/targets/answerable, --split/--label/--out), 13 new tests. Evidence for every new label in eval/evidence.md, script-verified; 10 marked for the user's spot check.
+- Baseline (v0.1 code, test split, run once): hit@5 0.960 (24/25), MRR 0.912, p50/p95 43/110 ms -> eval/results/baseline_v0.1_test.md.
+- Step 7: node v25.9.0 found (not LTS). .env.example has GROQ_API_KEY and GEMINI_API_KEY; .env is gitignored (verified with git check-ignore).
+- ARCHITECTURE.md section 10: Phase 1 contracts (schema v2 + IndexVersionMismatch + rebuild, dedup at ingest, query-time collapse, slide chunking + context header, page images, FTS5 + RRF, reranker, filters, compaction, ablation protocol, config, edge cases).
+- 122 tests passing.
+### In progress / partial
+- None. Waiting for the user's "go" for Phase 1.
+### Not started
+- Phases 1-6.
+### Known issues / TODO
+- Final evaluation date not given (placeholder in the brief).
+- Node LTS decision (keep v25 or install Node 24 LTS) is the user's.
+- User to spot-check 10 questions (evidence.md) and approve 15 vs 10 unanswerable and the reranker choice.
+### Next atomic action
+- Phase 1 step 1: schema v2 + IndexVersionMismatch + `cli rebuild` (ARCHITECTURE 10.1), with tests; then the dev ablation baseline row.
