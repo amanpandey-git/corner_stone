@@ -356,3 +356,15 @@
 - Dev misses: 14 (FCFS seek time, rank 8), 70 (huge time slice -> FCFS, p.77).
 ### Next atomic action
 - Phase 1 step 5: keyword_search over chunks_fts (ARCHITECTURE 10.6) with tests; dev row for keyword-only as a reference.
+## [2026-10-15] - Phase 1 step 5: keyword search (FTS5)
+### Done
+- hybrid.py: fts_query, keyword_search (BM25, active only, doc/unit filters), rrf_merge STUB (author writes it). SearchFilters dataclass. tests/test_hybrid.py: 13 keyword tests pass, 5 rrf tests skip until rrf_merge exists. retrieval_eval: --config, --retriever keyword.
+- Dev reference row 5 (keyword only): 0.818 / 0.767, 1 ms. 167 passed, 5 skipped.
+### In progress / partial
+- rrf_merge: waiting for the author (structure in its docstring, tests in tests/test_hybrid.py).
+### Not started
+- collapse_results; vector-side filters in search(); compaction; hybrid wiring in search() (after rrf_merge); reranker.
+### Known issues / TODO
+- None new.
+### Next atomic action
+- Query-time collapse of near-identical results (ARCHITECTURE 10.3): collapse_results in dedup.py + SearchResult.also_on/scores + tests.

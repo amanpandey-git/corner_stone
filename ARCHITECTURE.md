@@ -367,7 +367,9 @@ def rrf_merge(rankings: list[list[int]], k_rrf: int = 60) -> list[tuple[int, flo
     # USER WRITES THIS (learning rule). score(d) = sum over rankings containing d of 1 / (k_rrf + rank_d), rank 1-based;
     # sorted by score desc; ties broken by best single rank, then chunk_id. Empty input -> [].
 ```
-- FTS query built from the `\w+` tokens of the query, each double-quoted, joined with `OR`, so punctuation or FTS syntax in a question can never raise. No tokens -> `[]`, and the vector side alone is used.
+- `fts_query(query)`: the `\w+` tokens of the lower-cased query minus a fixed list of ~40 English question/stop words (not tuned on eval), de-duplicated, each double-quoted, joined with `OR`, so punctuation or FTS syntax in a question can never raise. No tokens -> `[]`, and the vector side alone is used. Score returned = `-bm25(chunks_fts)` (FTS5's bm25 is lower-is-better). `k < 1` -> `ValueError`. `SearchFilters` lives in `cornerstone/__init__.py`; `keyword_search` applies `doc_ids` and `units` in SQL (an empty list matches nothing).
+- `rrf_merge` ships as a stub raising `NotImplementedError` until the author writes it; its tests in `tests/test_hybrid.py` skip until then.
+- `eval/retrieval_eval.py` gains `--config <file>` (ablation variants) and `--retriever search|keyword` (keyword-only reference rows).
 - `k_rrf = retrieval.rrf_k` (60, the constant from the RRF paper; it damps the very top ranks so neither retriever dominates).
 
 ### 10.7 Reranker (`src/cornerstone/rerank.py`)

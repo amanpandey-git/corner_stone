@@ -265,6 +265,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--split", choices=("all",) + SPLITS, default="all")
     ap.add_argument("--label", default="", help="what is being measured, e.g. 'v0.1 baseline'")
     ap.add_argument("--out", default=None, help="result file (default eval/results/retrieval_eval_<split>.md)")
+    ap.add_argument("--config", default=str(ROOT / "config.yaml"), help="config variant (ablations)")
+    ap.add_argument("--retriever", choices=("search", "keyword"), default="search",
+                    help="search = the real search(); keyword = FTS5 only (reference row)")
     args = ap.parse_args(argv)
 
     questions, errors = validate_questions(Path(args.questions))
@@ -303,7 +306,17 @@ def main(argv: list[str] | None = None) -> int:
     from cornerstone.index.metadata_store import MetadataStore
     from cornerstone.search import search
 
-    cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    from cornerstone import SearchResult
+    from cornerstone.hybrid import keyword_search
+
+    cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
+
+    def retrieve(q: str) -> list:
+        if args.retriever == "search":
+            return search(q, MRR_K, cfg, store, index, emb)
+        hits = keyword_search(q, MRR_K, store)
+        chunks = store.get_chunks([c for c, _ in hits])
+        return [SearchResult(chunks[c], s, i + 1, "") for i, (c, s) in enumerate(hits)]
     index_dir = ROOT / cfg["paths"]["index_dir"]
     index = HNSWIndex.load(index_dir / "hnsw.faiss", cfg)
     store = MetadataStore(index_dir / "cornerstone.sqlite")
@@ -315,11 +328,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     flagged = {(p["file_name"], p["page_no"]) for p in store.stats()["flagged_pages"]}
 
-    search("warm up", MRR_K, cfg, store, index, emb)
+    retrieve("warm up")
     rows, lat = [], []
     for q in scored:
         t = time.perf_counter()
-        res = search(q["question"], MRR_K, cfg, store, index, emb)
+        res = retrieve(q["question"])
         lat.append((time.perf_counter() - t) * 1000)
         s = score_targets(res, q["targets"])
         top = res[0].chunk if res else None
@@ -336,7 +349,8 @@ def main(argv: list[str] | None = None) -> int:
         title, "",
         f"Generated {date.today().isoformat()} by `eval/retrieval_eval.py --split {args.split}`. Index: "
         f"{len(indexed)} documents, {len(index)} vectors, model `{cfg['embedding']['model_name']}`, "
-        f"ef_search={cfg['hnsw']['ef_search']}. Nothing was tuned on the test split.", "",
+        f"ef_search={cfg['hnsw']['ef_search']}, retriever `{args.retriever}`, config `{Path(args.config).name}`. "
+        "Nothing was tuned on the test split.", "",
         "## Summary", "",
         "| metric | value |", "|---|---|",
         f"| scored questions | {sm['n']} |",

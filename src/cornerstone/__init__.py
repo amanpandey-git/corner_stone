@@ -130,6 +130,14 @@ class IngestReport:
 
 
 @dataclass
+class SearchFilters:
+    """Restrict search to some documents and/or units ("Unit 4"). None = no restriction on that field."""
+
+    doc_ids: list[int] | None = None
+    units: list[str] | None = None
+
+
+@dataclass
 class SearchResult:
     """One hit. ``chunk`` carries the full metadata so Stage 2 (LLM, reranker) needs no index access."""
 
