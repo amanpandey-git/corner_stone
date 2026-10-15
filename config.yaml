@@ -16,6 +16,11 @@ chunking:
   overlap_tokens: 48
   min_tokens: 40                 # smaller fragments are merged into a neighbour
   hard_max_tokens: 480           # always < model max_seq_length (512)
+  mode: slide                    # PDF: one chunk per slide (exact page citations); DOCX always uses sections
+  slide_max_tokens: 448          # header + slide text; longer slides are windowed inside the page
+  slide_min_tokens: 15           # near-empty slides (lone title, picture caption) join the next page
+  slide_title_lines: 2           # a slide title is a heading within the first 2 lines
+  slide_title_max_chars: 60      # longer 'headings' are body lines in large-font decks
 
 embedding:
   model_name: BAAI/bge-small-en-v1.5

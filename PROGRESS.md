@@ -344,3 +344,15 @@
 - Images of documents discarded via the CLI prompt or replaced stay until compaction (by design, 10.9).
 ### Next atomic action
 - Phase 1 step 4: slide-aware chunking + "file > section" context header (ARCHITECTURE 10.4).
+## [2026-10-15] - Phase 1 step 4: slide-aware chunking + context header
+### Done
+- chunking.py: slide mode (slide_title, _slide_pieces, _merge_tiny_slides, context_header, embedding_text); DOCX keeps section mode; pipeline embeds header + text. Config: chunking.mode/slide_max_tokens/slide_min_tokens/slide_title_lines/slide_title_max_chars. 10 new tests; 154 passing.
+- Local index rebuilt (328 chunks). Dev row 4: hit@5 0.939, MRR 0.835, p95 55 ms.
+### In progress / partial
+- None.
+### Not started
+- Step 5 FTS5 keyword search; rrf_merge (user writes; structure + tests from me); collapse; filters; compaction; reranker.
+### Known issues / TODO
+- Dev misses: 14 (FCFS seek time, rank 8), 70 (huge time slice -> FCFS, p.77).
+### Next atomic action
+- Phase 1 step 5: keyword_search over chunks_fts (ARCHITECTURE 10.6) with tests; dev row for keyword-only as a reference.

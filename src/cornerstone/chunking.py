@@ -1,19 +1,26 @@
-"""Structure-aware chunking: sections first, then token windows with overlap.
+"""Chunking. Two modes (chunking.mode, ARCHITECTURE.md 4.3 and 10.4):
 
-Pipeline inside chunk_pages():
+slide (PDF pages): one chunk per slide, so a citation points at exactly one page.
+  slide -> title (a short heading in its first lines, else the previous slide's title)
+  -> one piece, or windows inside the page if it is too long -> fragments merged into the next slide.
+section (DOCX, or mode=section): Stage 1 behaviour.
   pages -> paragraph units tagged with a section heading -> sections
   -> sections over target_tokens are split into overlapping windows
   -> fragments under min_tokens are merged into a neighbour.
+Both modes set a context header "<file stem> > <section>" that is embedded together with the text
+(embedding_text), so a slide that only says "Advantages: ..." still carries what it is about.
 """
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 from cornerstone import Chunk, Page
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_BULLET_START = re.compile(r"^[\W\d]")   # bullets, arrows, numbers: body text, not a slide title
 
 
 @dataclass
@@ -171,14 +178,90 @@ def _merge_small(pieces: list[_Piece], c: dict, count: Callable[[str], int]) -> 
     return out
 
 
+def context_header(file_name: str, section: str | None) -> str:
+    """'Unit 4_Storage management.pdf', 'SCAN' -> 'Unit 4_Storage management > SCAN' (stem only if no section)."""
+    stem = Path(file_name).stem
+    return f"{stem} > {section}" if section else stem
+
+
+def embedding_text(chunk: Chunk) -> str:
+    """What is embedded (and later reranked): the context header line, then the chunk text."""
+    return f"{chunk.context_header}\n{chunk.text}" if chunk.context_header else chunk.text
+
+
+def slide_title(page: Page, c: dict) -> str | None:
+    """The slide's title: its first heading if it sits in the first slide_title_lines lines, is at most
+    slide_title_max_chars long and does not start like a bullet/number; else None (caller carries the
+    previous title). Large-font decks mark body lines as headings; these rules keep them out."""
+    for h in page.headings:
+        if h.line_no >= c["slide_title_lines"]:
+            break
+        t = h.text.strip()
+        if t and len(t) <= c["slide_title_max_chars"] and not _BULLET_START.match(t):
+            return t
+    return None
+
+
+def _slide_pieces(pages: list[Page], file_name: str, c: dict, count: Callable[[str], int]) -> list[_Piece]:
+    """One piece per ok slide; a slide too long for slide_max_tokens is windowed inside its page."""
+    pieces: list[_Piece] = []
+    title: str | None = None
+    for page in pages:
+        if page.status != "ok":
+            continue
+        title = slide_title(page, c) or title
+        budget = c["slide_max_tokens"] - count(context_header(file_name, title))
+        units = [u for _, u in _paragraph_units(page, title)]
+        if not units:
+            continue
+        piece = _piece(units, title, count)
+        if piece.tokens <= budget:
+            pieces.append(piece)
+        else:
+            pieces.extend(_windows(units, title, {**c, "target_tokens": budget}, count))
+    return pieces
+
+
+def _merge_tiny_slides(pieces: list[_Piece], c: dict, count: Callable[[str], int]) -> list[_Piece]:
+    """A near-empty slide (< slide_min_tokens, e.g. a lone title or a picture caption) joins the NEXT piece,
+    but only if that piece starts on the very next page and the result stays within slide_max_tokens.
+    Otherwise it stays a chunk of its own (its context header still says what it is). Never merges
+    backwards, so a chunk's page range never jumps over removed or flagged pages."""
+    out: list[_Piece] = []
+    carry: _Piece | None = None
+    for p in pieces:
+        if carry is not None:
+            if p.pages and carry.pages and p.pages[0] == carry.pages[-1] + 1:
+                text = carry.text + "\n" + p.text
+                if count(text) <= c["slide_max_tokens"]:
+                    p = _Piece(text, count(text), p.heading or carry.heading, carry.pages + p.pages, None, None)
+                else:
+                    out.append(carry)
+            else:
+                out.append(carry)
+            carry = None
+        if p.tokens < c["slide_min_tokens"]:
+            carry = p
+        else:
+            out.append(p)
+    if carry is not None:
+        out.append(carry)
+    return out
+
+
 def chunk_pages(pages: list[Page], doc_id: int, file_name: str, cfg: dict,
                 count_tokens: Callable[[str], int]) -> list[Chunk]:
     """Turn cleaned pages into Chunks (chunk_id=0 until the store assigns real ids).
 
-    Only pages with status "ok" are chunked. Nothing is truncated: long sections are split
-    into windows with overlap, over-long sentences are split by words.
+    Only pages with status "ok" are chunked. Nothing is truncated: long slides/sections are split
+    into windows with overlap, over-long sentences are split by words. Slide mode is used for pages
+    with page numbers (PDF) when chunking.mode == "slide"; DOCX always uses section mode.
+    token_count counts embedding_text (header + text).
     """
     c = cfg["chunking"]
+    if c["mode"] == "slide" and pages and all(p.page_no is not None for p in pages):
+        merged = _merge_tiny_slides(_slide_pieces(pages, file_name, c, count_tokens), c, count_tokens)
+        return _to_chunks(merged, doc_id, file_name, count_tokens)
     heading: str | None = None
     sections: list[tuple[str | None, list[_Unit]]] = []
     for page in pages:
@@ -198,14 +281,20 @@ def chunk_pages(pages: list[Page], doc_id: int, file_name: str, cfg: dict,
         else:
             pieces.extend(_windows(units, h, c, count_tokens))
 
+    return _to_chunks(_merge_small(pieces, c, count_tokens), doc_id, file_name, count_tokens)
+
+
+def _to_chunks(pieces: list[_Piece], doc_id: int, file_name: str, count: Callable[[str], int]) -> list[Chunk]:
     chunks: list[Chunk] = []
-    for i, p in enumerate(_merge_small(pieces, c, count_tokens)):
-        chunks.append(Chunk(
+    for i, p in enumerate(pieces):
+        ch = Chunk(
             chunk_id=0, doc_id=doc_id, file_name=file_name,
             page_start=min(p.pages) if p.pages else None,
             page_end=max(p.pages) if p.pages else None,
             para_start=p.para_start, para_end=p.para_end,
             section_heading=p.heading, chunk_index=i,
-            token_count=p.tokens, text=p.text,
-        ))
+            token_count=0, text=p.text, context_header=context_header(file_name, p.heading),
+        )
+        ch.token_count = count(embedding_text(ch))
+        chunks.append(ch)
     return chunks

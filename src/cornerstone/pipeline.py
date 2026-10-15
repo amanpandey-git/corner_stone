@@ -11,7 +11,7 @@ from typing import Callable
 import numpy as np
 
 from cornerstone import Document, IngestReport, ModelMismatch
-from cornerstone.chunking import chunk_pages
+from cornerstone.chunking import chunk_pages, embedding_text
 from cornerstone.dedup import mark_duplicates
 from cornerstone.embeddings import Embedder
 from cornerstone.index.hnsw_index import HNSWIndex
@@ -88,7 +88,7 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
     bs = cfg["embedding"]["batch_size"]
     parts = []
     for i in range(0, len(chunks), bs):
-        parts.append(embedder.embed_passages([c.text for c in chunks[i:i + bs]]))
+        parts.append(embedder.embed_passages([embedding_text(c) for c in chunks[i:i + bs]]))
         say(f"{name}: embedded {min(i + bs, len(chunks))}/{len(chunks)} chunks")
     vectors = np.vstack(parts) if parts else np.zeros((0, embedder.dim), dtype=np.float32)
 

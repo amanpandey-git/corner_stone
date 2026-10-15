@@ -343,10 +343,10 @@ def chunk_pages(pages, doc_id, file_name, cfg, count_tokens) -> list[Chunk]   # 
 ```
 - `chunking.mode: slide` (default for PDF) | `section` (Stage 1 behaviour; always used for DOCX, which has no pages).
 - Slide mode: one chunk per `ok` page, `page_start == page_end`, except a merged fragment (below).
-- Section heading of a slide = its first detected heading if it is within the first `chunking.slide_title_lines` (2) lines, else the heading carried over from the previous slide. This replaces "repeated titles merge consecutive slides into one section" and stops a body line mid-slide from becoming the section of later slides.
-- `context_header = f"{Path(file_name).stem} > {section}"` (or the stem alone). Embedded text = `context_header + "\n" + text`; `Chunk.text` stays the slide text (display/snippets); `token_count` counts the embedded text.
+- Section heading of a slide = `slide_title(page, c)`: its first detected heading if it is within the first `chunking.slide_title_lines` (2) lines, at most `slide_title_max_chars` (60) long and not starting with a bullet/arrow/digit; else the heading carried over from the previous slide. This replaces "repeated titles merge consecutive slides into one section" and keeps body lines that large-font decks mark as headings out of section names. (Measured: the first heading is on line 0 or 1 for 389 of 394 slides with a heading.)
+- `context_header(file_name, section) = f"{Path(file_name).stem} > {section}"` (or the stem alone), in both modes. `embedding_text(chunk) = context_header + "\n" + text` is what the pipeline embeds (and the reranker will read); `Chunk.text` stays the slide text (display/snippets); `token_count` counts the embedded text.
 - A slide whose embedded text exceeds `chunking.slide_max_tokens` (448 = 480 hard max minus header margin) is split with the Stage 1 window logic **inside that page** (overlap kept, page exact). Nothing is truncated.
-- A slide under `chunking.min_tokens` (40) is merged into the **next** slide's chunk (range p..p+1; the last slide merges backwards). The only case a chunk spans two pages; documented.
+- A near-empty slide (text under `chunking.slide_min_tokens` = 15: a lone title, a picture caption) joins the **next** slide only if that slide is on the very next page and the result fits `slide_max_tokens`; otherwise it stays a chunk of its own. Never backwards, so a range never jumps over removed duplicates or flagged pages (range p..p+1 is the only multi-page case). Short but real slides (e.g. FCFS advantages, 33 tokens) stay alone. `min_tokens` (40) still applies to section mode.
 - Empty input -> `[]`.
 
 ### 10.5 Page images (`src/cornerstone/ingest/page_images.py`)

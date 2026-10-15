@@ -104,3 +104,9 @@ Each step adds 3-5 questions with short answers when it finishes.
 - **Q: Why render page images at ingest instead of when a citation is clicked?** A: Rendering once keeps the click instant and the UI simple (it just serves a file). The cost is disk space (49 MB for 422 slides) and about 40% more ingest time, measured.
 - **Q: What happens if one page cannot be rendered?** A: That page gets no image and the report lists a warning; the text is still indexed. A test forces a render failure on one page to check this.
 - **Q: Why store a relative path in SQLite?** A: So the data folder can be moved or rebuilt without rewriting every row; the image root comes from config.
+## Stage 2 Phase 1 step 4 - slide-aware chunking and context header
+- **Q: Why one chunk per slide?** A: A slide is the unit a student cites and looks at. One chunk per slide gives exact page numbers and stops consecutive slides with the same title being merged into one long section. On dev it raised hit@5 from 0.879 to 0.939.
+- **Q: What is the context header and why embed it?** A: The line "file stem > section title" put before the slide text. Many slides only say "Advantages: ..." without naming the topic; embedding the header with the text tells the model what the slide is about.
+- **Q: What happens to a slide longer than the model can take?** A: It is split into overlapping windows inside the same page, so nothing is truncated and every piece still cites that page.
+- **Q: What about slides with almost no text?** A: A lone title or caption (under 15 tokens) joins the next slide, but only if it is the very next page; otherwise it stays alone. I first merged backwards too, and found a chunk citing p.26-33 across deleted duplicates, so I changed the rule and added a test.
+- **Q: Did anything get worse?** A: Four dev questions moved from rank 1 to 2 or 3; all still hit. I report per-question changes, not only the average.
