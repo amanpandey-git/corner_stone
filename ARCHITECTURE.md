@@ -520,13 +520,13 @@ def check_citations(citations: list[Citation], source_texts: dict[int, str], jud
 - Written by the assistant at the user's request (2026-10-15 standing orders); explained line by line in VIVA.md.
 
 ### 11.4 Answer evaluation (`eval/answer_eval.py`)
-- `--split dev|test`, `--limit N`, `--provider`, `--out`. Runs every answerable + unanswerable question of the split in `--mode concise` (plus a 5-mark sample) through `answer()` with `check_citations` on.
+- `--split dev|test`, `--mode`, `--limit N`, `--provider`, `--out`. Runs every answerable + unanswerable question of the split through `answer()` with `check_citations` on. The headline metrics come from the full `--mode concise` run. Each answer checkpoint also runs a **5-mark sample**: `--mode 5-mark --limit 10` (the first 8 answerable + first 2 unanswerable by id), reported in its own file next to the concise run, so the exam-style mode is measured too.
 - Metrics (definitions fixed before the first run):
-  - **citation accuracy** = supported citations / all citations (judge), over answered questions.
-  - **faithfulness** = answers whose every factual sentence is cited and supported / answered questions (judge: uncited factual sentence or any unsupported citation -> unfaithful).
+  - **citation accuracy** = supported citations / all citations (judge), over answered questions whose citations the judge could check ("not checked" answers are counted and reported separately, never as supported).
+  - **faithfulness** = answers whose every factual sentence is cited and supported / answered questions the judge could check (uncited factual sentence, any unsupported citation or any invalid [n] -> unfaithful).
   - **citation correct page** (retrieval-grounded, no judge) = answers citing at least one labelled page / answered answerable questions.
   - **abstention on unanswerable** = unanswerable questions answered NOT_IN_NOTES (target >= 8/10 on test); **false abstention** = answerable questions abstained (reported, should be low).
-  - **time to first token** p50/p95 from `stream_answer` (uncached calls only; cached runs reported as such).
+  - **time to first token** p50/p95 from `stream_answer`: question submitted -> first model text, over live (uncached) answers, **minus the time queued in our own free-tier rate limiter** (`Answer.queue_ms`; an artefact of back-to-back evaluation runs; total queue time is printed next to the number).
 - Pacing: calls go through the rate limiter; `--sleep` extra gap; an answerer failure after the retry cap stops the run cleanly and writes partial results marked PARTIAL; a judge failure marks only that answer "not checked" and 3 judge failures in a row stop the run (PARTIAL). Cached answers are reused between runs; a test run is done once with a cold cache for the TTFT numbers.
 - Output: `eval/results/answer_eval_<split>.md` (summary + per question) and `eval/results/answer_spotcheck_<split>.md` (20 answers in full with their sources, for the user's manual check).
 
