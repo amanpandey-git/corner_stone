@@ -134,6 +134,44 @@ def test_quiz_and_flashcards_loop(env):
     assert client.post(f"/flashcards/{cid}/review", json={"grade": 9}).status_code == 422
 
 
+def test_upload_too_large_and_bad_from_quiz(env, cfg, embedder, tmp_path):
+    client, replies = env
+    body = {"question": "q", "options": ["a", "b", "c"], "answer": 0, "explanation": "e",
+            "source": {"file_name": "x.pdf", "page": 1}}
+    assert client.post("/flashcards/from-quiz", json=body).status_code == 422
+    body["options"].append("d")
+    body["answer"] = 7
+    assert client.post("/flashcards/from-quiz", json=body).status_code == 422
+    small = copy.deepcopy(cfg)
+    small["paths"] = {k: str(tmp_path / k) for k in ("raw_dir", "index_dir", "image_dir", "cache_dir")}
+    small["paths"]["study_db"] = str(tmp_path / "study.sqlite")
+    small["api"]["max_upload_mb"] = 0
+    tiny = TestClient(create_app(small, provider_factory=replies, embedder=embedder))
+    r = tiny.post("/documents", files=[("files", ("a.pdf", b"%PDF-1.4 tiny", "application/pdf"))])
+    assert r.status_code == 413 and "larger than 0 MB" in r.json()["detail"]
+
+
+def test_stream_reports_provider_failure_as_error_event(env):
+    from cornerstone import LLMRateLimited
+
+    client, replies = env
+
+    class Failing(FakeProvider):
+        def stream(self, *a, **k):
+            raise LLMRateLimited("groq m: HTTP 429 rate_limit_exceeded")
+            yield  # pragma: no cover
+
+    old = replies.answer
+    replies.answer = Failing(["x"])
+    try:
+        with client.stream("POST", "/ask/stream", json={"question": "What is a capability list?"}) as r:
+            body = "".join(r.iter_text())
+    finally:
+        replies.answer = old
+    assert "event: error" in body and "429" in body and "event: final" not in body
+
+
+# runs last: it deletes the module's only document
 def test_upload_rejects_wrong_type_and_delete_hides_document(env):
     client, _ = env
     r = client.post("/documents", files=[("files", ("notes.txt", b"hello", "text/plain"))])
