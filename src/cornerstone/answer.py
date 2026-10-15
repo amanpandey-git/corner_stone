@@ -7,6 +7,7 @@ Three places can decide "Not in your notes.":
 """
 from __future__ import annotations
 
+import re
 import time
 import unicodedata
 from dataclasses import dataclass, field
@@ -95,9 +96,15 @@ def build_prompt(question: str, sources: list[Source], mode: str, cfg: dict) -> 
     return system, user
 
 
+# gpt-oss writes citations as 【1】 or 【1†L3】 (lenticular brackets) instead of [1]
+_LENTICULAR = re.compile(r"【\s*(\d+(?:\s*[,\-–]\s*\d+)*)[^】]*】")
+
+
 def normalise(text: str) -> str:
-    """NFKC turns narrow no-break spaces and similar typography from the model into plain characters."""
-    return unicodedata.normalize("NFKC", text).strip()
+    """NFKC turns narrow no-break spaces and full-width brackets into plain characters; lenticular
+    citation brackets become [n] so the parser sees them."""
+    text = unicodedata.normalize("NFKC", text)
+    return _LENTICULAR.sub(lambda m: f"[{m.group(1)}]", text).strip()
 
 
 def _sources(results) -> list[Source]:

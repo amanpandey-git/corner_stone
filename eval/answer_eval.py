@@ -210,7 +210,8 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out) if args.out else RESULTS_DIR / f"answer_eval_{args.split}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(summary, encoding="utf-8")
-    spot_path = out.with_name(out.stem.replace("answer_eval", "answer_spotcheck") + ".md")
+    stem = out.stem.replace("answer_eval", "answer_spotcheck")
+    spot_path = out.with_name((stem if stem != out.stem else stem + "_spotcheck") + ".md")
     spot_path.write_text(spot, encoding="utf-8")
     raw = out.with_suffix(".jsonl")
     raw.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")

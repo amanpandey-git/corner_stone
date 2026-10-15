@@ -116,3 +116,11 @@ def test_citation_check_with_judge(cfg, stack):
     assert a.unsupported == [1] and len(judge.calls) == 1
     a2 = answer(QUESTION, "concise", cfg, store, index, emb, FakeProvider([reply]), judge=judge, check=False)
     assert a2.unsupported is None
+
+
+def test_lenticular_and_fullwidth_citations_are_understood():
+    s = [src(1), src(2)]
+    a = finalise("q", "concise", "Paging uses frames\u30101\u3011. Frames are fixed size\u30102\u2020L3-L9\u3011. "
+                                 "Pages map to frames\uff3b1\uff3d\u30101, 2\u3011.", s)
+    assert not a.abstained and [c.refs for c in a.citations] == [[1], [2], [1, 2]]
+    assert "\u3010" not in a.text and a.text.startswith("Paging uses frames[1].")
