@@ -75,6 +75,7 @@ llm:                             # ARCHITECTURE 11.1 / 11.5
     model: openai/gpt-oss-120b
     rpm: 30
     tpm: 8000                    # from Groq's x-ratelimit-limit-tokens header (2026-10-15)
+    tpd: 200000                  # free-tier tokens/day for gpt-oss-120b (Groq 429 message, 2026-10-16); informational
     extra:
       reasoning_effort: low      # gpt-oss reasons before answering; low keeps tokens and latency down
   groq_judge:                    # judge: a different model family from the answerer (Qwen vs OpenAI gpt-oss)

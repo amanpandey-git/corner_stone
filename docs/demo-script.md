@@ -11,7 +11,7 @@ Next.js app if it is demoable on the morning of 24 Oct, otherwise on the Streaml
 4. Start the UI:
    - Streamlit: `PYTHONPATH=src streamlit run app/streamlit_app.py`
    - or API + web app: `PYTHONPATH=src uvicorn cornerstone.api:app --port 8000`, then `npm run dev` in `web/`.
-5. Warm the cache: ask the three demo questions once (answers are cached, so the live demo cannot hit a rate limit).
+5. Warm the cache: ask the three demo questions once (answers are cached, so the live demo cannot hit a rate limit). Groq's free tier allows 200,000 tokens/day for gpt-oss-120b (about 60-70 five-mark answers): run no evaluations on demo day.
 6. Fallback if the network fails: the cached answers still work for the exact demo questions; say so honestly.
 
 ## 1. The problem (30 s)
