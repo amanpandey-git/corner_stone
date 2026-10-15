@@ -11,7 +11,12 @@ from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.pipeline import ingest_file
 
 APP = str(ROOT / "app" / "streamlit_app.py")
-ASK_BUTTON, SEARCH_BUTTON = 0, 1   # form submit buttons in page order (Ask tab first)
+
+
+def button(at, label):
+    """The (single) button with this label; tabs make positions fragile."""
+    (b,) = [b for b in at.button if b.label == label]
+    return b
 
 
 @pytest.fixture(scope="module")
@@ -19,7 +24,8 @@ def prepared(cfg, tmp_path_factory):
     """A tiny real index in a temp folder + a config file pointing at it."""
     tmp = tmp_path_factory.mktemp("app")
     c = {**cfg, "paths": {"raw_dir": str(tmp / "raw"), "index_dir": str(tmp / "index"),
-                         "image_dir": str(tmp / "images")}}
+                         "image_dir": str(tmp / "images"), "cache_dir": str(tmp / "cache"),
+                         "study_db": str(tmp / "study.sqlite")}}
     cfg_file = tmp / "config.yaml"
     cfg_file.write_text(yaml.safe_dump(c), encoding="utf-8")
     d = docx.Document()
@@ -52,7 +58,7 @@ def test_page_renders_with_stats_and_no_exception(prepared, monkeypatch):
 def test_search_shows_result_with_source(prepared, monkeypatch):
     at = run_app(prepared, monkeypatch)
     at.text_input[0].set_value("What is a TLB?")
-    at.button[SEARCH_BUTTON].click()          # the search form's submit button
+    button(at, "Search").click()          # the search form's submit button
     at.run()
     assert not at.exception
     text = " ".join(m.value for m in at.markdown)
@@ -62,7 +68,7 @@ def test_search_shows_result_with_source(prepared, monkeypatch):
 def test_blank_query_shows_message_not_crash(prepared, monkeypatch):
     at = run_app(prepared, monkeypatch)
     at.text_input[0].set_value("   ")
-    at.button[SEARCH_BUTTON].click()
+    button(at, "Search").click()
     at.run()
     assert not at.exception
     assert any("type a question" in e.value for e in at.error)
@@ -72,7 +78,8 @@ def test_upload_ingest_report_and_duplicate(cfg, tmp_path, monkeypatch):
     """Upload a generated DOCX through the page, check the report, then upload it again."""
     import io
     c = {**cfg, "paths": {"raw_dir": str(tmp_path / "raw"), "index_dir": str(tmp_path / "index"),
-                         "image_dir": str(tmp_path / "images")}}
+                         "image_dir": str(tmp_path / "images"), "cache_dir": str(tmp_path / "cache"),
+                         "study_db": str(tmp_path / "study.sqlite")}}
     cfg_file = tmp_path / "config.yaml"
     cfg_file.write_text(yaml.safe_dump(c), encoding="utf-8")
     d = docx.Document()
@@ -111,7 +118,7 @@ def test_ask_shows_cited_answer_and_source(prepared, monkeypatch):
     monkeypatch.setattr(llm, "make_provider", lambda cfg, name=None, env=None, client=None: fake)
     at = run_app(prepared, monkeypatch)
     at.text_area[0].set_value("What is a TLB?")
-    at.button[ASK_BUTTON].click()
+    button(at, "Ask").click()
     at.run()
     assert not at.exception
     text = " ".join(m.value for m in at.markdown)
@@ -126,7 +133,7 @@ def test_ask_abstains_and_reports_missing_key(prepared, monkeypatch):
                         lambda cfg, name=None, env=None, client=None: llm.FakeProvider(["NOT_IN_NOTES"]))
     at = run_app(prepared, monkeypatch)
     at.text_area[0].set_value("Who painted the Mona Lisa?")
-    at.button[ASK_BUTTON].click()
+    button(at, "Ask").click()
     at.run()
     assert not at.exception and any("Not in your notes." in i.value for i in at.info)
 
@@ -135,6 +142,36 @@ def test_ask_abstains_and_reports_missing_key(prepared, monkeypatch):
     monkeypatch.setattr(llm, "make_provider", no_key)
     at = run_app(prepared, monkeypatch)
     at.text_area[0].set_value("What is a TLB?")
-    at.button[ASK_BUTTON].click()
+    button(at, "Ask").click()
     at.run()
     assert not at.exception and any("GROQ_API_KEY" in e.value for e in at.error)
+
+
+def test_quiz_check_and_wrong_answer_to_flashcard(prepared, monkeypatch):
+    import json
+
+    from cornerstone import llm
+
+    item = {"question": "What does a TLB cache?", "options": ["Page table entries", "Disk blocks", "Sockets",
+            "Fonts"], "answer": 0, "explanation": "A TLB caches page table entries.", "source": 1}
+    monkeypatch.setattr(llm, "make_provider", lambda cfg, name=None, env=None, client=None:
+                        llm.FakeProvider([json.dumps({"questions": [item]})]))
+    at = run_app(prepared, monkeypatch)
+    button(at, "Make quiz").click()
+    at.run()
+    assert not at.exception and "What does a TLB cache?" in " ".join(m.value for m in at.markdown)
+    at.radio(key="q0").set_value("Disk blocks")
+    button(at, "Check answers").click()
+    at.run()
+    assert any("Answer: Page table entries" in e.value for e in at.error)
+    button(at, "Make a flashcard of this").click()
+    at.run()
+    assert not at.exception
+    # the review tab now has one due card
+    assert any("1 due today" in c.value for c in at.caption)
+    button(at, "Show answer").click()
+    at.run()
+    assert "Page table entries." in " ".join(m.value for m in at.markdown)
+    button(at, "Good").click()
+    at.run()
+    assert not at.exception and any("0 due today" in c.value for c in at.caption)

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 import streamlit as st
@@ -20,6 +21,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from cornerstone import CornerstoneError, EmptyQuery, LLMError, SearchFilters  # noqa: E402
 from cornerstone import llm  # noqa: E402
 from cornerstone.answer import MODES, Answer, stream_answer  # noqa: E402
+from cornerstone.flashcards import card_from_question, generate_flashcards  # noqa: E402
+from cornerstone.quiz import generate_quiz  # noqa: E402
+from cornerstone.study_store import StudyStore  # noqa: E402
 from cornerstone.cli import load_config, location, open_stack  # noqa: E402
 from cornerstone.embeddings import Embedder  # noqa: E402
 from cornerstone.pipeline import ingest_file  # noqa: E402
@@ -116,6 +120,102 @@ def show_answer(cfg: dict, stack, question: str, mode: str, filters, check: bool
             st.text(s.text)
 
 
+def show_slide(cfg: dict, stack, doc_id, page) -> None:
+    rel = stack.store.get_page_image(doc_id, page) if doc_id is not None and page is not None else None
+    img = Path(cfg["paths"]["image_dir"]) / rel if rel else None
+    if img is not None and img.is_file():
+        st.image(str(img), use_container_width=True)
+
+
+def quiz_tab(cfg: dict, stack, study: StudyStore, units: list[str]) -> None:
+    """Generate a cited MCQ quiz; after checking, wrong answers can become flashcards."""
+    with st.form("quiz_form"):
+        c1, c2 = st.columns([3, 1])
+        chosen = c1.multiselect("Units", units, key="quiz_units")
+        n = c2.number_input("Questions", 1, cfg["quiz"]["max_questions"], 5)
+        make = st.form_submit_button("Make quiz")
+    if make:
+        try:
+            filters = SearchFilters(units=chosen) if chosen else None
+            with st.spinner("Writing questions from your slides..."):
+                st.session_state["quiz_data"] = generate_quiz(cfg, stack.store, llm.make_provider(cfg), filters, n=int(n))
+            st.session_state.pop("quiz_checked", None)
+        except (ValueError, LLMError) as e:
+            st.error(str(e))
+            return
+    quiz = st.session_state.get("quiz_data")
+    if not quiz:
+        st.caption("Pick a unit and make a quiz. Every answer is linked to the slide it comes from.")
+        return
+    if not quiz.questions:
+        st.error("The model did not produce valid questions this time: " + "; ".join(quiz.rejected[:3]))
+        return
+    picks = []
+    for i, q in enumerate(quiz.questions):
+        st.markdown(f"**{i + 1}. {q.mcq.question}**")
+        picks.append(st.radio("answer", q.mcq.options, index=None, key=f"q{i}", label_visibility="collapsed"))
+    if st.button("Check answers"):
+        st.session_state["quiz_checked"] = True
+    if not st.session_state.get("quiz_checked"):
+        return
+    score = 0
+    for i, (q, pick) in enumerate(zip(quiz.questions, picks)):
+        right = q.mcq.options[q.mcq.answer]
+        ok = pick == right
+        score += ok
+        (st.success if ok else st.error)(f"{i + 1}. {'Correct' if ok else 'Answer: ' + right} - {q.mcq.explanation}")
+        with st.expander(f"Source: {q.source.label()}" + (f" - {q.source.section}" if q.source.section else "")):
+            show_slide(cfg, stack, q.source.doc_id, q.source.page_start)
+        if not ok and st.button("Make a flashcard of this", key=f"card{i}"):
+            d = stack.store.get_document(q.source.doc_id)
+            added = study.add_cards([card_from_question(q, date.today(), d.unit if d else None)])
+            st.toast("Flashcard added" if added else "Already a flashcard")
+    st.metric("Score", f"{score} / {len(quiz.questions)}")
+
+
+GRADES = (("Again", 1), ("Hard", 3), ("Good", 4), ("Easy", 5))
+
+
+def review_tab(cfg: dict, stack, study: StudyStore, units: list[str]) -> None:
+    """Spaced-repetition review: show the front, reveal the back and slide, grade."""
+    today = date.today()
+    with st.expander("Make flashcards from a unit"):
+        with st.form("cards_form"):
+            chosen = st.multiselect("Units", units, key="card_units")
+            n = st.number_input("Cards", 1, cfg["flashcards"]["max_cards"], 10)
+            make = st.form_submit_button("Make flashcards")
+        if make:
+            try:
+                with st.spinner("Writing flashcards from your slides..."):
+                    cards, rejected = generate_flashcards(cfg, stack.store, llm.make_provider(cfg),
+                                                          SearchFilters(units=chosen) if chosen else None, n=int(n))
+                st.success(f"Added {len(study.add_cards(cards))} new card(s)."
+                           + (f" {len(rejected)} rejected." if rejected else ""))
+            except (ValueError, LLMError) as e:
+                st.error(str(e))
+    stats = study.stats(today)
+    st.caption(f"{stats['due_today']} due today · {stats['cards']} cards · {stats['reviews']} reviews done")
+    due = study.due(today, limit=1)
+    if not due:
+        st.info("Nothing due. Make cards from a unit, or turn wrong quiz answers into cards.")
+        return
+    card = due[0]
+    st.markdown(f"### {card.front}")
+    if st.button("Show answer", key=f"show{card.card_id}"):
+        st.session_state["shown"] = card.card_id
+    if st.session_state.get("shown") != card.card_id:
+        return
+    st.markdown(card.back)
+    st.caption(f"{Path(card.file_name).stem}, p.{card.page}" if card.page else card.file_name)
+    show_slide(cfg, stack, card.doc_id, card.page)
+    for col, (label, grade) in zip(st.columns(len(GRADES)), GRADES):
+        if col.button(label, key=f"g{card.card_id}{grade}"):
+            nxt = study.review(card.card_id, grade, today)
+            st.session_state.pop("shown", None)
+            st.toast(f"Next review in {nxt.interval} day(s)")
+            st.rerun()
+
+
 def render(cfg: dict, stack) -> None:
     store, index = stack.store, stack.index
 
@@ -146,11 +246,16 @@ def render(cfg: dict, stack) -> None:
             with st.expander(f"{s['pages_flagged']} flagged page(s)"):
                 st.dataframe(s["flagged_pages"], hide_index=True, use_container_width=True)
 
-    tab_ask, tab_search, tab_upload = st.tabs(["Ask", "Search", "Upload"])
+    tab_ask, tab_quiz, tab_review, tab_search, tab_upload = st.tabs(["Ask", "Quiz", "Flashcards", "Search", "Upload"])
+    units = sorted({d.unit for d in store.list_documents("active") if d.unit})
+    study = StudyStore(Path(cfg["paths"]["study_db"]))
+    with tab_quiz:
+        quiz_tab(cfg, stack, study, units)
+    with tab_review:
+        review_tab(cfg, stack, study, units)
 
     # ---- ask: streamed answer, then cited slides with their images
     with tab_ask:
-        units = sorted({d.unit for d in store.list_documents("active") if d.unit})
         with st.form("ask"):
             question = st.text_area("Your question", placeholder="e.g. Explain the SCAN disk scheduling algorithm")
             c1, c2, c3 = st.columns([2, 3, 2])
