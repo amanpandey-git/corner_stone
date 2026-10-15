@@ -271,3 +271,37 @@
 - User to spot-check 10 questions (evidence.md) and approve 15 vs 10 unanswerable and the reranker choice.
 ### Next atomic action
 - Phase 1 step 1: schema v2 + IndexVersionMismatch + `cli rebuild` (ARCHITECTURE 10.1), with tests; then the dev ablation baseline row.
+
+## [2026-10-15] - Stage 2 Phase 1 steps 1-2 (snapshot, stop)
+### Done
+- Eval: +16 paraphrased questions (ids 66-81, 8 dev / 8 test), no slide-title words (script-checked), phrases verified. Test baseline re-run once: v0.1 hit@5 0.879 (29/33), MRR 0.848 (5f470b8). Target now "hit@5 >= 0.90 and at most one test question worse than v0.1" (CLAUDE.md II).
+- CLAUDE.md standing decisions: final evaluation 25 Oct, freeze 24 Oct; Node stays v25; 15 unanswerable kept; reranker conditional; Streamlit = guaranteed demo UI.
+- Step 1 (ba788d4): schema v2 (SQLite user_version + manifest index_version), IndexVersionMismatch with the rebuild command, `cli rebuild` (old folder kept as *.v<N>.bak), new columns + FTS5 table in the same transaction, unit/source_path at ingest; fix: CLI closes SQLite connections.
+- Step 2 (942b8ec): dedup.py (3-shingle Jaccard >= 0.95, digits kept, < 80 chars never), duplicates stored with duplicate_of, counted separately in report/stats/CLI/Streamlit. Unit 4: 23 duplicates; Unit 1-2: p.67 = p.66.
+- Ablation (dev, eval/results/ablation_dev.md): row 0 v0.1 0.879 / 0.816; row 1 schema 0.879 / 0.816; row 2 dedup 0.879 / 0.818.
+- Local data/index rebuilt (v2 + dedup, 308 chunks); older indexes kept at data/index.v1.bak and data/index.v2.bak (gitignored).
+- 140 tests passing.
+### In progress / partial
+- None.
+### Not started
+- Phase 1 steps 3+ (page images, slide chunking + context header, FTS5 + RRF, collapse, filters, reranker, compaction, test run); Phases 2-6.
+### Known issues / TODO
+- Q14 (FCFS seek, dev) still a miss: chunk spans p.9-11 under a mis-detected heading -> slide chunking.
+- p.67 of Unit 1-2 marked duplicate of p.66 (identical text; its image may differ).
+- User: 10 spot-checks (evidence.md) after the 16 Oct evaluation; wrong labels reported before Phase 1 ends.
+- User: create .env with GROQ_API_KEY / GEMINI_API_KEY before Phase 2 (planned 19 Oct).
+- 10-day plan below is PROPOSED, awaiting approval.
+### Proposed plan (awaiting approval)
+- 16 Oct (Stage 1 evaluation day, light): page images; slide-aware chunking + context header (ablation rows).
+- 17 Oct: FTS5 keyword search + RRF (user writes rrf_merge from given structure + tests), query-time collapse, filters (rows).
+- 18 Oct: reranker (adopt only if dev gain and p95 < 1 s), compaction; test split once; close Phase 1.
+- 19 Oct: LLM interface (Groq + Gemini, timeouts, retries, rate limits, cache), grounded [n] prompt + "not in your notes", answer modes, streaming in Streamlit.
+- 20 Oct: citation parser (user writes) + citation check; answer-eval harness + LLM judge; prompt work on dev only.
+- 21 Oct: answer eval on test (paced), 20 answers for spot check; quiz generator (Pydantic, retries, cited answers) + validity rate.
+- 22 Oct: flashcards per unit + SM-2 (user writes core; first cut if late) + wrong answer -> flashcard; Streamlit ask (modes, citation opens slide), quiz, review pages.
+- 23 Oct: FastAPI endpoints + TestClient tests + GitHub Actions; buffer.
+- 24 Oct: FREEZE: README, evaluation report + ablation table, demo script, rehearsal, PR stage-2 -> main, tag v0.2. No features.
+- 25 Oct: final evaluation.
+- Cut now (proposed): Next.js app (Phase 4), quiz UI polish, neighbour expansion, follow-up rewriting (only if 23 Oct buffer allows), weak-topic tracking.
+### Next atomic action
+- After plan approval: Phase 1 step 3, page images (ARCHITECTURE 10.5): render_page_images + pages.image_path + tests.
