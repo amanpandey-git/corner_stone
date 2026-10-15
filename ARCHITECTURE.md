@@ -411,6 +411,8 @@ def search(query, k, cfg, store, index, embedder, ef_search=None,
 | chunking.mode | slide | slides are the citation unit; one slide per chunk gives exact page citations |
 | chunking.slide_max_tokens | 448 | 480 hard max minus room for the context header |
 | chunking.slide_title_lines | 2 | a slide title sits in the first lines; deeper "headings" were body text (NOTES 2026-10-15) |
+| chunking.slide_title_max_chars | 60 | longer "headings" are body lines that large-font decks mark as headings (they must not become section names) |
+| chunking.slide_min_tokens | 15 | a slide below this (lone title, picture caption) joins the next page; a 33-token real slide (FCFS advantages) must stay alone |
 | dedup.page_jaccard / dedup.min_chars | 0.95 / 80 | verbatim repeats (Unit 4 p.27-51) score ~1.0; short title slides excluded |
 | dedup.result_jaccard | 0.90 | collapses copies across files or near-copies that slipped through ingest |
 | retrieval.candidates | 30 | reranking 30 pairs fits the 1 s budget; recall headroom over k = 5 |
