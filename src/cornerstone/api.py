@@ -4,7 +4,7 @@
 
 Threading: SQLite connections belong to one thread, so every request opens its own MetadataStore. The faiss index,
 the embedder and the reranker are loaded once and shared; one lock serialises index writes (ingest, delete) with
-the searches that read it. Uploaded files are ingested one at a time by a single background worker.
+each individual faiss read (LockedIndex), so a slow LLM answer never holds it. Uploaded files are ingested one at a time by a single background worker.
 """
 from __future__ import annotations
 
@@ -80,6 +80,28 @@ class ReviewBody(BaseModel):
     grade: int = Field(ge=0, le=5)
 
 
+class LockedIndex:
+    """Read-only view of the shared faiss index for search(): each call takes the lock only for itself.
+
+    faiss must not search while an ingest is adding vectors. Locking every faiss call (not a whole request)
+    means one student's answer streaming from the LLM never blocks another student's search or an upload.
+    """
+
+    def __init__(self, state) -> None:
+        self._state = state
+
+    def __len__(self) -> int:
+        with self._state.lock:
+            return len(self._state.index)
+
+    def search(self, *args, **kwargs):
+        with self._state.lock:
+            return self._state.index.search(*args, **kwargs)
+
+    def __getattr__(self, name):                 # dim, manifest, ... (read-only attributes)
+        return getattr(self._state.index, name)
+
+
 def _filters(units, doc_ids) -> SearchFilters | None:
     return SearchFilters(doc_ids=doc_ids, units=units) if (units or doc_ids) else None
 
@@ -106,6 +128,7 @@ def create_app(cfg: dict | None = None, provider_factory=make_provider, embedder
         reranker = Reranker(cfg)
     st = app.state
     st.index, st.lock, st.jobs = index, threading.Lock(), {}
+    reader = LockedIndex(st)                     # what search()/stream_answer() see
     st.worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ingest")
     study = StudyStore(Path(cfg["paths"]["study_db"]))
 
@@ -231,8 +254,7 @@ def create_app(cfg: dict | None = None, provider_factory=make_provider, embedder
                      doc_id: list[int] | None = Query(None)) -> list[dict]:
         with store_ctx() as s:
             try:
-                with st.lock:
-                    res = search(q, k, cfg, s, st.index, embedder, filters=_filters(unit, doc_id), reranker=reranker)
+                res = search(q, k, cfg, s, reader, embedder, filters=_filters(unit, doc_id), reranker=reranker)
             except EmptyQuery as e:
                 raise HTTPException(422, str(e)) from e
             return [{"rank": r.rank, "score": r.score, "scores": r.scores, "file_name": r.chunk.file_name,
@@ -265,12 +287,9 @@ def create_app(cfg: dict | None = None, provider_factory=make_provider, embedder
         with store_ctx() as s:
             final = None
             try:
-                with st.lock:      # search inside stream_answer reads the index
-                    items = stream_answer(body.question, body.mode, cfg, s, st.index, embedder, p,
+                for item in stream_answer(body.question, body.mode, cfg, s, reader, embedder, p,
                                           filters=_filters(body.units, body.doc_ids), reranker=reranker,
-                                          judge=judge, check=body.check)
-                    first = next(items)
-                for item in [first, *items]:
+                                          judge=judge, check=body.check):
                     if isinstance(item, Answer):
                         final = item
             except LLMError as e:
@@ -287,12 +306,9 @@ def create_app(cfg: dict | None = None, provider_factory=make_provider, embedder
         def produce() -> None:              # one thread owns the SQLite connection for the whole answer
             try:
                 with store_ctx() as s:
-                    with st.lock:
-                        items = stream_answer(body.question, body.mode, cfg, s, st.index, embedder, p,
+                    for item in stream_answer(body.question, body.mode, cfg, s, reader, embedder, p,
                                               filters=_filters(body.units, body.doc_ids), reranker=reranker,
-                                              judge=judge, check=body.check)
-                        first = next(items)
-                    for item in [first, *items]:
+                                              judge=judge, check=body.check):
                         if isinstance(item, Answer):
                             q.put(("final", answer_json(item, s)))
                         else:

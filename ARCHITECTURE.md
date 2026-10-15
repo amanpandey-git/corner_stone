@@ -626,7 +626,7 @@ def sm2(ef: float, interval: int, reps: int, grade: int) -> tuple[float, int, in
 
 ## 13. Stage 2 - Phase 3: HTTP API (`src/cornerstone/api.py`, FastAPI 0.143.2, pydantic 2.14.1)
 
-`create_app(cfg: dict | None = None, provider_factory=make_provider) -> FastAPI`; module-level `app = create_app()` is created lazily for uvicorn. Run: `PYTHONPATH=src uvicorn cornerstone.api:app --port 8000`; OpenAPI docs at `/docs`. The app keeps the embedder, the reranker (if on) and the faiss index in `app.state` (loaded once); SQLite connections are opened per request (thread-bound). One `threading.Lock` serialises index writes (ingest, delete) with searches that touch the faiss object.
+`create_app(cfg: dict | None = None, provider_factory=make_provider) -> FastAPI`; module-level `app = create_app()` is created lazily for uvicorn. Run: `PYTHONPATH=src uvicorn cornerstone.api:app --port 8000`; OpenAPI docs at `/docs`. The app keeps the embedder, the reranker (if on) and the faiss index in `app.state` (loaded once); SQLite connections are opened per request (thread-bound). One `threading.Lock` serialises index writes (ingest, delete) with each individual faiss read: search code gets a `LockedIndex` view whose `search()`/`len()` take the lock per call, so an answer streaming from the LLM never holds it.
 
 | method + path | body / query | response | errors |
 |---|---|---|---|
