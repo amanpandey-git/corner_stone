@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from cornerstone import Document, IngestReport, ModelMismatch
+from cornerstone import Document, IndexOutOfSync, IngestReport, ModelMismatch
 from cornerstone.chunking import chunk_pages, embedding_text
 from cornerstone.dedup import mark_duplicates
 from cornerstone.embeddings import Embedder
@@ -123,3 +123,43 @@ def ingest_file(path: Path, cfg: dict, store: MetadataStore, index: HNSWIndex, e
         pages_total=doc.n_pages, pages_with_text=doc.n_pages_text, pages_flagged=doc.n_pages_flagged,
         flagged_pages=flagged, chunks_created=len(chunk_ids), pages_duplicate=len(duplicates),
         duplicate_pages=duplicates, warnings=warnings, seconds=time.perf_counter() - t0, message=msg)
+
+
+def compact(cfg: dict, store: MetadataStore, index: HNSWIndex, index_path: Path) -> tuple[HNSWIndex, dict]:
+    """Remove soft-deleted vectors and rows (ARCHITECTURE.md 10.9). Returns (index to use from now on, report).
+
+    Order (crash safety): build a new index from the vectors of active chunks -> check it against SQLite
+    -> save it (atomic replace) -> purge deleted SQLite rows, FTS rows, retired pages -> delete their images.
+    A crash after the save leaves deleted rows without vectors, which check_sync accepts; the next compact
+    removes them. Refuses (IndexOutOfSync) while an ingest is pending, so a vector about to become active
+    is never dropped. Nothing to do -> files untouched.
+    """
+    index_path = Path(index_path)
+    if store.list_documents("pending"):
+        raise IndexOutOfSync("an ingest is pending; finish or discard it before compacting")
+    ids, matrix = index.vectors()
+    active = set(store.active_chunk_ids())
+    keep = np.array([int(i) in active for i in ids], dtype=bool)
+    dead_rows = store.conn.execute("SELECT COUNT(*) FROM chunks WHERE status='deleted'").fetchone()[0]
+    retired_pages = store.conn.execute(
+        "SELECT COUNT(*) FROM pages WHERE doc_id IN (SELECT doc_id FROM documents "
+        "WHERE status IN ('replaced','abandoned'))").fetchone()[0]
+    bytes_before = index_path.stat().st_size if index_path.is_file() else 0
+    report = {"vectors_before": len(index), "vectors_after": len(index), "bytes_before": bytes_before,
+              "bytes_after": bytes_before, "chunk_rows_removed": 0, "documents_cleaned": 0}
+    if keep.all() and dead_rows == 0 and retired_pages == 0:
+        return index, report
+    new = index
+    if not keep.all():
+        new = HNSWIndex.from_config(cfg)
+        new.add(ids[keep], matrix[keep])
+        problems = store.check_sync(set(new.all_ids().tolist()))
+        if problems:
+            raise IndexOutOfSync("compaction aborted, nothing changed: " + "; ".join(problems))
+        new.save(index_path)
+    removed, retired = store.purge_deleted()
+    for doc_id in retired:
+        delete_page_images(doc_id, cfg)
+    report.update(vectors_after=len(new), bytes_after=index_path.stat().st_size if index_path.is_file() else 0,
+                  chunk_rows_removed=removed, documents_cleaned=len(retired))
+    return new, report

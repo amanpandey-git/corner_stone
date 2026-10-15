@@ -126,3 +126,12 @@ def test_search_unit_and_file_filters(env, capsys):
     assert cli.main(base + ["search", "round robin", "--file", "ghost.pdf"]) == 0
     io = capsys.readouterr()
     assert "not indexed: ghost.pdf" in io.err and "no results" in io.out
+
+
+def test_compact_command(env, capsys, monkeypatch):
+    base, f, tmp = env
+    assert cli.main(base + ["ingest", str(f)]) == 0
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False, raising=False)
+    assert cli.main(base + ["compact"]) == 1 and "not compacted" in capsys.readouterr().err
+    assert cli.main(base + ["compact", "--yes"]) == 0
+    assert "0 deleted chunk rows" in capsys.readouterr().out

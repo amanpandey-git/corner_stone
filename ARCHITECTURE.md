@@ -395,9 +395,10 @@ def search(query, k, cfg, store, index, embedder, ef_search=None,
 - Filters apply inside both retrievers (FTS via a join on documents; vector via the existing over-fetch loop). A filter matching nothing -> `[]`; an unknown unit -> `[]`, not an error. `units` compare with `documents.unit`.
 - Errors unchanged: `EmptyQuery`; `ValueError` for k < 1.
 
-### 10.9 Compaction (`cli compact [--yes]`; `compact(cfg, store, index, index_path) -> dict`)
+### 10.9 Compaction (`cli compact [--yes]`; `pipeline.compact(cfg, store, index, index_path) -> (HNSWIndex, dict)`)
 - Rebuilds the faiss index from the vectors of `active` chunks only (read back with `HNSWIndex.vectors()`; `IndexHNSWFlat` keeps raw vectors), writes it to a temp file, runs `check_sync` against it, atomically replaces the index, and only then deletes the `deleted` chunk rows, their FTS rows, the pages of `replaced`/`abandoned` documents and their image folders. `documents` rows stay (history).
-- A crash after the swap but before the SQLite delete leaves deleted rows without vectors, which `check_sync` already accepts. Prints vectors and bytes on disk before/after. Nothing to compact -> reports 0, files untouched.
+- A crash after the swap but before the SQLite delete leaves deleted rows without vectors, which `check_sync` already accepts; the next run purges them (index untouched). Prints vectors and bytes on disk before/after. Nothing to compact -> reports 0, files untouched.
+- Returns the index to use from now on (the caller's in-memory index is stale after a rebuild) and a report: vectors_before/after, bytes_before/after, chunk_rows_removed, documents_cleaned. Refuses with `IndexOutOfSync` while a document is `pending`. SQLite side: `MetadataStore.purge_deleted() -> (rows removed, retired doc_ids)` in one transaction, FTS rows removed with the external-content `'delete'` command. CLI asks first; non-interactive without `--yes` refuses (exit 1).
 
 ### 10.10 Ablation protocol
 - `eval/retrieval_eval.py --split dev --config <file>` (a `--config` option is added) runs the same harness on a config variant. One row per change in `eval/results/ablation_dev.md`: `change | commit | hit@5 | MRR | p95 ms | notes`, starting with the v0.1 dev row. Planned rows, in build order: dedup at ingest; slide chunking + context header; hybrid RRF; collapse at query; reranker. Filters and compaction do not change ranking, so they get tests, not rows.

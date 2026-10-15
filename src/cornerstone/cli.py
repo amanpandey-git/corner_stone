@@ -26,7 +26,7 @@ from cornerstone.embeddings import Embedder, load_token_counter
 from cornerstone.index.hnsw_index import HNSWIndex
 from cornerstone.index.metadata_store import MetadataStore
 from cornerstone.ingest.loader import load_document
-from cornerstone.pipeline import ingest_file
+from cornerstone.pipeline import compact, ingest_file
 from cornerstone.search import search
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -198,6 +198,25 @@ def cmd_rebuild(args, cfg) -> int:
         st.close()
 
 
+def cmd_compact(args, cfg) -> int:
+    """Rebuild the index without soft-deleted vectors and purge their rows (asks first unless --yes)."""
+    st = open_stack(cfg, ROOT, load_embedder=False, assume_yes=args.yes)
+    try:
+        ok = args.yes
+        if not ok and sys.stdin.isatty():
+            ok = input("Compact the index (rewrite it without deleted vectors)? [y/N] ").strip().lower() == "y"
+        if not ok:
+            print("not compacted (answer y, or pass --yes)", file=sys.stderr)
+            return 1
+        _, r = compact(cfg, st.store, st.index, st.index_path)
+    finally:
+        st.close()
+    print(f"vectors: {r['vectors_before']} -> {r['vectors_after']}; index file: {r['bytes_before'] / 1e6:.2f} -> "
+          f"{r['bytes_after'] / 1e6:.2f} MB; {r['chunk_rows_removed']} deleted chunk rows and "
+          f"{r['documents_cleaned']} retired document(s) cleaned")
+    return 0
+
+
 def cmd_search(args, cfg) -> int:
     st = open_stack(cfg, ROOT, assume_yes=args.yes)
     filters = None
@@ -297,6 +316,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("paths", nargs="+")
     p.add_argument("--yes", action="store_true", help="do not ask before moving the old index aside")
     p.add_argument("-v", "--verbose", action="store_true")
+    p = add("compact", cmd_compact, "rewrite the index without deleted vectors; purge their rows and images")
+    p.add_argument("--yes", action="store_true")
     p = add("chunks", cmd_chunks, "print the chunks of one file (debug)")
     p.add_argument("file")
     p.add_argument("--full", action="store_true")

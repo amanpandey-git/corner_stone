@@ -238,6 +238,23 @@ class MetadataStore:
             args += list(filters.units)
         return {r[0] for r in self.conn.execute(sql, args)}
 
+    def purge_deleted(self) -> tuple[int, list[int]]:
+        """Compaction, SQLite side (call only after the compacted index is saved). ONE transaction:
+        remove 'deleted' chunk rows and their FTS rows, and the page rows of replaced/abandoned documents.
+        Document rows stay (history). Returns (chunk rows removed, doc_ids whose pages were removed)."""
+        with self.conn:
+            rows = self.conn.execute("SELECT chunk_id, text, context_header FROM chunks WHERE status='deleted'"
+                                     ).fetchall()
+            # external-content FTS5 tables are cleaned with the special 'delete' command and the old values
+            self.conn.executemany("INSERT INTO chunks_fts(chunks_fts, rowid, text, context_header) "
+                                  "VALUES('delete', ?, ?, ?)", [tuple(r) for r in rows])
+            self.conn.execute("DELETE FROM chunks WHERE status='deleted'")
+            retired = [r[0] for r in self.conn.execute(
+                "SELECT doc_id FROM documents WHERE status IN ('replaced','abandoned') "
+                "AND doc_id IN (SELECT doc_id FROM pages)")]
+            self.conn.executemany("DELETE FROM pages WHERE doc_id=?", [(d,) for d in retired])
+        return len(rows), retired
+
     def active_chunk_ids(self) -> list[int]:
         return [r[0] for r in self.conn.execute("SELECT chunk_id FROM chunks WHERE status='active' ORDER BY chunk_id")]
 

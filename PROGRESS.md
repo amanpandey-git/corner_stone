@@ -391,3 +391,14 @@
 - None new.
 ### Next atomic action
 - Compaction (ARCHITECTURE 10.9): compact() + `cli compact [--yes]` + tests (nothing to compact; replaced doc removed; crash after swap).
+## [2026-10-15] - Phase 1 step 8: compaction
+### Done
+- pipeline.compact (returns new index + report; refuses while pending), MetadataStore.purge_deleted (chunks, FTS 'delete', retired pages), images of retired docs removed, `cli compact [--yes]`. 5 new tests; 178 passed, 5 skipped (rrf). Dev row 8 unchanged.
+### In progress / partial
+- rrf_merge: waiting for the author (docstring structure in src/cornerstone/hybrid.py, tests in tests/test_hybrid.py).
+### Not started
+- Hybrid wiring in search() (retrieval.hybrid; needs rrf_merge); reranker ablation; Phase 1 test run (18 Oct).
+### Known issues / TODO
+- Dev misses: 14 (FCFS seek time, rank 8), 70 (huge time slice, Unit 1-2 p.77).
+### Next atomic action
+- Author writes rrf_merge (run: PYTHONPATH=src .venv\Scripts\python -m pytest tests/test_hybrid.py -q). Meanwhile: reranker module behind retrieval.rerank (ARCHITECTURE 10.7), off by default until the dev ablation decides.
