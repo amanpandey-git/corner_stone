@@ -415,7 +415,9 @@ def search(query, k, cfg, store, index, embedder, ef_search=None,
 | dedup.result_jaccard | 0.90 | collapses copies across files or near-copies that slipped through ingest |
 | retrieval.candidates | 30 | reranking 30 pairs fits the 1 s budget; recall headroom over k = 5 |
 | retrieval.rrf_k | 60 | standard RRF constant |
-| retrieval.hybrid / collapse / rerank | true | switches for the ablation table |
+| retrieval.hybrid | false | FTS5 + RRF switch; off because dev ablation row 9 lowered hit@5 0.939 -> 0.848 (re-tested with the reranker) |
+| retrieval.collapse | true | query-time collapse switch; no dev change (row 6), kept as a safety net |
+| retrieval.rerank | (not yet in config) | added with rerank.py; adopted only if dev improves and p95 < 1 s |
 | retrieval.unit_pattern | `(?i)unit\s*(\d+)` | sample file names start with "Unit N" |
 | rerank.model_name / model_revision | cross-encoder/ms-marco-MiniLM-L-6-v2 / pinned at download | 10.7 |
 | images.enabled / images.dpi / paths.image_dir | true / 110 / data/images | 10.5; data/ is gitignored |
