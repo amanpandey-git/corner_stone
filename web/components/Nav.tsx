@@ -33,7 +33,7 @@ export default function Nav() {
   return (
     <header className="border-b bg-white">
       <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-1 px-4 py-3">
-        <Link href="/" className="mr-4 font-bold">Cornerstone</Link>
+        <Link href="/" className="mr-4 font-bold">Synapse</Link>
         {PAGES.map((p) => (
           <Link
             key={p.href}

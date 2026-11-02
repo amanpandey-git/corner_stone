@@ -3,7 +3,7 @@ import Nav from "@/components/Nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Cornerstone",
+  title: "Synapse",
   description: "Exam answers, quizzes and flashcards from your own notes, every claim cited to a slide.",
 };
 
