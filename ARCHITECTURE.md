@@ -673,3 +673,22 @@ A thin client over the HTTP API (section 13). **No retrieval, answering, quiz or
 
 Edge cases (each shown, never silent): API down (banner with the start command); 503 LLM unavailable/limited (the API's message); 422 (message); upload of an unsupported type (415 message); job failed (report message); empty question (button disabled); no documents (hint to upload); no due cards (message + stats); missing slide image (`image_url` null -> "no image for this page").
 - CI: a `web` job in `.github/workflows/tests.yml` on Node 24: `npm ci`, `npm run lint`, `npm run build`. No API needed at build time.
+
+## 15. Online demo (Vercel only, no Python server; user decision 2026-11-03)
+
+Deployment and committing `web/public/demo/` were explicitly allowed by the user for this task (they override Section II / V of CLAUDE.md here only). `src/` is unchanged. `NEXT_PUBLIC_DEMO=1` turns it on at build time; without it the web app talks to the FastAPI server exactly as before.
+
+| Piece | File | Contract |
+|---|---|---|
+| Export | `web/scripts/export_demo.py` | Writes `web/public/demo/`: `chunks.json`, `vectors.f32` (float32 N x 384, same order), `docs.json`, `meta.json` (prompts + settings copied from code and config, `self_check`), `pages/{doc}/{page}.webp`. Index untouched. Re-run after any re-ingest. |
+| Ports | `web/lib/demo/core.ts` | TypeScript ports of answer.py, citations.py, dedup.py, quiz.py, flashcards.py, srs.py. No imports, usable on both sides. pick_slides uses a seeded mulberry32, so a seed picks different slides than Python's `random`. |
+| Browser | `web/lib/demo/client.ts` | `demoRequest()`, `demoStreamAsk()`. Search = exact dot product against all vectors (HNSW is an approximation of this), embedding by transformers.js `Xenova/bge-small-en-v1.5` q8, CLS pooling, normalised, with the query prefix. Filter by unit -> top `retrieval.candidates` -> collapse at `dedup.result_jaccard` -> top `answer.k`. Flashcards + reviews live in localStorage (in memory if storage is blocked); documents are read-only. |
+| Server | `web/lib/demo/server.ts`, `web/app/api/demo/*/route.ts` | Holds GROQ_API_KEY. Prompts are built only from the server's own copy of the chunks: the browser sends chunk ids, never slide text. |
+
+Routes (errors: `{detail}`; 422 bad input, 503 Groq or key problem):
+- `POST /api/demo/ask` `{question, mode, ids: int[], top_score, check}` -> SSE `delta` / `final` / `error`, same events and Answer JSON as `/ask/stream`. At most `answer.k` ids, each must exist (422); question at most `search.max_query_chars` (422). No ids or `top_score < min_vector_score` -> `final` with `abstain_reason: "retrieval"`, no LLM call. Reply held back 12 characters so NOT_IN_NOTES is never streamed.
+- `POST /api/demo/quiz` `{units?, n, seed}` -> same JSON as `/quiz`.
+- `POST /api/demo/flashcards` `{units?, n, seed}` -> `{cards, rejected}`; the browser stores the cards and answers as `/flashcards/generate` does.
+- `GET /api/demo/health` -> same JSON as `/health`; runs per request (`connection()`), so the key check is never frozen at build time.
+
+Differences from the evaluated system, on purpose: quantised q8 embeddings (`meta.self_check` compares its top-5 with the real model; result logged to the browser console and NOTES.md); no answer cache or client-side rate limiter (a Groq 429 is retried if the wait is <= `max_backoff_s`, else reported); exact search instead of HNSW. **The numbers in docs/evaluation-report.md were measured on the Python system, not on this demo.**

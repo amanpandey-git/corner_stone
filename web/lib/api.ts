@@ -1,7 +1,10 @@
 // Thin typed client for the Cornerstone HTTP API (ARCHITECTURE.md 13 + 14).
-// No retrieval, answering, quiz or SM-2 logic lives in the web app: every function here is one HTTP call.
+// No retrieval, answering, quiz or SM-2 logic lives in this file: every function here is one HTTP call.
+// With NEXT_PUBLIC_DEMO=1 (online demo, ARCHITECTURE.md 15) the same calls go to lib/demo/client.ts instead.
 
 export const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+export const DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
+const demo = () => import("./demo/client");   // loaded only in the online demo
 
 export const MODES = ["concise", "detailed", "2-mark", "5-mark", "10-mark"] as const;
 export type Mode = (typeof MODES)[number];
@@ -148,6 +151,7 @@ export class ApiError extends Error {
 const DOWN = `API not reachable at ${API}. Start it with: PYTHONPATH=src uvicorn cornerstone.api:app --port 8000`;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  if (DEMO) return (await demo()).demoRequest<T>(path, init);
   let res: Response;
   try {
     res = await fetch(API + path, init);
@@ -158,7 +162,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
-async function detail(res: Response): Promise<string> {
+export async function detail(res: Response): Promise<string> {
   try {
     const body = await res.json();
     if (typeof body.detail === "string") return body.detail;
@@ -182,8 +186,8 @@ export function uploadFiles(files: File[]) {
   return request<{ jobs: { job_id: string; file_name: string }[] }>("/documents", { method: "POST", body: form });
 }
 
-/** Absolute URL for an image path returned by the API (`/pages/{doc}/{page}/image`), or null. */
-export const imageSrc = (url: string | null | undefined) => (url ? API + url : null);
+/** Absolute URL for an image path returned by the API (`/pages/{doc}/{page}/image`), or null. Demo: already a site path. */
+export const imageSrc = (url: string | null | undefined) => (url ? (DEMO ? url : API + url) : null);
 
 /** Error text for display; anything that is not an ApiError is shown by its message. */
 export const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -195,6 +199,7 @@ export const errorText = (e: unknown) => (e instanceof Error ? e.message : Strin
  * EventSource cannot send a POST body, so the stream is read from fetch() with a ReadableStream.
  */
 export async function streamAsk(body: AskBody, onDelta: (text: string) => void, signal?: AbortSignal): Promise<Answer> {
+  if (DEMO) return (await demo()).demoStreamAsk(body, onDelta, signal);
   let res: Response;
   try {
     res = await fetch(API + "/ask/stream", {
@@ -208,8 +213,12 @@ export async function streamAsk(body: AskBody, onDelta: (text: string) => void, 
     throw new ApiError(0, DOWN);
   }
   if (!res.ok || !res.body) throw new ApiError(res.status, await detail(res));
+  return readAnswerStream(res.body, onDelta);
+}
 
-  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+/** The event-stream reader shared with the online demo: returns the `final` Answer. */
+export async function readAnswerStream(stream: ReadableStream<Uint8Array<ArrayBuffer>>, onDelta: (text: string) => void): Promise<Answer> {
+  const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";
   let final: Answer | null = null;
   for (;;) {

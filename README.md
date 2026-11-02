@@ -62,6 +62,10 @@ flowchart LR
 Every contract (inputs, outputs, errors, edge cases) is in [`ARCHITECTURE.md`](ARCHITECTURE.md); decisions and bugs
 in [`NOTES.md`](NOTES.md); examiner questions in [`VIVA.md`](VIVA.md).
 
+## Online demo (Vercel)
+
+`web/` can also run with no Python server (`NEXT_PUBLIC_DEMO=1`): the browser searches exported vectors and the Next.js routes call Groq. Uploads are off; flashcards stay in the browser. Vercel settings: Root Directory `web`, environment variables `NEXT_PUBLIC_DEMO=1` and `GROQ_API_KEY`. After re-ingesting notes, run `web/scripts/export_demo.py` again. The numbers above were measured on the Python system. Design: ARCHITECTURE.md section 15.
+
 ## Setup (Windows 10/11 64-bit, Python 3.12)
 
 ```powershell

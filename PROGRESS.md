@@ -597,3 +597,18 @@ Updated: 2026-10-16. Branch stage-2, 274 tests; GitHub Actions green (pytest + n
 - Job status lives in API memory: restarting uvicorn loses in-progress job ids (documents already indexed stay).
 ### Next atomic action
 - User: browser click-through (Morning report item 1); then decide web vs Streamlit for the demo.
+
+## [2026-11-03] - Online demo on Vercel (ARCHITECTURE 15)
+### Done
+- web/public/demo/ exported (7 documents, 328 chunks, 328 WebP pages, 11 MB). client.ts, /api/demo/{ask,quiz,flashcards,health}; api.ts routes to them when NEXT_PUBLIC_DEMO=1; Documents page shows the uploads-off notice. src/ unchanged.
+- Fixed in the started files: regex syntax error, Groq error bodies leaking, empty reply as false abstention, retries now as in llm.py.
+- Checked: TS/Python parity 100/100; `next build` with and without the flag; lint; real browser (Edge, headless) on `next start` and `next dev` with the real Groq key: cited answer -> slide image, abstention, quiz, wrong answer -> flashcard, generate cards, SM-2 grade, reload keeps cards; self-check top-5 identical; bad input -> 422.
+### In progress / partial
+- Not deployed by the assistant: the user creates the Vercel project. The live URL is therefore untested.
+### Not started
+- Evaluation-report numbers are not re-measured for the demo (none run, and none should be).
+### Known issues / TODO
+- This file has no entry for 17 Oct - 2 Nov and the Morning report above is from 16 Oct; the user has not yet said how the 25 Oct evaluation went. The Cloud Run commit 076b291 is also unlogged.
+- No answer cache online: every question uses Groq quota, on the owner's key, on a public URL.
+### Next atomic action
+- User: import the repo in Vercel (Root Directory web, env NEXT_PUBLIC_DEMO=1 and GROQ_API_KEY), open /ask, wait for the first load, run the demo questions.

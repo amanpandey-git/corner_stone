@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Notice from "@/components/Notice";
-import { del, errorText, getJSON, uploadFiles, type DocumentRow, type Job } from "@/lib/api";
+import { DEMO, del, errorText, getJSON, uploadFiles, type DocumentRow, type Job } from "@/lib/api";
+import { DEMO_OFF } from "@/lib/demo/core";
 
 const POLL_MS = 1000;
 
@@ -68,7 +69,9 @@ export default function DocumentsPage() {
       <h1 className="text-2xl font-bold">Documents</h1>
       {error && <Notice>{error}</Notice>}
 
-      <section className="space-y-3 rounded-lg border bg-white p-4">
+      {DEMO && <Notice kind="info">{DEMO_OFF}</Notice>}
+
+      {!DEMO && <section className="space-y-3 rounded-lg border bg-white p-4">
         <h2 className="font-semibold">Upload</h2>
         <input
           type="file"
@@ -86,7 +89,7 @@ export default function DocumentsPage() {
         </button>
         <p className="text-xs text-slate-500">PDF or DOCX. Files are indexed one at a time in the background.</p>
         {jobs.map((j) => <JobRow key={j.job_id} job={j} />)}
-      </section>
+      </section>}
 
       <section className="space-y-2">
         <h2 className="font-semibold">Indexed</h2>
@@ -105,7 +108,7 @@ export default function DocumentsPage() {
                   <th className="p-2 text-right">Flagged</th>
                   <th className="p-2 text-right">Duplicates</th>
                   <th className="p-2 text-right">Chunks</th>
-                  <th className="p-2" />
+                  {!DEMO && <th className="p-2" />}
                 </tr>
               </thead>
               <tbody>
@@ -117,9 +120,11 @@ export default function DocumentsPage() {
                     <td className="p-2 text-right">{d.pages_flagged}</td>
                     <td className="p-2 text-right">{d.pages_duplicate}</td>
                     <td className="p-2 text-right">{d.chunks}</td>
-                    <td className="p-2 text-right">
-                      <button onClick={() => remove(d)} className="text-red-700 hover:underline">Delete</button>
-                    </td>
+                    {!DEMO && (
+                      <td className="p-2 text-right">
+                        <button onClick={() => remove(d)} className="text-red-700 hover:underline">Delete</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

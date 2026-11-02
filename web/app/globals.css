@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source not "../public/demo";
 
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
