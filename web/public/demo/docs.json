@@ -1,0 +1,86 @@
+[
+ {
+  "doc_id": 1,
+  "file_name": "Unit 1_Part 1_Introduction & OS Structure.pdf",
+  "unit": "Unit 1",
+  "pages_total": 48,
+  "pages_with_text": 48,
+  "pages_flagged": 0,
+  "pages_duplicate": 0,
+  "chunks": 47,
+  "status": "active",
+  "ingested_at": "2026-10-15T17:53:59+00:00"
+ },
+ {
+  "doc_id": 2,
+  "file_name": "Unit 1_Part 2_ Process management.pdf",
+  "unit": "Unit 1",
+  "pages_total": 120,
+  "pages_with_text": 119,
+  "pages_flagged": 0,
+  "pages_duplicate": 1,
+  "chunks": 100,
+  "status": "active",
+  "ingested_at": "2026-10-15T17:54:13+00:00"
+ },
+ {
+  "doc_id": 3,
+  "file_name": "Unit 2_Process Synchronization_Deadlock.pdf",
+  "unit": "Unit 2",
+  "pages_total": 59,
+  "pages_with_text": 56,
+  "pages_flagged": 3,
+  "pages_duplicate": 0,
+  "chunks": 53,
+  "status": "active",
+  "ingested_at": "2026-10-15T17:54:27+00:00"
+ },
+ {
+  "doc_id": 4,
+  "file_name": "Unit 3_Memory management.pdf",
+  "unit": "Unit 3",
+  "pages_total": 55,
+  "pages_with_text": 48,
+  "pages_flagged": 7,
+  "pages_duplicate": 0,
+  "chunks": 40,
+  "status": "active",
+  "ingested_at": "2026-10-15T17:54:41+00:00"
+ },
+ {
+  "doc_id": 5,
+  "file_name": "Unit 4_Storage management_ Disk Schduling.pdf",
+  "unit": "Unit 4",
+  "pages_total": 51,
+  "pages_with_text": 28,
+  "pages_flagged": 0,
+  "pages_duplicate": 23,
+  "chunks": 25,
+  "status": "active",
+  "ingested_at": "2026-10-15T17:54:48+00:00"
+ },
+ {
+  "doc_id": 6,
+  "file_name": "Unit 5_Part 1_File-system-interface.pdf",
+  "unit": "Unit 5",
+  "pages_total": 61,
+  "pages_with_text": 60,
+  "pages_flagged": 1,
+  "pages_duplicate": 0,
+  "chunks": 42,
+  "status": "active",
+  "ingested_at": "2026-10-15T17:54:55+00:00"
+ },
+ {
+  "doc_id": 7,
+  "file_name": "Unit 5_Part 2_System Protection.pdf",
+  "unit": "Unit 5",
+  "pages_total": 28,
+  "pages_with_text": 26,
+  "pages_flagged": 2,
+  "pages_duplicate": 0,
+  "chunks": 21,
+  "status": "active",
+  "ingested_at": "2026-10-15T17:55:02+00:00"
+ }
+]

@@ -1,0 +1,101 @@
+{
+ "exported_at": "2026-11-02T20:28:39+00:00",
+ "schema_version": 3,
+ "n_chunks": 328,
+ "dim": 384,
+ "embedding": {
+  "model_name": "BAAI/bge-small-en-v1.5",
+  "query_prefix": "Represent this sentence for searching relevant passages: "
+ },
+ "prompts": {
+  "answer_system": "You are a study assistant for a university student preparing for exams. You answer ONLY from the numbered sources in the user message: slides from the student's own course notes.\n\nRules:\n1. Use only information stated in the sources. Do not add facts from your own knowledge, even if you know them and even if the sources seem incomplete. Do not add your own conclusions, consequences or explanations that the sources do not state.\n2. End EVERY sentence that states a fact with the number of the source that supports it in square brackets, like [1] or [2][3], even when several sentences in a row use the same source (repeat the number each time). A sentence without a citation counts as unsupported. Use plain square brackets only. Cite only numbers from the sources list.\n3. If the sources do not contain the information needed to answer the question, reply with exactly NOT_IN_NOTES and nothing else. Do this also when the sources are only loosely related to the question.\n4. If the sources answer only part of the question, answer that part with citations and add one sentence saying which part the notes do not cover.\n5. Write short sentences that each state one fact. If a source only names something (for example \"starvation can be seen\") without explaining it, say only what the source says; do not explain it yourself.\n6. Write in clear, simple English for a student. Do not mention \"sources\" or \"slides\" in the answer text; just cite them.\n\nCitation format example (format only, not content):\nPaging divides physical memory into fixed-size frames [1]. The page table maps each page to a frame [1]. A TLB caches recent translations to speed up lookups [2].\n\nAnswer format: {instruction}",
+  "quiz_system": "You write exam practice questions for a university student from slides of their own course notes.\n\nWrite multiple-choice questions as JSON: {\"questions\": [{\"question\": \"...\", \"options\": [\"...\", \"...\", \"...\", \"...\"], \"answer\": 0, \"explanation\": \"...\", \"source\": 1}]}\nRules:\n1. Each question tests one fact that is stated on one numbered slide; \"source\" is that slide's number.\n2. Exactly 4 options. Exactly one is correct according to that slide; \"answer\" is its index (0-3).\n3. The 3 wrong options must be plausible to a student but clearly wrong according to the slide.\n4. Never use \"all of the above\", \"none of the above\" or \"both A and B\".\n5. \"explanation\" is one sentence saying why the answer is correct, using the slide's wording.\n6. Use only the slides; no outside facts. Cover different slides; do not repeat a question.\nReply with the JSON object only.",
+  "cards_system": "You make revision flashcards for a university student from slides of their own course notes.\n\nReply with JSON: {\"cards\": [{\"front\": \"...\", \"back\": \"...\", \"source\": 1}]}\nRules:\n1. \"front\" is a short question or term; \"back\" is the answer in at most 2 sentences, using the slide's wording.\n2. Each card covers one fact, definition or step stated on one numbered slide; \"source\" is that slide's number.\n3. Use only the slides; no outside facts. Do not repeat a card.\nReply with the JSON object only.",
+  "judge_system": "You check citations in a student's study answer. For each numbered claim you get the sentence and the text of the slides it cites. A claim is SUPPORTED only if the cited slide text states it or directly implies it; general knowledge does not count. Reply with JSON only: {\"unsupported\": [claim numbers that are not supported]}. Use an empty list if all are supported.",
+  "not_in_notes": "Not in your notes."
+ },
+ "answer": {
+  "k": 5,
+  "min_vector_score": 0.0,
+  "judge_provider": "groq_judge",
+  "judge_max_tokens": 300,
+  "check_citations": false,
+  "modes": {
+   "concise": {
+    "max_tokens": 700,
+    "instruction": "A direct answer in 2-4 sentences."
+   },
+   "detailed": {
+    "max_tokens": 1400,
+    "instruction": "A clear explanation in short paragraphs or bullet points that covers every relevant point in the sources. Every sentence and every bullet ends with its citation."
+   },
+   "2-mark": {
+    "max_tokens": 600,
+    "instruction": "A university 2-mark answer of about 40-60 words: a precise definition or direct answer plus one key point."
+   },
+   "5-mark": {
+    "max_tokens": 1400,
+    "instruction": "A university 5-mark answer of about 150-250 words: a one-sentence introduction that defines the topic in the sources' own words, then 4-6 key points as bullets. Add a one-sentence conclusion only if a source states a purpose, summary or advantage you can cite; otherwise end after the last bullet. Every sentence and bullet ends with a citation; never add a general summary of your own."
+   },
+   "10-mark": {
+    "max_tokens": 2400,
+    "instruction": "A university 10-mark answer of about 400-600 words: an introduction that defines the topic in the sources' own words, the main points as bullets under short headings, an example or the working of the method if the sources give one, advantages and disadvantages if the sources give them, and a conclusion only if a source states a purpose or summary you can cite. Every sentence and bullet ends with a citation; never add a general summary of your own."
+   }
+  }
+ },
+ "llm": {
+  "temperature": 0.0,
+  "max_retries": 2,
+  "backoff_s": 2,
+  "max_backoff_s": 20,
+  "groq": {
+   "model": "openai/gpt-oss-120b",
+   "extra": {
+    "reasoning_effort": "low"
+   }
+  },
+  "groq_judge": {
+   "model": "qwen/qwen3.8-27b",
+   "extra": {}
+  }
+ },
+ "quiz": {
+  "min_tokens": 40,
+  "max_sources": 12,
+  "max_questions": 10,
+  "max_attempts": 2,
+  "max_tokens": 3000
+ },
+ "flashcards": {
+  "max_cards": 20,
+  "max_tokens": 2500
+ },
+ "retrieval": {
+  "candidates": 30,
+  "collapse": true
+ },
+ "dedup": {
+  "result_jaccard": 0.9
+ },
+ "search": {
+  "max_query_chars": 2000,
+  "snippet_chars": 300
+ },
+ "self_check": {
+  "query": "What is paging in memory management?",
+  "top_ids": [
+   218,
+   235,
+   219,
+   236,
+   239
+  ],
+  "top_scores": [
+   0.8858,
+   0.8267,
+   0.786,
+   0.7267,
+   0.724
+  ]
+ }
+}
