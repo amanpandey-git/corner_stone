@@ -2,51 +2,52 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getJSON, type Health } from "@/lib/api";
+import { ButtonLink } from "@/components/ui/Button";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+import { REPO_URL } from "@/lib/links";
 
 const PAGES = [
-  { href: "/documents", label: "Documents" },
   { href: "/ask", label: "Ask" },
   { href: "/quiz", label: "Quiz" },
   { href: "/review", label: "Flashcards" },
+  { href: "/documents", label: "Documents" },
 ];
 
-/** Top bar: page links + API status (GET /health every 15 s). */
+/** Quiet top bar. On phones the page links move to the bottom tab bar (TabBar.tsx). */
 export default function Nav() {
   const path = usePathname();
-  const [health, setHealth] = useState<Health | null | "down">(null);
-
-  useEffect(() => {
-    const check = () => getJSON<Health>("/health").then(setHealth, () => setHealth("down"));
-    check();
-    const t = setInterval(check, 15000);
-    return () => clearInterval(t);
-  }, []);
-
-  const status =
-    health === null ? ["bg-slate-300", "checking API"]
-    : health === "down" ? ["bg-red-500", "API down"]
-    : [health.llm_key_present ? "bg-green-500" : "bg-amber-500",
-       `${health.documents} docs · ${health.chunks} chunks${health.llm_key_present ? "" : " · no LLM key"}`];
-
   return (
-    <header className="border-b bg-white">
-      <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-1 px-4 py-3">
-        <Link href="/" className="mr-4 font-bold">Synapse</Link>
-        {PAGES.map((p) => (
-          <Link
-            key={p.href}
-            href={p.href}
-            className={`rounded px-3 py-1 text-sm ${path.startsWith(p.href) ? "bg-slate-900 text-white" : "hover:bg-slate-100"}`}
-          >
-            {p.label}
-          </Link>
-        ))}
-        <span className="ml-auto flex items-center gap-2 text-xs text-slate-500">
-          <span className={`inline-block h-2 w-2 rounded-full ${status[0]}`} />
-          {status[1]}
-        </span>
+    <header className="border-b">
+      <nav aria-label="Main" className="page flex h-16 items-center gap-2">
+        <Link href="/" className="inline-flex min-h-11 items-center font-display text-[1.375rem] font-semibold tracking-tight">
+          <span className="hl mr-px">S</span>ynapse
+        </Link>
+        <div className="ml-6 hidden items-center gap-1 md:flex">
+          {PAGES.map((p) => {
+            const on = path.startsWith(p.href);
+            return (
+              <Link
+                key={p.href}
+                href={p.href}
+                aria-current={on ? "page" : undefined}
+                className={`inline-flex min-h-11 items-center rounded-sm px-3 text-small ${on ? "bg-marker font-semibold text-on-marker" : "text-ink-2 hover:bg-sunk hover:text-ink"}`}
+              >
+                {p.label}
+              </Link>
+            );
+          })}
+        </div>
+        <div className="ml-auto flex items-center gap-1">
+          <a href={REPO_URL} rel="noreferrer" className="hidden min-h-11 items-center rounded-sm px-3 text-small text-ink-2 hover:bg-sunk hover:text-ink md:inline-flex">
+            GitHub
+          </a>
+          <ThemeToggle />
+          {path === "/" && (
+            <ButtonLink href="/ask" variant="marker" size="sm" className="ml-1">
+              Try the demo
+            </ButtonLink>
+          )}
+        </div>
       </nav>
     </header>
   );

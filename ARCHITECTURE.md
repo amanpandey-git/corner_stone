@@ -655,7 +655,7 @@ def sm2(ef: float, interval: int, reps: int, grade: int) -> tuple[float, int, in
 
 A thin client over the HTTP API (section 13). **No retrieval, answering, quiz or SM-2 logic in `web/`**: every page calls an API route and renders the JSON. The Streamlit page (8b) stays as the fallback and keeps working.
 
-- Toolchain: Node 24 LTS (v24.20.0 on this laptop), npm 11; exact versions pinned in `web/package.json` (no `^`) and `web/package-lock.json` committed. App Router, all pages are client components (`"use client"`); no Next.js API routes, no server actions, no database access.
+- Toolchain: Node 24 LTS (v24.20.0 on this laptop), npm 11; exact versions pinned in `web/package.json` (no `^`) and `web/package-lock.json` committed. App Router. The landing page `/` is a Server Component with small client islands; the other pages are client components (`"use client"`). No server actions and no database access; route handlers exist only for the online demo (section 15). Design tokens and rules: `docs/ui/UI_PLAN.md`. Fonts are local files in `web/app/fonts/` (OFL-1.1); the only runtime UI dependency is `lucide-react` (ISC).
 - API base URL: `NEXT_PUBLIC_API_URL` (default `http://127.0.0.1:8000`), read once in `web/lib/api.ts`. Image URLs from the API (`image_url`, relative) are prefixed with it.
 - CORS: `api.cors_origins` in config.yaml (default `http://localhost:3000`, `http://127.0.0.1:3000`), passed to FastAPI's `CORSMiddleware` (methods `*`, headers `*`, no credentials). An origin not in the list gets no `Access-Control-Allow-Origin` header. Test: preflight from an allowed origin succeeds, from another origin it has no allow header.
 - Run (two terminals): `PYTHONPATH=src uvicorn cornerstone.api:app --port 8000` and `cd web && npm run dev` (http://localhost:3000).
@@ -663,15 +663,16 @@ A thin client over the HTTP API (section 13). **No retrieval, answering, quiz or
 | file | role |
 |---|---|
 | `web/lib/api.ts` | `API` base URL; typed `getJSON/postJSON/del` (throw `ApiError(status, detail)` with the API's `detail`; network failure -> "API not reachable at ...; start uvicorn"); `streamAsk(body, onDelta)` parses the `/ask/stream` SSE (`delta` / `final` / `error`) from `fetch` + `ReadableStream`; types mirror section 13 |
-| `web/components/Nav.tsx` | links to the four pages + API health dot (`GET /health`) |
-| `web/components/SlideModal.tsx` | overlay showing a page image with file + page label; closes on Esc / backdrop click |
+| `web/components/Nav.tsx`, `TabBar.tsx`, `Footer.tsx`, `HealthStatus.tsx` | top bar (4 pages, theme toggle); phone tab bar on app pages; footer; health line (`GET /health` once on load and when the tab regains focus, not on the landing page) |
+| `web/components/ui/` | shared presentation only: Button, Card, Badge, Kbd, Skeleton, EmptyState, ErrorState, Stat + Tally, ThemeToggle, CitationChip, SlidePanel (`SlideDock` beside the answer from 1024 px; `SlideDialog`, a native `<dialog>`: bottom sheet on phones, side drawer on desktop; both show the page image with deck, page and section, previous/next, Esc closes, focus returns) |
+| `web/lib/messages.ts` | `friendlyError(e)`: maps an `ApiError` to plain words; the raw detail goes to `console.error`, never onto the page. `web/lib/format.ts`: display names only. `web/lib/links.ts`: repo and report URLs. |
 | `web/components/CitedText.tsx` | renders answer text, turning each `[n]`, `[1, 2]`, `[1-3]` marker into buttons that open source n's slide (display only; citation parsing and checking stay in `citations.py`) |
 | `web/app/documents/page.tsx` | upload (`POST /documents`, multi-file), job polling (`GET /documents/jobs/{id}` every 1 s until done/failed, report shown), list (`GET /documents`), delete with confirm |
 | `web/app/ask/page.tsx` | question, mode selector (the 5 modes from section 11.2), unit filter (from `/documents`), optional citation check; streamed answer; sources list; abstention shown as "Not in your notes."; flags (uncited / invalid / unsupported) shown as warnings |
 | `web/app/quiz/page.tsx` | unit filter + n -> `POST /quiz`; answer each MCQ, reveal explanation + source (click -> slide); a wrong answer offers "Make flashcard" (`POST /flashcards/from-quiz`) |
 | `web/app/review/page.tsx` | `GET /flashcards/due`; show front, reveal back + source slide, grade buttons (Again 1, Hard 3, Good 4, Easy 5) -> `POST /flashcards/{id}/review`; "Generate cards" (`POST /flashcards/generate`) for a unit |
 
-Edge cases (each shown, never silent): API down (banner with the start command); 503 LLM unavailable/limited (the API's message); 422 (message); upload of an unsupported type (415 message); job failed (report message); empty question (button disabled); no documents (hint to upload); no due cards (message + stats); missing slide image (`image_url` null -> "no image for this page").
+Edge cases (each shown, never silent): API down (banner with the start command); 503 LLM unavailable/limited (a plain message from `friendlyError`, with Try again); 422 (message); upload of an unsupported type (415 message); job failed (report message); empty question (button disabled); no documents (hint to upload); no due cards (message + stats); missing slide image (`image_url` null -> "no image for this page").
 - CI: a `web` job in `.github/workflows/tests.yml` on Node 24: `npm ci`, `npm run lint`, `npm run build`. No API needed at build time.
 
 ## 15. Online demo (Vercel only, no Python server; user decision 2026-11-03)
@@ -682,7 +683,7 @@ Deployment and committing `web/public/demo/` were explicitly allowed by the user
 |---|---|---|
 | Export | `web/scripts/export_demo.py` | Writes `web/public/demo/`: `chunks.json`, `vectors.f32` (float32 N x 384, same order), `docs.json`, `meta.json` (prompts + settings copied from code and config, `self_check`), `pages/{doc}/{page}.webp`. Index untouched. Re-run after any re-ingest. |
 | Ports | `web/lib/demo/core.ts` | TypeScript ports of answer.py, citations.py, dedup.py, quiz.py, flashcards.py, srs.py. No imports, usable on both sides. pick_slides uses a seeded mulberry32, so a seed picks different slides than Python's `random`. |
-| Browser | `web/lib/demo/client.ts` | `demoRequest()`, `demoStreamAsk()`. Search = exact dot product against all vectors (HNSW is an approximation of this), embedding by transformers.js `Xenova/bge-small-en-v1.5` q8, CLS pooling, normalised, with the query prefix. Filter by unit -> top `retrieval.candidates` -> collapse at `dedup.result_jaccard` -> top `answer.k`. Flashcards + reviews live in localStorage (in memory if storage is blocked); documents are read-only. |
+| Browser | `web/lib/demo/client.ts` | `demoRequest()`, `demoStreamAsk()`, `watchModelLoad(fn)` (display only: reports the model download percent to the Ask page, user-approved 2026-11-03; no effect on search). Search = exact dot product against all vectors (HNSW is an approximation of this), embedding by transformers.js `Xenova/bge-small-en-v1.5` q8, CLS pooling, normalised, with the query prefix. Filter by unit -> top `retrieval.candidates` -> collapse at `dedup.result_jaccard` -> top `answer.k`. Flashcards + reviews live in localStorage (in memory if storage is blocked); documents are read-only. |
 | Server | `web/lib/demo/server.ts`, `web/app/api/demo/*/route.ts` | Holds GROQ_API_KEY. Prompts are built only from the server's own copy of the chunks: the browser sends chunk ids, never slide text. |
 
 Routes (errors: `{detail}`; 422 bad input, 503 Groq or key problem):

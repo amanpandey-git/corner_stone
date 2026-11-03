@@ -1,6 +1,410 @@
 @import "tailwindcss";
 @source not "../public/demo";
 
-body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+/* Theme is a class on <html>, set before first paint by the inline script in layout.tsx. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Marginalia tokens. Every text/background pair is checked against WCAG AA in docs/ui/UI_PLAN.md section 2. */
+:root {
+  color-scheme: light;
+  --paper: #faf6ec;
+  --raised: #fffdf7;
+  --sunk: #f1ebdc;
+  --ink: #1f1b16;
+  --ink-2: #544d42;
+  --ink-3: #6b6357;
+  --rule: #e3dbc8;
+  --rule-strong: #8f8675;
+  --marker: #ffd93d;
+  --marker-soft: #fff1b8;
+  --on-marker: #1f1b16;
+  --accent-ink: #7a5a00;
+  --margin-pen: #b3261e;
+  --correct: #1b6b3f;
+  --correct-bg: #e3f2e5;
+  --wrong: #b3261e;
+  --wrong-bg: #fbe6e2;
+  --warn: #8a5300;
+  --warn-bg: #fbefd5;
+  --sheet-shadow: 0 1px 2px rgb(60 45 20 / 0.06), 0 18px 44px -22px rgb(60 45 20 / 0.32);
+  --slide-filter: none;
+}
+
+/* Desk lamp: designed, not inverted. Surfaces get lighter as they rise, and there are no drop shadows. */
+.dark {
+  color-scheme: dark;
+  --paper: #15130f;
+  --raised: #1f1c17;
+  --sunk: #0f0e0b;
+  --ink: #f4efe3;
+  --ink-2: #c4bcac;
+  --ink-3: #a0978a;
+  --rule: #2f2b24;
+  --rule-strong: #7c7466;
+  --marker: #f2c230;
+  --marker-soft: #3b3010;
+  --on-marker: #1f1b16;
+  --accent-ink: #f2c230;
+  --margin-pen: #f4978e;
+  --correct: #7fd6a0;
+  --correct-bg: #14301f;
+  --wrong: #f4978e;
+  --wrong-bg: #3a1a16;
+  --warn: #edb95e;
+  --warn-bg: #33260f;
+  --sheet-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --slide-filter: brightness(0.92);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-raised: var(--raised);
+  --color-sunk: var(--sunk);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-marker: var(--marker);
+  --color-marker-soft: var(--marker-soft);
+  --color-on-marker: var(--on-marker);
+  --color-accent-ink: var(--accent-ink);
+  --color-margin-pen: var(--margin-pen);
+  --color-correct: var(--correct);
+  --color-correct-bg: var(--correct-bg);
+  --color-wrong: var(--wrong);
+  --color-wrong-bg: var(--wrong-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-atkinson), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --text-display: clamp(2.75rem, 1.55rem + 4.9vw, 5.25rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 600;
+  --text-h1: clamp(2rem, 1.6rem + 1.6vw, 2.75rem);
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.015em;
+  --text-h1--font-weight: 600;
+  --text-h2: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+  --text-h2--line-height: 1.2;
+  --text-h2--font-weight: 600;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.3;
+  --text-h3--font-weight: 700;
+  --text-lede: 1.25rem;
+  --text-lede--line-height: 1.5;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-mono: 0.8125rem;
+  --text-mono--line-height: 1.4;
+  --text-mono--font-weight: 500;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-sheet: var(--sheet-shadow);
+}
+
+@layer base {
+  html {
+    background: var(--paper);
+    font-optical-sizing: auto;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-size: var(--text-body);
+    line-height: 1.6;
+  }
+
+  /* Tailwind 4's `border` uses the text colour by default; this makes every border a hairline at the root. */
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--rule);
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--marker);
+    color: var(--on-marker);
+  }
+
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  label:has(input:not(:disabled)) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 76rem;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .page {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* The red-pen margin of an exam paper. */
+  .ruled {
+    position: relative;
+    padding-left: 1.25rem;
+  }
+
+  .ruled::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 1px;
+    background: var(--margin-pen);
+    opacity: 0.55;
+  }
+
+  @media (min-width: 768px) {
+    .ruled {
+      padding-left: 2.5rem;
+    }
+  }
+
+  /* Highlighter. Always dark ink on yellow, in both themes. */
+  .hl {
+    background: var(--marker);
+    color: var(--on-marker);
+    border-radius: 0.1em;
+    padding-inline: 0.12em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* Citation highlight: sweeps across the sentence a focused chip supports. */
+  .sweep {
+    background-image: linear-gradient(var(--marker-soft), var(--marker-soft));
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 0% 100%;
+    transition: background-size 200ms ease-out;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .sweep[data-on="true"] {
+    background-size: 100% 100%;
+  }
+
+  /* Answer text arriving: a blinking caret. Off under reduced motion (see the rule at the end). */
+  .caret::after {
+    content: "";
+    display: inline-block;
+    width: 0.5em;
+    height: 1em;
+    margin-left: 0.15em;
+    vertical-align: -0.12em;
+    background: var(--ink-3);
+    animation: caret 1s steps(2) infinite;
+  }
+
+  /* Slides: real white images, dimmed in dark mode so they do not glare. */
+  .slide-img {
+    filter: var(--slide-filter);
+  }
+
+  /* 3D flash card: both faces share one grid cell, so the card is as tall as its taller face. */
+  .flip {
+    perspective: 1400px;
+  }
+
+  .flip-inner {
+    display: grid;
+    transform-style: preserve-3d;
+    transition: transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .flip-inner > * {
+    grid-area: 1 / 1;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .flip-back {
+    transform: rotateY(180deg);
+  }
+
+  .flip[data-flipped="true"] .flip-inner {
+    transform: rotateY(180deg);
+  }
+
+  /* Native <dialog> for slides: a bottom sheet on phones, a side drawer from 1024 px. */
+  .slide-dialog {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 88dvh;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    background: var(--raised);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  .slide-dialog::backdrop {
+    background: rgb(20 16 10 / 0.55);
+  }
+
+  .slide-dialog[open] {
+    animation: sheet-up 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  @media (min-width: 1024px) {
+    .slide-dialog {
+      inset: 0 0 0 auto;
+      width: min(38rem, 46vw);
+      height: 100dvh;
+      max-height: 100dvh;
+      border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+    }
+
+    .slide-dialog[open] {
+      animation-name: sheet-left;
+    }
+  }
+
+  /* Dots in a marksheet row. */
+  .tally {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  .tally > span {
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    background: var(--ink);
+  }
+
+  .tally > span[data-miss="true"] {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--rule-strong);
+  }
+
+  /* Contents-page dot leader. */
+  .leader {
+    flex: 1;
+    min-width: 1.5rem;
+    margin-inline: 0.5rem;
+    border-bottom: 2px dotted var(--rule-strong);
+    transform: translateY(-0.35em);
+  }
+
+  /* Hero answer: arrives one sentence at a time, once. */
+  .arrive {
+    animation: arrive 320ms ease-out both;
+    animation-delay: var(--delay, 0ms);
+  }
+}
+
+@keyframes caret {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-left {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.panel-in {
+  animation: panel-in 200ms ease-out;
+}
+
+/* Scroll reveals: CSS only, and content is fully visible wherever this is not supported. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 26%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .caret::after {
+    animation: none;
+  }
 }

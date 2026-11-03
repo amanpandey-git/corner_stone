@@ -59,10 +59,10 @@ export default function AskPage() {
   const open = (s: Source | undefined) => s && setSlide({ label: s.label, image_url: s.image_url, section: s.section });
 
   return (
-    <div className="space-y-6">
+    <div className="page space-y-6 py-8">
       <h1 className="text-2xl font-bold">Ask your notes</h1>
 
-      <form onSubmit={ask} className="space-y-3 rounded-lg border bg-white p-4">
+      <form onSubmit={ask} className="space-y-3 rounded-lg border bg-raised p-4">
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
@@ -92,7 +92,7 @@ export default function AskPage() {
           <button
             type="submit"
             disabled={!question.trim() || busy}
-            className="ml-auto rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-40"
+            className="ml-auto rounded bg-ink px-4 py-2 text-paper disabled:opacity-40"
           >
             {busy ? "Answering..." : "Ask"}
           </button>
@@ -102,9 +102,9 @@ export default function AskPage() {
       {error && <Notice>{error}</Notice>}
 
       {busy && !answer && (
-        <div className="rounded-lg border bg-white p-4">
+        <div className="rounded-lg border bg-raised p-4">
           {streamed ? <p className="whitespace-pre-wrap leading-relaxed">{streamed}</p>
-                    : <p className="text-slate-500">Searching your notes...</p>}
+                    : <p className="text-ink-3">Searching your notes...</p>}
         </div>
       )}
 
@@ -127,7 +127,7 @@ function AnswerView({ answer, check, onCite, onSource }: {
   }
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-white p-4">
+      <div className="rounded-lg border bg-raised p-4">
         <CitedText text={answer.text} onCite={onCite} />
       </div>
       {answer.uncited_sentences.length > 0 && (
@@ -142,24 +142,24 @@ function AnswerView({ answer, check, onCite, onSource }: {
           {answer.unsupported.map((i) => answer.citations[i]?.sentence).join(" | ")}
         </Notice>
       )}
-      {check && answer.unsupported === null && <p className="text-xs text-slate-500">Citations could not be checked this time.</p>}
+      {check && answer.unsupported === null && <p className="text-xs text-ink-3">Citations could not be checked this time.</p>}
 
       <div>
         <h2 className="mb-2 font-semibold">Sources</h2>
         <ul className="space-y-2">
           {answer.sources.filter((s) => s.cited).map((s) => (
             <li key={s.n}>
-              <button onClick={() => onSource(s)} className="w-full rounded border bg-white p-3 text-left hover:border-slate-400">
-                <span className="mr-2 rounded bg-blue-100 px-1 text-xs font-semibold text-blue-800">{s.n}</span>
+              <button onClick={() => onSource(s)} className="w-full rounded border bg-raised p-3 text-left hover:border-rule-strong">
+                <span className="mr-2 rounded bg-marker px-1 text-xs font-semibold text-on-marker">{s.n}</span>
                 <span className="font-medium">{s.label}</span>
-                {s.section && <span className="text-slate-500"> · {s.section}</span>}
-                <p className="mt-1 line-clamp-2 text-sm text-slate-600">{s.text}</p>
+                {s.section && <span className="text-ink-3"> · {s.section}</span>}
+                <p className="mt-1 line-clamp-2 text-sm text-ink-2">{s.text}</p>
               </button>
             </li>
           ))}
         </ul>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-ink-3">
         {answer.provider} {answer.model} · first words after {Math.round(answer.ttft_ms ?? 0)} ms
         {answer.cached ? " · from cache" : ""}
       </p>

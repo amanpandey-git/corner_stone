@@ -65,42 +65,42 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page space-y-6 py-8">
       <h1 className="text-2xl font-bold">Documents</h1>
       {error && <Notice>{error}</Notice>}
 
       {DEMO && <Notice kind="info">{DEMO_OFF}</Notice>}
 
-      {!DEMO && <section className="space-y-3 rounded-lg border bg-white p-4">
+      {!DEMO && <section className="space-y-3 rounded-lg border bg-raised p-4">
         <h2 className="font-semibold">Upload</h2>
         <input
           type="file"
           multiple
           accept=".pdf,.docx"
           onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          className="block text-sm file:mr-3 file:rounded file:border-0 file:bg-slate-200 file:px-3 file:py-1"
+          className="block text-sm file:mr-3 file:rounded file:border-0 file:bg-sunk file:px-3 file:py-1"
         />
         <button
           onClick={upload}
           disabled={!files.length || busy}
-          className="rounded bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-40"
+          className="rounded bg-ink px-4 py-2 text-sm text-paper disabled:opacity-40"
         >
           {busy ? "Uploading..." : `Upload ${files.length || ""} file${files.length === 1 ? "" : "s"}`}
         </button>
-        <p className="text-xs text-slate-500">PDF or DOCX. Files are indexed one at a time in the background.</p>
+        <p className="text-xs text-ink-3">PDF or DOCX. Files are indexed one at a time in the background.</p>
         {jobs.map((j) => <JobRow key={j.job_id} job={j} />)}
       </section>}
 
       <section className="space-y-2">
         <h2 className="font-semibold">Indexed</h2>
         {docs === null ? (
-          !error && <p className="text-sm text-slate-500">Loading...</p>
+          !error && <p className="text-sm text-ink-3">Loading...</p>
         ) : docs.length === 0 ? (
           <Notice kind="info">No documents yet. Upload your slides above.</Notice>
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-white">
+          <div className="overflow-x-auto rounded-lg border bg-raised">
             <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-left">
+              <thead className="bg-sunk text-left">
                 <tr>
                   <th className="p-2">File</th>
                   <th className="p-2">Unit</th>
@@ -122,7 +122,7 @@ export default function DocumentsPage() {
                     <td className="p-2 text-right">{d.chunks}</td>
                     {!DEMO && (
                       <td className="p-2 text-right">
-                        <button onClick={() => remove(d)} className="text-red-700 hover:underline">Delete</button>
+                        <button onClick={() => remove(d)} className="text-wrong hover:underline">Delete</button>
                       </td>
                     )}
                   </tr>
@@ -138,26 +138,26 @@ export default function DocumentsPage() {
 
 function JobRow({ job }: { job: Job }) {
   const r = job.report;
-  const colour = { queued: "text-slate-500", running: "text-blue-700", done: "text-green-700", failed: "text-red-700" }[job.state];
+  const colour = { queued: "text-ink-3", running: "text-accent-ink", done: "text-correct", failed: "text-wrong" }[job.state];
   return (
     <div className="rounded border p-2 text-sm">
       <p>
         <span className="font-medium">{job.file_name}</span>{" "}
         <span className={colour}>{job.state === "running" ? "indexing..." : job.state}</span>
         {r?.status && r.status !== "failed" && (
-          <span className="text-slate-600">
+          <span className="text-ink-2">
             {" "}· {r.status.replace("_", " ")} · {r.pages_with_text}/{r.pages_total} pages with text · {r.chunks_created} chunks
             {r.pages_duplicate ? ` · ${r.pages_duplicate} duplicate pages` : ""} · {r.seconds?.toFixed(1)} s
           </span>
         )}
       </p>
-      {r?.message && job.state === "failed" && <p className="text-red-700">{r.message}</p>}
+      {r?.message && job.state === "failed" && <p className="text-wrong">{r.message}</p>}
       {!!r?.flagged_pages?.length && (
-        <p className="text-amber-800">
+        <p className="text-warn">
           Flagged: {r.flagged_pages.map(([p, why]) => `page ${p ?? "?"} (${why})`).join(", ")}
         </p>
       )}
-      {r?.warnings?.map((w) => <p key={w} className="text-amber-800">{w}</p>)}
+      {r?.warnings?.map((w) => <p key={w} className="text-warn">{w}</p>)}
     </div>
   );
 }

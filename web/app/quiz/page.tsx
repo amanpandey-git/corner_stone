@@ -41,9 +41,9 @@ export default function QuizPage() {
   const correct = quiz ? quiz.questions.filter((q, i) => picks[i] === q.answer).length : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="page space-y-6 py-8">
       <h1 className="text-2xl font-bold">Quiz</h1>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-white p-4 text-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-raised p-4 text-sm">
         <label className="flex items-center gap-2">
           Unit
           <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded border px-2 py-1">
@@ -55,7 +55,7 @@ export default function QuizPage() {
           Questions
           <input type="number" min={1} max={10} value={n} onChange={(e) => setN(Number(e.target.value))} className="w-16 rounded border px-2 py-1" />
         </label>
-        <button onClick={generate} disabled={busy || n < 1} className="ml-auto rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-40">
+        <button onClick={generate} disabled={busy || n < 1} className="ml-auto rounded bg-ink px-4 py-2 text-paper disabled:opacity-40">
           {busy ? "Generating..." : "Generate quiz"}
         </button>
       </div>
@@ -108,13 +108,13 @@ function QuestionCard({ q, index, pick, onPick, onSource }: {
   }
 
   return (
-    <li className="space-y-2 rounded-lg border bg-white p-4">
+    <li className="space-y-2 rounded-lg border bg-raised p-4">
       <p className="font-medium">{index + 1}. {q.question}</p>
       <div className="grid gap-2">
         {q.options.map((o, j) => {
-          const style = !done ? "hover:bg-slate-100"
-            : j === q.answer ? "border-green-500 bg-green-50"
-            : j === pick ? "border-red-500 bg-red-50" : "opacity-60";
+          const style = !done ? "hover:bg-sunk"
+            : j === q.answer ? "border-correct bg-correct-bg"
+            : j === pick ? "border-wrong bg-wrong-bg" : "opacity-60";
           return (
             <button key={j} disabled={done} onClick={() => onPick(j)} className={`rounded border px-3 py-2 text-left text-sm ${style}`}>
               {String.fromCharCode(65 + j)}. {o}
@@ -124,16 +124,16 @@ function QuestionCard({ q, index, pick, onPick, onSource }: {
       </div>
       {done && (
         <div className="space-y-2 text-sm">
-          <p className={pick === q.answer ? "text-green-700" : "text-red-700"}>
+          <p className={pick === q.answer ? "text-correct" : "text-wrong"}>
             {pick === q.answer ? "Correct." : `Wrong: the answer is ${String.fromCharCode(65 + q.answer)}.`} {q.explanation}
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <button onClick={onSource} className="text-blue-700 hover:underline">Source: {q.source.label}</button>
+            <button onClick={onSource} className="text-accent-ink hover:underline">Source: {q.source.label}</button>
             {pick !== q.answer && (
               card === "idle" ? (
-                <button onClick={toFlashcard} className="rounded border px-2 py-1 hover:bg-slate-100">Make flashcard</button>
+                <button onClick={toFlashcard} className="rounded border px-2 py-1 hover:bg-sunk">Make flashcard</button>
               ) : (
-                <span className="text-slate-600">
+                <span className="text-ink-2">
                   {card === "saving" ? "Saving..." : card === "created" ? "Flashcard added." : card === "exists" ? "Already a flashcard." : card}
                 </span>
               )

@@ -28,7 +28,7 @@ export default function CitedText({ text, onCite }: { text: string; onCite: (n: 
           <button
             key={n}
             onClick={() => onCite(n)}
-            className="mx-0.5 rounded bg-blue-100 px-1 text-xs font-semibold text-blue-800 align-super hover:bg-blue-200"
+            className="mx-0.5 rounded bg-marker px-1 text-xs font-semibold text-on-marker align-super hover:brightness-95"
             title={`Open source ${n}`}
           >
             {n}

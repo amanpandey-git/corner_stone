@@ -9,13 +9,13 @@ const STEPS = [
 
 export default function Home() {
   return (
-    <div className="space-y-6">
+    <div className="page space-y-6 py-8">
       <h1 className="text-2xl font-bold">Study from your own slides</h1>
       <div className="grid gap-4 sm:grid-cols-2">
         {STEPS.map((s) => (
-          <Link key={s.href} href={s.href} className="rounded-lg border bg-white p-4 hover:border-slate-400">
+          <Link key={s.href} href={s.href} className="rounded-lg border bg-raised p-4 hover:border-rule-strong">
             <p className="font-semibold">{s.title}</p>
-            <p className="text-sm text-slate-600">{s.text}</p>
+            <p className="text-sm text-ink-2">{s.text}</p>
           </Link>
         ))}
       </div>

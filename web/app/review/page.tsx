@@ -7,10 +7,10 @@ import { errorText, getJSON, postJSON, type Card, type DocumentRow, type Due } f
 
 // The same buttons as the Streamlit page; the SM-2 update itself runs in the API (srs.py).
 const GRADES = [
-  { label: "Again", grade: 1, style: "border-red-400 hover:bg-red-50" },
-  { label: "Hard", grade: 3, style: "border-amber-400 hover:bg-amber-50" },
-  { label: "Good", grade: 4, style: "border-green-400 hover:bg-green-50" },
-  { label: "Easy", grade: 5, style: "border-blue-400 hover:bg-blue-50" },
+  { label: "Again", grade: 1, style: "border-wrong hover:bg-wrong-bg" },
+  { label: "Hard", grade: 3, style: "border-warn hover:bg-warn-bg" },
+  { label: "Good", grade: 4, style: "border-correct hover:bg-correct-bg" },
+  { label: "Easy", grade: 5, style: "border-rule-strong hover:bg-sunk" },
 ];
 
 export default function ReviewPage() {
@@ -70,9 +70,9 @@ export default function ReviewPage() {
   const card = due?.cards[0];
 
   return (
-    <div className="space-y-6">
+    <div className="page space-y-6 py-8">
       <h1 className="text-2xl font-bold">Flashcards</h1>
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-white p-4 text-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-raised p-4 text-sm">
         <label className="flex items-center gap-2">
           Unit
           <select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded border px-2 py-1">
@@ -81,11 +81,11 @@ export default function ReviewPage() {
           </select>
         </label>
         {due && (
-          <span className="text-slate-600">
+          <span className="text-ink-2">
             {due.cards.length} due now · {due.stats.cards} cards in total · {due.stats.reviews} reviews so far
           </span>
         )}
-        <button onClick={generate} disabled={busy} className="ml-auto rounded border px-3 py-2 hover:bg-slate-100 disabled:opacity-40">
+        <button onClick={generate} disabled={busy} className="ml-auto rounded border px-3 py-2 hover:bg-sunk disabled:opacity-40">
           {busy ? "Working..." : "Generate 10 cards"}
         </button>
       </div>
@@ -100,17 +100,17 @@ export default function ReviewPage() {
       )}
 
       {card && (
-        <div className="space-y-4 rounded-lg border bg-white p-6">
-          <p className="text-xs uppercase text-slate-500">{card.unit ?? "card"} · {card.origin === "quiz" ? "from a quiz" : "generated"}</p>
+        <div className="space-y-4 rounded-lg border bg-raised p-6">
+          <p className="text-xs uppercase text-ink-3">{card.unit ?? "card"} · {card.origin === "quiz" ? "from a quiz" : "generated"}</p>
           <p className="text-lg font-medium">{card.front}</p>
           {!shown ? (
-            <button onClick={() => setShown(true)} className="rounded bg-slate-900 px-4 py-2 text-sm text-white">Show answer</button>
+            <button onClick={() => setShown(true)} className="rounded bg-ink px-4 py-2 text-sm text-paper">Show answer</button>
           ) : (
             <>
               <p className="whitespace-pre-wrap border-t pt-4">{card.back}</p>
               <button
                 onClick={() => setSlide({ label: `${card.file_name}, p.${card.page ?? "?"}`, image_url: card.image_url ?? null })}
-                className="text-sm text-blue-700 hover:underline"
+                className="text-sm text-accent-ink hover:underline"
               >
                 Source: {card.file_name}{card.page != null ? `, p.${card.page}` : ""}
               </button>
