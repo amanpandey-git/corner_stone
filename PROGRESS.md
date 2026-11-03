@@ -612,3 +612,23 @@ Updated: 2026-10-16. Branch stage-2, 274 tests; GitHub Actions green (pytest + n
 - No answer cache online: every question uses Groq quota, on the owner's key, on a public URL.
 ### Next atomic action
 - User: import the repo in Vercel (Root Directory web, env NEXT_PUBLIC_DEMO=1 and GROQ_API_KEY), open /ask, wait for the first load, run the demo questions.
+
+## [2026-11-03] - UI redesign: Phase 1 (research) and Phase 2 (plan), branch ui-redesign
+### Done
+- docs/ui/RESEARCH.md: 12 reference sites measured in real Edge, citation patterns, licences, trends, 3 directions (A recommended), 32 concrete problems in the current app.
+- docs/ui/UI_PLAN.md: tokens with computed WCAG contrast, navigation, wireframes for 5 pages at desktop and mobile, states, accessibility, performance budget, build order.
+- docs/ui/before/: 20 page screenshots + 8 real-state screenshots. docs/ui/captured/: measured data, axe audit, real recorded answers.
+- No application code changed. Baseline before this work: lint clean, build clean, 274 tests passed.
+### Measured today (quoted by the plan's UI copy)
+- First visit to Ask until search is ready: 29.3 s in a fresh browser (live site, this laptop). Search model file 34 MB, plus 5.3 MB runtime. Browser self-check top 5 matched.
+- Live landing LCP 652 ms (1440 px), 820 ms (390 px, CPU x4, slow network); JS 155 KB, CSS 5 KB.
+- Answer-mode word targets, from web/public/demo/meta.json: 2-mark 40-60, 5-mark 150-250, 10-mark 400-600.
+### In progress / partial
+- None.
+### Not started
+- Phase 3 (build): waits for the user's approval of the direction and of the one protected-file edit (UI_PLAN.md section 10).
+### Known issues / TODO
+- Evaluation report title still says "(draft)"; left for the user to decide.
+- The app has no dark theme yet, so the dark "before" screenshots are identical to the light ones.
+### Next atomic action
+- User: answer the 3 questions in UI_PLAN.md section 12. Then: ARCHITECTURE 14 update, tokens + shell.

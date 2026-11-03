@@ -1,0 +1,13 @@
+{
+  "note": "Transcribed from docs/ui/before/state-quiz-feedback-1440-light.png: real output of the live demo, 2026-11-03, Unit 4, 2-question quiz. Used by the landing page preview.",
+  "question": "What does the term 'Rotational Latency' refer to according to the slides?",
+  "options": [
+    "The time taken by the disk arm to locate the desired track",
+    "The time taken for a sector to rotate under the read/write head",
+    "The time taken to transfer data from disk to CPU",
+    "The sum of seek time, rotational latency, and transfer time"
+  ],
+  "answer": 1,
+  "explanation": "Rotational Latency is defined as the time taken by a desired sector of the disk to rotate to the position where it can be accessed by the read/write heads.",
+  "source": { "label": "Unit 4_Storage management_ Disk Schduling, p.4", "image_url": "/demo/pages/5/4.webp" }
+}

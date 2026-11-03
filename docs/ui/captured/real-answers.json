@@ -1,0 +1,185 @@
+[
+ {
+  "question": "Explain the SCAN disk scheduling algorithm with its advantages and disadvantages.",
+  "mode": "concise",
+  "text": "The SCAN algorithm moves the disk head in one direction, serving all pending requests until it reaches the end of the disk, then reverses direction and continues serving requests [5]. It is easy to implement [1]. Requests do not have to wait in a queue [1]. The head continues to the end of the disk even when there are no requests in that direction [1].",
+  "abstained": false,
+  "abstain_reason": null,
+  "citations": [
+   {
+    "sentence": "The SCAN algorithm moves the disk head in one direction, serving all pending requests until it reaches the end of the disk, then reverses direction and continues serving requests.",
+    "refs": [
+     5
+    ]
+   },
+   {
+    "sentence": "It is easy to implement.",
+    "refs": [
+     1
+    ]
+   },
+   {
+    "sentence": "Requests do not have to wait in a queue.",
+    "refs": [
+     1
+    ]
+   },
+   {
+    "sentence": "The head continues to the end of the disk even when there are no requests in that direction.",
+    "refs": [
+     1
+    ]
+   }
+  ],
+  "sources": [
+   {
+    "n": 1,
+    "file_name": "Unit 4_Storage management_ Disk Schduling.pdf",
+    "doc_id": 5,
+    "page_start": 17,
+    "page_end": 17,
+    "section": "SCAN Disk Scheduling Algorithm",
+    "label": "Unit 4_Storage management_ Disk Schduling, p.17",
+    "text": "SCAN Disk Scheduling Algorithm\nAdvantages:\nâ€¢ Implementation is easy.\nâ€¢ Requests do not have to wait in a queue.\nDisadvantage:\nâ€¢ The head keeps going on to the end even if there are\nno requests in that direction.",
+    "cited": true,
+    "image_url": "/demo/pages/5/17.webp"
+   },
+   {
+    "n": 2,
+    "file_name": "Unit 4_Storage management_ Disk Schduling.pdf",
+    "doc_id": 5,
+    "page_start": 20,
+    "page_end": 20,
+    "section": "C-SCAN Disk Scheduling Algorithm",
+    "label": "Unit 4_Storage management_ Disk Schduling, p.20",
+    "text": "C-SCAN Disk Scheduling Algorithm\nAdvantages:\nâ€¢ The waiting time is uniformly distributed among the requests.\nâ€¢ Response time is good in it.\nDisadvantages:\nâ€¢ The time taken by the disk arm to locate a spot is increased here.\nâ€¢ The head keeps going to the end of the disk.",
+    "cited": false,
+    "image_url": "/demo/pages/5/20.webp"
+   },
+   {
+    "n": 3,
+    "file_name": "Unit 4_Storage management_ Disk Schduling.pdf",
+    "doc_id": 5,
+    "page_start": 23,
+    "page_end": 23,
+    "section": "LOOK Disk Scheduling Algorithm",
+    "label": "Unit 4_Storage management_ Disk Schduling, p.23",
+    "text": "LOOK Disk Scheduling Algorithm\nAdvantages:\nâ€¢ Starvation does not occur.\nâ€¢ Since the head does not go to the end of the disk, the time is not\nwasted here.\nDisadvantage:\nâ€¢ The arm has to be conscious to find the last request",
+    "cited": false,
+    "image_url": "/demo/pages/5/23.webp"
+   },
+   {
+    "n": 4,
+    "file_name": "Unit 4_Storage management_ Disk Schduling.pdf",
+    "doc_id": 5,
+    "page_start": 26,
+    "page_end": 26,
+    "section": "C-LOOK Disk Scheduling Algorithm",
+    "label": "Unit 4_Storage management_ Disk Schduling, p.26",
+    "text": "C-LOOK Disk Scheduling Algorithm\nAdvantages:\nâ€¢ The waiting time is decreased.\nâ€¢ If there are no requests till the end, it reverses the head direction immediately.\nâ€¢ Starvation does not occur.\nâ€¢ The time taken by the disk arm to find the desired spot is less.\nDisadvantage:\nâ€¢ The arm has to be conscious about finding the last request.",
+    "cited": false,
+    "image_url": "/demo/pages/5/26.webp"
+   },
+   {
+    "n": 5,
+    "file_name": "Unit 4_Storage management_ Disk Schduling.pdf",
+    "doc_id": 5,
+    "page_start": 15,
+    "page_end": 15,
+    "section": "SCAN Disk Scheduling Algorithm",
+    "label": "Unit 4_Storage management_ Disk Schduling, p.15",
+    "text": "SCAN Disk Scheduling Algorithm\nIn this algorithm, the head starts to scan all the requests in a direction and\nreaches the end of the disk. After that, it reverses its direction and starts to\nscan again the requests in its path and serves them. Due to this feature, this\nalgorithm is also known as the \"Elevator Algorithm\".",
+    "cited": true,
+    "image_url": "/demo/pages/5/15.webp"
+   }
+  ],
+  "uncited_sentences": [],
+  "invalid_refs": [],
+  "unsupported": null,
+  "check_error": null,
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "cached": false,
+  "ttft_ms": 822.3850619999866,
+  "total_ms": 870.7649359999923
+ },
+ {
+  "question": "How does TCP congestion control work?",
+  "mode": "concise",
+  "text": "Not in your notes.",
+  "abstained": true,
+  "abstain_reason": "model",
+  "citations": [],
+  "sources": [
+   {
+    "n": 1,
+    "file_name": "Unit 2_Process Synchronization_Deadlock.pdf",
+    "doc_id": 3,
+    "page_start": 47,
+    "page_end": 47,
+    "section": "Banker's algorithm",
+    "label": "Unit 2_Process Synchronization_Deadlock, p.47",
+    "text": "For the Banker's algorithm to work, it needs to know three things:\nâ€¢ How much of each resource could possibly request by each process.\nâ€¢ How much of each resource is currently holding by each process.\nâ€¢ How much of each resource the system currently has available.\nResources may be allocated to a process only if it satisfies the following\nconditions:\n1. request â‰¤ max, else set error as process has crossed maximum claim made by it.\n2. request â‰¤ available, else process waits until resources are available.",
+    "cited": false,
+    "image_url": "/demo/pages/3/47.webp"
+   },
+   {
+    "n": 2,
+    "file_name": "Unit 1_Part 2_ Process management.pdf",
+    "doc_id": 2,
+    "page_start": 15,
+    "page_end": 15,
+    "section": "Role of Synchronization in IPC",
+    "label": "Unit 1_Part 2_ Process management, p.15",
+    "text": "Role of Synchronization in IPC\nSince multiple processes can read and write on shared variables and data, it is very\nimportant to maintain consistency of data, else we can get error-prone results. To\nprevent this we synchronize the processes. Some common ways to achieve this are\ngiven below.\nSemaphore: A variable that manages several processes' access to a shared resource.\nBinary and counting semaphores are the two types of semaphores.\nMutual Exclusion or mutex: is a term used to describe a situation where only one\nprocess or thread at a time can enter the crucial part due to mutual exclusion. This\navoids race conditions.",
+    "cited": false,
+    "image_url": "/demo/pages/2/15.webp"
+   },
+   {
+    "n": 3,
+    "file_name": "Unit 1_Part 2_ Process management.pdf",
+    "doc_id": 2,
+    "page_start": 102,
+    "page_end": 104,
+    "section": "How Threads and Processes Work Step By Step",
+    "label": "Unit 1_Part 2_ Process management, pp.102-104",
+    "text": "Thread Model\nThread\nHow Threads and Processes Work Step By Step\nHereâ€™s what happens when you open an application on your computer.\nâ€¢ The program starts out as a text file of programming code.\nâ€¢ The program is compiled or interpreted into binary form.\nâ€¢ The program is loaded into memory.\nâ€¢ The program becomes one or more running processes. Processes are typically independent\nof one another.\nâ€¢ Threads exist as the subset of a process.\nâ€¢ Threads can communicate with each other more easily than processes can.\nâ€¢ Threads are more vulnerable to problems caused by other threads in the same process.",
+    "cited": false,
+    "image_url": "/demo/pages/2/102.webp"
+   },
+   {
+    "n": 4,
+    "file_name": "Unit 2_Process Synchronization_Deadlock.pdf",
+    "doc_id": 3,
+    "page_start": 1,
+    "page_end": 2,
+    "section": "Process",
+    "label": "Unit 2_Process Synchronization_Deadlock, pp.1-2",
+    "text": "Process\nSynchronization\nâœ“ Process Synchronization means coordinating the execution of processes such\nthat no two processes access the same shared resources and data.\nâœ“ It is required in a multi-process system where multiple processes run together,\nand more than one process tries to gain access to the same shared resource or\ndata at the same time.\nFor example: A process P1 tries changing data in a particular memory location. At\nthe same time another process P2 tries reading data from the same memory\nlocation. Thus, there is a high probability that the data being read by the second\nprocess is incorrect.",
+    "cited": false,
+    "image_url": "/demo/pages/3/1.webp"
+   },
+   {
+    "n": 5,
+    "file_name": "Unit 1_Part 2_ Process management.pdf",
+    "doc_id": 2,
+    "page_start": 24,
+    "page_end": 27,
+    "section": "Comparison among Scheduler",
+    "label": "Unit 1_Part 2_ Process management, pp.24-27",
+    "text": "Medium Term Scheduler\nSchedulerâ€™s\nEvent Causing Scheduler Dispatch\nComparison among Scheduler\nS. No. Long-Term Scheduler Short-Term Scheduler Medium-Term Scheduler\n1 It is a job scheduler It is a CPU scheduler It is a process swapping scheduler.\n2 Speed is lesser than short term\nSpeed is fastest among other two Speed is in between both short and\nscheduler\nlong term scheduler.\n3 It controls the degree of\nIt provides lesser control over degree\nIt reduces the degree of\nmultiprogramming\nof multiprogramming\nmultiprogramming.\n4 It is almost absent or minimal in\nIt is also minimal in time sharing\nIt is a part of Time sharing systems.\ntime sharing system\nsystem\n5 It selects processes from pool and\nIt selects those processes which are\nIt can re-introduce the process into\nloads them into memory for\nready to execute\nmemory and execution can be\nexecution\ncontinued.",
+    "cited": false,
+    "image_url": "/demo/pages/2/24.webp"
+   }
+  ],
+  "uncited_sentences": [],
+  "invalid_refs": [],
+  "unsupported": null,
+  "check_error": null,
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "cached": false,
+  "ttft_ms": 520.1908160000021,
+  "total_ms": 534.4871530000091
+ }
+]
