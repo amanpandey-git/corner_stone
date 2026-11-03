@@ -630,5 +630,6 @@ Updated: 2026-10-16. Branch stage-2, 274 tests; GitHub Actions green (pytest + n
 ### Known issues / TODO
 - Evaluation report title still says "(draft)"; left for the user to decide.
 - The app has no dark theme yet, so the dark "before" screenshots are identical to the light ones.
+- Vercel Preview for ui-redesign built successfully but is behind a Vercel login, so its environment settings and Lighthouse could not be checked from here.
 ### Next atomic action
-- User: answer the 3 questions in UI_PLAN.md section 12. Then: ARCHITECTURE 14 update, tokens + shell.
+- User: answer the 4 questions in UI_PLAN.md section 12. Then: ARCHITECTURE 14 update, tokens + shell.

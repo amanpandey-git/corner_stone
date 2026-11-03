@@ -499,8 +499,8 @@ It changes no model, query, ranking or result: it only reports download progress
 
 | Risk | Handling |
 |---|---|
-| Vercel Preview lacks `NEXT_PUBLIC_DEMO` or `GROQ_API_KEY` | Pushing this docs-only commit tests it first. They are per-environment settings on Vercel. |
-| Vercel protects Preview URLs with a login | Would block Lighthouse from outside. Lighthouse then runs on a local production build, and I will say so. |
+| Vercel Preview lacks `NEXT_PUBLIC_DEMO` or `GROQ_API_KEY` | These are per-environment settings on Vercel. The Preview built, but could not be checked from outside (next row). You check it once, while logged in: `/api/demo/health` should show `"llm_key_present":true`. |
+| **Confirmed:** the Preview URL redirects to a Vercel login (`corner-stone-git-ui-redesign-maverick-1081.vercel.app`) | Examiners and my tools cannot open it. The Lighthouse step needs a decision: see question 3 below. |
 | Groq rate limit during the evaluation | The online demo has no answer cache. Landing preview needs no Groq; friendly error otherwise. Avoid heavy testing just before. |
 | First-time 29 s wait in front of examiners | Open `/ask` once on the evaluation laptop beforehand, so that the model is already cached. |
 | Examiner opens the report and sees 5-mark faithfulness of 12.5% | The marksheet states "concise mode" and links there. Have the declared fix ready to explain. The report is also titled "(draft)", which you may want to change: I will not change it unasked. |
@@ -511,4 +511,5 @@ It changes no model, query, ranking or result: it only reports download progress
 
 1. **Direction:** Marginalia (A)?
 2. **The progress edit:** Option 1 or Option 2 (section 10)?
-3. **What time is your evaluation?** This sets where to stop. Without an answer I build P0, P1, P2 in order and tell you at each safe point.
+3. **Lighthouse on the Preview:** it sits behind a Vercel login. Either turn Vercel Authentication off for Preview deployments while I test (Vercel: Settings, Deployment Protection), or keep it on (recommended) and I run Lighthouse on a local production build and say so clearly, and you can run it yourself on the Preview while logged in.
+4. **What time is your evaluation?** This sets where to stop. Without an answer I build P0, P1, P2 in order and tell you at each safe point.
