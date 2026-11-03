@@ -11,7 +11,7 @@ export type Slide = { label: string; image_url: string | null; section?: string 
 type Props = { slides: Slide[]; index: number; onIndex: (i: number) => void; onClose: () => void };
 
 /** The slide itself. Slides are 1100 x 619, so the frame is reserved and nothing jumps while the image loads. */
-export function SlideImage({ slide, className, sizes }: { slide: Slide; className?: string; sizes?: string }) {
+export function SlideImage({ slide, className, sizes, eager }: { slide: Slide; className?: string; sizes?: string; eager?: boolean }) {
   const src = imageSrc(slide.image_url);
   const [failed, setFailed] = useState<string | null>(null);
   const alt = `Slide: ${slide.label}${slide.section ? `, ${slide.section}` : ""}`;
@@ -27,7 +27,7 @@ export function SlideImage({ slide, className, sizes }: { slide: Slide; classNam
           width={1100}
           height={619}
           sizes={sizes}
-          loading="lazy"
+          loading={eager ? "eager" : "lazy"}
           decoding="async"
           onError={() => setFailed(src)}
           className="slide-img h-full w-full object-contain"

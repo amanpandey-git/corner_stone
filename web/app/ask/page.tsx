@@ -287,11 +287,11 @@ export default function AskPage() {
   );
 }
 
-/** First visit: the search model downloads into the browser. The percent is real, from transformers.js. */
+/** First visit: the search model downloads into the browser. The percent is real, from transformers.js. It floats, so nothing on the page jumps when it goes away. */
 function Warmup({ percent }: { percent: number }) {
   const shown = Math.round(percent);
   return (
-    <div role="status" className="mt-6 rounded-md bg-sunk p-4">
+    <div role="status" className="fixed inset-x-3 top-[4.5rem] z-30 rounded-lg border bg-sunk p-4 shadow-sheet md:left-auto md:right-8 md:w-[26rem] lg:right-[max(2rem,calc((100vw-76rem)/2+2rem))] lg:w-[28rem]">
       <div className="flex items-baseline justify-between gap-4">
         <p className="font-semibold">Preparing search in your browser</p>
         <p className="font-mono text-mono text-ink-2 tabular-nums">{shown > 0 ? `${shown}%` : "starting"}</p>

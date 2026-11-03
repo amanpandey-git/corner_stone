@@ -370,9 +370,9 @@
   }
 }
 
+/* Movement only, never a fade: text stopped part-way into view must still have its full contrast. */
 @keyframes reveal {
   from {
-    opacity: 0;
     transform: translateY(14px);
   }
 }

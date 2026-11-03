@@ -1,0 +1,336 @@
+{
+ "landing-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "select \"All unitsUnit 1Unit 2U\" 88x36",
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "documents-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-answer-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "select \"All unitsUnit 1Unit 2U\" 88x36",
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "ask-refusal-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "select \"All unitsUnit 1Unit 2U\" 88x36",
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-question-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-feedback-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-score-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-empty-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-front-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-back-1440-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "landing-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "select \"All unitsUnit 1Unit 2U\" 88x36",
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "documents-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-answer-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "select \"All unitsUnit 1Unit 2U\" 88x36",
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "ask-refusal-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "select \"All unitsUnit 1Unit 2U\" 88x36",
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-question-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-feedback-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-score-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-empty-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-front-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-back-1440-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "landing-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "documents-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-answer-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "ask-refusal-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "ask-sheet-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-question-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-feedback-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-score-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-empty-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-front-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-back-390-light": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "landing-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "documents-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "ask-answer-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "ask-refusal-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "ask-sheet-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": [
+   "input \"checkbox\" 20x20"
+  ]
+ },
+ "quiz-question-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-feedback-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "quiz-score-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-empty-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-front-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ },
+ "cards-back-390-dark": {
+  "axe": [],
+  "h1": 1,
+  "main": 1,
+  "small": []
+ }
+}

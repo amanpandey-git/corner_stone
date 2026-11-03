@@ -14,7 +14,7 @@ import { RECORDED_ANSWER, RECORDED_QUIZ, RECORDED_REFUSAL } from "@/lib/recorded
 const CONTENTS = [
   { name: "Upload", href: "/documents", value: "7 decks, 422 slide pages", note: "In the full app. This demo comes with the decks already indexed." },
   { name: "Index", href: "/documents", value: "328 chunks, 24 copied slides skipped", note: "Every page is indexed, or flagged with a reason." },
-  { name: "Ask", href: "/ask", value: "every sentence cited to a slide", note: "Or it says “Not in your notes.”" },
+  { name: "Ask", href: "/ask", value: "claims cited to their slides", note: "Anything uncited is flagged. If the notes do not cover it, it says “Not in your notes.”" },
   { name: "Revise", href: "/quiz", value: "quiz, then spaced flashcards", note: "A wrong quiz answer can become a flashcard." },
 ];
 
@@ -39,7 +39,7 @@ const MODES = [
 
 const FLOW = [
   { title: "Your question", text: "Asked in any of the five answer modes." },
-  { title: "Search in your browser", text: "The same embedding model finds the closest slides among 328 chunks." },
+  { title: "Search in your browser", text: "The embedding model, quantised for the browser, finds the closest slides among 328 chunks." },
   { title: "Top 5 slides", text: "The browser sends only their ids; the server builds the prompt from its own copy." },
   { title: "Groq writes", text: "Told to answer only from those slides, or to say they do not answer it." },
   { title: "Cited answer", text: "Streams back, each citation tied to its slide." },
@@ -116,7 +116,7 @@ export default function Home() {
           <Tile title="Cited answers" className="reveal md:col-span-2 lg:col-span-7">
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
               <div className="space-y-3">
-                <p className="text-ink-2">Every sentence carries its source, and the source is the actual slide with its page number.</p>
+                <p className="text-ink-2">Claims carry their source, and the source is the actual slide with its page number. Anything uncited is flagged.</p>
                 <p className="leading-relaxed">
                   It is easy to implement<span aria-label="Source 1" className="mx-0.5 inline-flex h-[1.15rem] min-w-[1.15rem] -translate-y-[0.3em] items-center justify-center rounded-[4px] bg-marker px-1 font-mono text-[0.6875rem] leading-none font-semibold text-on-marker">1</span>. Requests do not have to wait in a queue<span aria-label="Source 1" className="mx-0.5 inline-flex h-[1.15rem] min-w-[1.15rem] -translate-y-[0.3em] items-center justify-center rounded-[4px] bg-marker px-1 font-mono text-[0.6875rem] leading-none font-semibold text-on-marker">1</span>.
                 </p>

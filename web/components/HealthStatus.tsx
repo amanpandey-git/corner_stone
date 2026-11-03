@@ -22,7 +22,9 @@ export default function HealthStatus() {
     return () => window.removeEventListener("focus", check);
   }, [active]);
 
-  if (!active || health === null) return null;
+  if (!active) return null;
+  // Holds the line open until the check returns, so the footer does not move.
+  if (health === null) return <p aria-hidden className="h-[1.3125rem]" />;
   const [dot, text] =
     health === "down" ? ["bg-wrong", "Could not reach the service"]
     : health.llm_key_present ? ["bg-correct", `Online · ${plural(health.documents, "deck")} · ${health.chunks} chunks`]

@@ -1,0 +1,71 @@
+{
+ "note": "Lighthouse on a local production build (next start), not the Vercel Preview, which is behind a login. Server had no Groq key. Local network, so treat LCP as a best case.",
+ "results": {
+  "ask-mobile": {
+   "performance": 70,
+   "accessibility": 100,
+   "best_practices": 81,
+   "lcp_ms": 768,
+   "tbt_ms": 4460,
+   "cls": 0.0,
+   "js_kib": 346,
+   "css_kib": 9,
+   "font_kib": 139
+  },
+  "documents-mobile": {
+   "performance": 91,
+   "accessibility": 100,
+   "best_practices": 100,
+   "lcp_ms": 3402,
+   "tbt_ms": 73,
+   "cls": 0,
+   "js_kib": 182,
+   "css_kib": 9,
+   "font_kib": 139
+  },
+  "flashcards-mobile": {
+   "performance": 94,
+   "accessibility": 100,
+   "best_practices": 100,
+   "lcp_ms": 2765,
+   "tbt_ms": 121,
+   "cls": 0.065,
+   "js_kib": 182,
+   "css_kib": 9,
+   "font_kib": 100
+  },
+  "landing-desktop": {
+   "performance": 100,
+   "accessibility": 100,
+   "best_practices": 100,
+   "lcp_ms": 217,
+   "tbt_ms": 0,
+   "cls": 0.0,
+   "js_kib": 178,
+   "css_kib": 9,
+   "font_kib": 139
+  },
+  "landing-mobile": {
+   "performance": 100,
+   "accessibility": 100,
+   "best_practices": 100,
+   "lcp_ms": 774,
+   "tbt_ms": 90,
+   "cls": 0.0,
+   "js_kib": 157,
+   "css_kib": 9,
+   "font_kib": 139
+  },
+  "quiz-mobile": {
+   "performance": 99,
+   "accessibility": 100,
+   "best_practices": 100,
+   "lcp_ms": 766,
+   "tbt_ms": 103,
+   "cls": 0,
+   "js_kib": 182,
+   "css_kib": 9,
+   "font_kib": 100
+  }
+ }
+}

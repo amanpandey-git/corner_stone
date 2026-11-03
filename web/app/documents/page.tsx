@@ -142,14 +142,14 @@ export default function DocumentsPage() {
 
         {!!docs?.length && (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {docs.map((d) => <DeckCard key={d.doc_id} doc={d} onDelete={DEMO ? undefined : () => remove(d)} />)}
-            <li className="rounded-lg border border-dashed border-rule-strong p-5 lg:col-span-2">
+            {docs.map((d, i) => <DeckCard key={d.doc_id} doc={d} eager={i < 3} onDelete={DEMO ? undefined : () => remove(d)} />)}
+            <li className="rounded-lg border border-dashed border-rule-strong p-5 lg:col-span-2 lg:self-start">
               <h2 className="font-sans text-h3">What these numbers mean</h2>
               <dl className="mt-3 grid gap-3 text-small sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-4">
                 <dt className="font-semibold">Chunk</dt>
                 <dd className="text-ink-2">One searchable piece, usually one slide. Search and citations work on these.</dd>
                 <dt className="font-semibold">Repeated slide</dt>
-                <dd className="text-ink-2">An exact copy of another slide. It is skipped, so results never show the same slide twice.</dd>
+                <dd className="text-ink-2">A copy or near-copy of another slide. It is skipped, so search results do not repeat it.</dd>
                 <dt className="font-semibold">Needs OCR</dt>
                 <dd className="text-ink-2">A page with no readable text, such as a diagram. It is reported, not silently dropped, but it cannot be searched yet.</dd>
               </dl>
@@ -161,7 +161,7 @@ export default function DocumentsPage() {
   );
 }
 
-function DeckCard({ doc: d, onDelete }: { doc: DocumentRow; onDelete?: () => void }) {
+function DeckCard({ doc: d, eager, onDelete }: { doc: DocumentRow; eager?: boolean; onDelete?: () => void }) {
   const name = deckName(d.file_name);
   // The unit already shows as a badge, so the title starts after it. The spelling is the file's own.
   const title = d.unit && name.startsWith(`${d.unit}${DECK_SEP}`) ? name.slice(d.unit.length + DECK_SEP.length) : name;
@@ -169,7 +169,7 @@ function DeckCard({ doc: d, onDelete }: { doc: DocumentRow; onDelete?: () => voi
   return (
     <li>
       <Card className="flex h-full flex-col gap-3 p-4">
-        <SlideImage slide={{ label: `${d.file_name}, p.1`, image_url: firstPage }} sizes="(min-width: 1024px) 340px, (min-width: 640px) 45vw, 100vw" />
+        <SlideImage slide={{ label: `${d.file_name}, p.1`, image_url: firstPage }} sizes="(min-width: 1024px) 340px, (min-width: 640px) 45vw, 100vw" eager={eager} />
         <div className="flex flex-wrap items-center gap-2">
           {d.unit && <Badge>{d.unit}</Badge>}
           {d.status !== "active" && <Badge tone="warn">{d.status}</Badge>}
