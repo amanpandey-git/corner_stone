@@ -1,9 +1,19 @@
 "use client";
 
+import { ArrowRight, Trash2, Upload } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import Notice from "@/components/Notice";
-import { DEMO, del, errorText, getJSON, uploadFiles, type DocumentRow, type Job } from "@/lib/api";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { SlideImage } from "@/components/ui/SlidePanel";
+import { DEMO, del, getJSON, uploadFiles, type DocumentRow, type Job } from "@/lib/api";
 import { DEMO_OFF } from "@/lib/demo/core";
+import { DECK_SEP, deckName, plural } from "@/lib/format";
 
 const POLL_MS = 1000;
 
@@ -11,13 +21,13 @@ export default function DocumentsPage() {
   const [docs, setDocs] = useState<DocumentRow[] | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [files, setFiles] = useState<File[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(() => {
     getJSON<DocumentRow[]>("/documents").then(
       (d) => { setDocs(d); setError(null); },
-      (e) => setError(errorText(e)),
+      (e) => setError(e),
     );
   }, []);
 
@@ -34,7 +44,7 @@ export default function DocumentsPage() {
         setJobs((old) => old.map((j) => fresh.find((f) => f.job_id === j.job_id) ?? j));
         if (fresh.some((f) => f.state === "done" || f.state === "failed")) refresh();
       } catch (e) {
-        setError(errorText(e));
+        setError(e);
       }
     }, POLL_MS);
     return () => clearInterval(t);
@@ -48,7 +58,7 @@ export default function DocumentsPage() {
       setJobs((old) => [...r.jobs.map((j) => ({ ...j, state: "queued" as const, report: null })), ...old]);
       setFiles([]);
     } catch (e) {
-      setError(errorText(e));
+      setError(e);
     } finally {
       setBusy(false);
     }
@@ -60,79 +70,136 @@ export default function DocumentsPage() {
       await del(`/documents/${d.doc_id}`);
       refresh();
     } catch (e) {
-      setError(errorText(e));
+      setError(e);
     }
   }
 
+  const pages = docs?.reduce((sum, d) => sum + d.pages_total, 0) ?? 0;
+  const chunks = docs?.reduce((sum, d) => sum + d.chunks, 0) ?? 0;
+
   return (
-    <div className="page space-y-6 py-8">
-      <h1 className="text-2xl font-bold">Documents</h1>
-      {error && <Notice>{error}</Notice>}
+    <div className="page pt-6 md:pt-10">
+      <header className="ruled">
+        <h1 className="text-h1">Documents</h1>
+        <p className="mt-1 text-ink-2">
+          {docs?.length
+            ? <><strong className="font-bold text-ink">{plural(docs.length, "deck")}</strong> · {plural(pages, "slide page")} · {plural(chunks, "chunk")}</>
+            : "The slides that Synapse answers from."}
+        </p>
+        <p className="mt-1 max-w-[60ch] text-small text-ink-3">
+          No silent failures: every page is indexed, flagged with a reason, or marked as a duplicate.
+        </p>
+      </header>
 
-      {DEMO && <Notice kind="info">{DEMO_OFF}</Notice>}
+      {error != null && <ErrorState className="mt-6" error={error} onRetry={refresh} />}
 
-      {!DEMO && <section className="space-y-3 rounded-lg border bg-raised p-4">
-        <h2 className="font-semibold">Upload</h2>
-        <input
-          type="file"
-          multiple
-          accept=".pdf,.docx"
-          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          className="block text-sm file:mr-3 file:rounded file:border-0 file:bg-sunk file:px-3 file:py-1"
-        />
-        <button
-          onClick={upload}
-          disabled={!files.length || busy}
-          className="rounded bg-ink px-4 py-2 text-sm text-paper disabled:opacity-40"
-        >
-          {busy ? "Uploading..." : `Upload ${files.length || ""} file${files.length === 1 ? "" : "s"}`}
-        </button>
-        <p className="text-xs text-ink-3">PDF or DOCX. Files are indexed one at a time in the background.</p>
-        {jobs.map((j) => <JobRow key={j.job_id} job={j} />)}
-      </section>}
+      {DEMO && (
+        <div className="mt-6 flex flex-wrap items-start gap-3 rounded-md bg-sunk p-4 text-small text-ink-2">
+          <Badge>Read-only in this demo</Badge>
+          <p className="min-w-0 flex-1 basis-64">{DEMO_OFF}</p>
+        </div>
+      )}
 
-      <section className="space-y-2">
-        <h2 className="font-semibold">Indexed</h2>
-        {docs === null ? (
-          !error && <p className="text-sm text-ink-3">Loading...</p>
-        ) : docs.length === 0 ? (
-          <Notice kind="info">No documents yet. Upload your slides above.</Notice>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border bg-raised">
-            <table className="w-full text-sm">
-              <thead className="bg-sunk text-left">
-                <tr>
-                  <th className="p-2">File</th>
-                  <th className="p-2">Unit</th>
-                  <th className="p-2 text-right">Pages</th>
-                  <th className="p-2 text-right">Flagged</th>
-                  <th className="p-2 text-right">Duplicates</th>
-                  <th className="p-2 text-right">Chunks</th>
-                  {!DEMO && <th className="p-2" />}
-                </tr>
-              </thead>
-              <tbody>
-                {docs.map((d) => (
-                  <tr key={d.doc_id} className="border-t">
-                    <td className="p-2">{d.file_name}</td>
-                    <td className="p-2">{d.unit ?? "-"}</td>
-                    <td className="p-2 text-right">{d.pages_total}</td>
-                    <td className="p-2 text-right">{d.pages_flagged}</td>
-                    <td className="p-2 text-right">{d.pages_duplicate}</td>
-                    <td className="p-2 text-right">{d.chunks}</td>
-                    {!DEMO && (
-                      <td className="p-2 text-right">
-                        <button onClick={() => remove(d)} className="text-wrong hover:underline">Delete</button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {!DEMO && (
+        <Card className="mt-6 space-y-3 p-4 md:p-5">
+          <h2 className="font-sans text-h3">Upload</h2>
+          <label className="block text-small text-ink-2">
+            <span className="sr-only">Choose PDF or DOCX files</span>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.docx"
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+              className="block w-full text-small file:mr-3 file:min-h-11 file:rounded-md file:border file:border-rule-strong file:bg-raised file:px-3 file:font-semibold file:text-ink"
+            />
+          </label>
+          <Button onClick={upload} disabled={!files.length || busy}>
+            <Upload size={18} strokeWidth={1.75} aria-hidden />
+            {busy ? "Uploading..." : `Upload ${files.length || ""} ${files.length === 1 ? "file" : "files"}`}
+          </Button>
+          <p className="text-small text-ink-3">PDF or DOCX. Files are indexed one at a time in the background.</p>
+          {jobs.map((j) => <JobRow key={j.job_id} job={j} />)}
+        </Card>
+      )}
+
+      <section aria-label="Indexed decks" className="mt-6">
+        {docs === null && error == null && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
+            {Array.from({ length: 7 }, (_, i) => (
+              <Card key={i} className="space-y-3 p-4">
+                <Skeleton className="aspect-[1100/619] w-full rounded-md" />
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-5 w-4/5" />
+                <Skeleton className="h-4 w-1/2" />
+              </Card>
+            ))}
           </div>
+        )}
+
+        {docs?.length === 0 && (
+          <EmptyState title="No documents yet">Upload your slides above, and they will appear here once indexed.</EmptyState>
+        )}
+
+        {!!docs?.length && (
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {docs.map((d) => <DeckCard key={d.doc_id} doc={d} onDelete={DEMO ? undefined : () => remove(d)} />)}
+            <li className="rounded-lg border border-dashed border-rule-strong p-5 lg:col-span-2">
+              <h2 className="font-sans text-h3">What these numbers mean</h2>
+              <dl className="mt-3 grid gap-3 text-small sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-4">
+                <dt className="font-semibold">Chunk</dt>
+                <dd className="text-ink-2">One searchable piece, usually one slide. Search and citations work on these.</dd>
+                <dt className="font-semibold">Repeated slide</dt>
+                <dd className="text-ink-2">An exact copy of another slide. It is skipped, so results never show the same slide twice.</dd>
+                <dt className="font-semibold">Needs OCR</dt>
+                <dd className="text-ink-2">A page with no readable text, such as a diagram. It is reported, not silently dropped, but it cannot be searched yet.</dd>
+              </dl>
+            </li>
+          </ul>
         )}
       </section>
     </div>
+  );
+}
+
+function DeckCard({ doc: d, onDelete }: { doc: DocumentRow; onDelete?: () => void }) {
+  const name = deckName(d.file_name);
+  // The unit already shows as a badge, so the title starts after it. The spelling is the file's own.
+  const title = d.unit && name.startsWith(`${d.unit}${DECK_SEP}`) ? name.slice(d.unit.length + DECK_SEP.length) : name;
+  const firstPage = DEMO ? `/demo/pages/${d.doc_id}/1.webp` : `/pages/${d.doc_id}/1/image`;
+  return (
+    <li>
+      <Card className="flex h-full flex-col gap-3 p-4">
+        <SlideImage slide={{ label: `${d.file_name}, p.1`, image_url: firstPage }} sizes="(min-width: 1024px) 340px, (min-width: 640px) 45vw, 100vw" />
+        <div className="flex flex-wrap items-center gap-2">
+          {d.unit && <Badge>{d.unit}</Badge>}
+          {d.status !== "active" && <Badge tone="warn">{d.status}</Badge>}
+        </div>
+        <h2 className="font-sans text-h3" title={d.file_name}>{title}</h2>
+        <p className="font-mono text-mono text-ink-2">{plural(d.pages_total, "page")} · {plural(d.chunks, "chunk")}</p>
+        {(d.pages_duplicate > 0 || d.pages_flagged > 0) && (
+          <ul className="space-y-0.5 text-small text-ink-3">
+            {d.pages_duplicate > 0 && <li>{plural(d.pages_duplicate, "repeated slide")} skipped</li>}
+            {d.pages_flagged > 0 && <li>{plural(d.pages_flagged, "page")} flagged: {d.pages_flagged === 1 ? "needs" : "need"} OCR</li>}
+          </ul>
+        )}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+          {d.unit
+            ? (
+              <Link href={`/ask?unit=${encodeURIComponent(d.unit)}`} className="inline-flex min-h-11 items-center gap-1.5 font-semibold underline decoration-rule-strong underline-offset-4 hover:decoration-ink">
+                Ask this unit
+                <ArrowRight size={16} strokeWidth={1.75} aria-hidden />
+              </Link>
+            )
+            : <span />}
+          {onDelete && (
+            <Button variant="ghost" size="sm" onClick={onDelete} aria-label={`Delete ${d.file_name}`} className="text-wrong">
+              <Trash2 size={16} strokeWidth={1.5} aria-hidden />
+              Delete
+            </Button>
+          )}
+        </div>
+      </Card>
+    </li>
   );
 }
 
@@ -140,9 +207,9 @@ function JobRow({ job }: { job: Job }) {
   const r = job.report;
   const colour = { queued: "text-ink-3", running: "text-accent-ink", done: "text-correct", failed: "text-wrong" }[job.state];
   return (
-    <div className="rounded border p-2 text-sm">
+    <div className="rounded-md border p-3 text-small">
       <p>
-        <span className="font-medium">{job.file_name}</span>{" "}
+        <span className="font-semibold">{job.file_name}</span>{" "}
         <span className={colour}>{job.state === "running" ? "indexing..." : job.state}</span>
         {r?.status && r.status !== "failed" && (
           <span className="text-ink-2">
@@ -151,7 +218,7 @@ function JobRow({ job }: { job: Job }) {
           </span>
         )}
       </p>
-      {r?.message && job.state === "failed" && <p className="text-wrong">{r.message}</p>}
+      {r?.message && job.state === "failed" && <Notice>{r.message}</Notice>}
       {!!r?.flagged_pages?.length && (
         <p className="text-warn">
           Flagged: {r.flagged_pages.map(([p, why]) => `page ${p ?? "?"} (${why})`).join(", ")}

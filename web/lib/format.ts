@@ -1,5 +1,8 @@
 // Display helpers only: they change how a name looks, never what it refers to.
 
+// A no-break space before the dot, so a wrapped name never starts a line with "·".
+export const DECK_SEP = " · ";
+
 /** "Unit 4_Storage management_ Disk Schduling.pdf" -> "Unit 4 · Storage management · Disk Schduling" (spelling kept). */
 export function deckName(file: string): string {
   return file
@@ -7,7 +10,7 @@ export function deckName(file: string): string {
     .split("_")
     .map((part) => part.trim())
     .filter(Boolean)
-    .join(" · ");
+    .join(DECK_SEP);
 }
 
 /** Splits the API's source label "file, p.15" or "file, pp.1-2" into a readable deck name and its page. */

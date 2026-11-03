@@ -633,3 +633,25 @@ Updated: 2026-10-16. Branch stage-2, 274 tests; GitHub Actions green (pytest + n
 - Vercel Preview for ui-redesign built successfully but is behind a Vercel login, so its environment settings and Lighthouse could not be checked from here.
 ### Next atomic action
 - User: answer the 4 questions in UI_PLAN.md section 12. Then: ARCHITECTURE 14 update, tokens + shell.
+
+## [2026-11-03] - UI redesign: Phase 3 build (P0, P1, P2), branch ui-redesign
+### Done
+- ARCHITECTURE 14 + 15 updated first. Tokens, local fonts, shell, shared components (46714b5). Landing (9ef2358). Ask (d0a5107). Quiz (ffd0a51). Flashcards (789989d). Documents (this commit).
+- web/lib/demo/client.ts: display-only watchModelLoad(), approved by the user. Two additions beyond the diff shown for approval, both display only: it remembers the last value so a page opened later knows the model is ready, and it reports ready and failed. Search, model and ranking unchanged.
+- Protected and unchanged: src/, web/lib/demo/core.ts, web/lib/demo/server.ts, web/app/api/demo/*, web/public/demo/*, web/lib/api.ts.
+### Verified
+- On the final code: npm run lint and npm run build pass. Fresh browser: progress rose 0 to 99 percent, ready in 27.8 s, second visit 1.6 s, self-check top 5 matches, no stale banner.
+- On earlier builds of these pages, with recorded answers: Ask 44 of 44 checks; Quiz + Flashcards 68 of 72, the other 4 a fault in the test (real output was correct; test fixed, not yet re-run).
+- Groq calls made during Phase 3: 0. The test server has no key.
+### In progress / partial
+- Final checks stopped by the system at about 07:45 because the laptop ran low on memory (1.4 GB free of 7.7 GB): re-run of both drives and the final screenshot set. docs/ui/after/ is therefore only partly final.
+### Not started
+- axe audit of all states after the redesign, Lighthouse on a local production build, the one small real Groq check (planned: 3 calls), merge to main (the user decides).
+### Known issues / TODO
+- The two small Documents fixes (title wrap, explainer tile) passed lint and build but have not been seen rendered.
+- Two idle test servers from this session remain on ports 3100 and 3101 (no Groq key, about 62 MB in total); a broad stop command was blocked by a permissions check, so they were left for the user.
+- The body font's zero has a slash by design ("10 marks"); kept because the user approved this font.
+### Measured / quoted by the UI
+- Mode hints from web/public/demo/meta.json: concise 2-4 sentences, 5-mark 4-6 key points.
+### Next atomic action
+- User: free some memory and say continue. Then: drive-ask, drive-study, shots, audit-after, Lighthouse, then the real check last.
