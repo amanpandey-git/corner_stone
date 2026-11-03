@@ -222,7 +222,8 @@
   }
 
   /* Answer text arriving: a blinking caret. Off under reduced motion (see the rule at the end). */
-  .caret::after {
+  .caret > p:last-child::after,
+  .caret > ul:last-child > li:last-child::after {
     content: "";
     display: inline-block;
     width: 0.5em;
@@ -404,7 +405,8 @@
     scroll-behavior: auto !important;
   }
 
-  .caret::after {
+  .caret > p:last-child::after,
+  .caret > ul:last-child > li:last-child::after {
     animation: none;
   }
 }

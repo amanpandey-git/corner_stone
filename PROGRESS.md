@@ -655,3 +655,23 @@ Updated: 2026-10-16. Branch stage-2, 274 tests; GitHub Actions green (pytest + n
 - Mode hints from web/public/demo/meta.json: concise 2-4 sentences, 5-mark 4-6 key points.
 ### Next atomic action
 - User: free some memory and say continue. Then: drive-ask, drive-study, shots, audit-after, Lighthouse, then the real check last.
+
+## [2026-11-03] - UI redesign: Phase 3 complete on branch ui-redesign, waiting for the user's merge
+### Done
+- P0, P1, P2 built and committed. docs/ui/RESULTS.md has before/after per page, all check results and the merge steps.
+- Fixes from the final checks: copy that claimed more than the evidence, scroll reveal no longer fades text, model banner floats (Ask layout shift 0), caret stays inline.
+### Verified on the final code
+- Lint and build pass. Ask 44/44, Quiz + Flashcards 72/72, fresh-browser progress 4/4, self-check top 5 matches, axe no violations across 50 states.
+- Real Groq check: streaming, cited answer, real slide, quiz, flashcard all worked. 3 Groq requests in Phase 3 (the first attempt stopped early through a fault in the test).
+- Lighthouse on a local production build: landing 100/100/100 on phone and desktop. Ask on a phone: performance 70, best practices 81, both from the search model.
+- Quiz, Flashcards and axe last ran just before the one-line caret CSS change; lint, build and Ask ran after it.
+### In progress / partial
+- None.
+### Not started
+- Merge to main: the user decides. Lighthouse on the Preview itself (behind the Vercel login).
+### Known issues / TODO
+- Ask's main-thread model load blocks for about 4.5 s under phone throttling; fixing it means moving the model to a worker, a change to web/lib/demo/client.ts.
+- Real generated quiz question on Unit 1 Part 1 p.43 marked "System call" correct where the slide says "context switching": a model error, see evaluation report section 3.
+- Evaluation report title still says "(draft)".
+### Next atomic action
+- User: follow the merge steps in docs/ui/RESULTS.md.
