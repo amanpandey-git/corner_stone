@@ -9,12 +9,29 @@ const MODEL = "Xenova/bge-small-en-v1.5";   // the ONNX export of the indexing m
 const CARDS_KEY = "synapse-demo-flashcards";
 
 type Extractor = (text: string, opts: { pooling: "cls"; normalize: boolean }) => Promise<{ data: Float32Array }>;
-type Transformers = { pipeline: (task: string, model: string, opts: { dtype: string }) => Promise<Extractor> };
+type LoadEvent = { status: string; progress?: number };
+type Transformers = { pipeline: (task: string, model: string, opts: { dtype: string; progress_callback?: (e: LoadEvent) => void }) => Promise<Extractor> };
 type Dataset = { meta: DemoMeta; chunks: ChunkRec[]; vectors: Float32Array };
 
 // ------------------------------------------------------------------ exported data + model, each loaded once
 let dataset: Promise<Dataset> | null = null;
 let extractor: Promise<Extractor> | null = null;
+
+// Display only (user-approved, ARCHITECTURE 15): tells the Ask page how the model download is going. Nothing here
+// touches the model, the query or the ranking. 0-99 = downloading, 100 = ready, null = the load failed.
+let modelPercent: number | null = 0;
+let onModelLoad: ((percent: number | null) => void) | null = null;
+
+/** Subscribe to the model download; the current value is sent at once, so a page opened later knows it is ready. */
+export function watchModelLoad(fn: ((percent: number | null) => void) | null): void {
+  onModelLoad = fn;
+  fn?.(modelPercent);
+}
+
+function reportModelLoad(percent: number | null): void {
+  modelPercent = percent;
+  onModelLoad?.(percent);
+}
 
 async function fetchOk(url: string): Promise<Response> {
   const res = await fetch(url).catch(() => null);
@@ -46,9 +63,18 @@ function loadModel(): Promise<Extractor> {
     // new Function hides the import from the bundler, so the library is only ever loaded from the CDN, in the browser
     const load = new Function("u", "return import(u)") as (u: string) => Promise<Transformers>;
     const { pipeline } = await load(TRANSFORMERS_URL);
-    return pipeline("feature-extraction", MODEL, { dtype: "q8" });
+    reportModelLoad(0);
+    const model = await pipeline("feature-extraction", MODEL, {
+      dtype: "q8",
+      progress_callback: (e) => {
+        if (e.status === "progress_total" && e.progress !== undefined) reportModelLoad(Math.min(e.progress, 99));
+      },
+    });
+    reportModelLoad(100);
+    return model;
   })().catch((e) => {
     extractor = null;
+    reportModelLoad(null);
     throw new ApiError(0, `Could not load the search model in this browser: ${e instanceof Error ? e.message : e}`);
   });
   return extractor;

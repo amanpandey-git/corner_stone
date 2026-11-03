@@ -86,23 +86,31 @@ function Body({ slides, index, onIndex, onClose, headingRef }: Props & { heading
   );
 }
 
-/** Beside the answer on wide screens, so the claim and its slide can be read together. */
-export function SlideDock(props: Props) {
+/**
+ * Beside the answer on wide screens, so the claim and its slide can be read together. `takeFocus` is true when the
+ * student opened it; a panel that opens by itself after an answer leaves focus in the question box.
+ */
+export function SlideDock({ takeFocus, ...props }: Props & { takeFocus?: boolean }) {
   const { onClose } = props;
   const heading = useRef<HTMLHeadingElement>(null);
+  const closer = useRef(onClose);
+  useEffect(() => {
+    closer.current = onClose;
+  }, [onClose]);
+  const [wanted] = useState(takeFocus);
   useEffect(() => {
     // Keep where focus was, move it into the panel, and give it back on close.
-    const opener = document.activeElement as HTMLElement | null;
-    heading.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const opener = wanted ? (document.activeElement as HTMLElement | null) : null;
+    if (wanted) heading.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closer.current();
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       if (opener?.isConnected) opener.focus();
     };
-    // Runs once per panel: changing slide inside it must not move focus.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [wanted]);
   return (
     <aside aria-label="Source slide" className="panel-in rounded-xl border bg-raised shadow-sheet">
       <Body {...props} headingRef={heading} />
